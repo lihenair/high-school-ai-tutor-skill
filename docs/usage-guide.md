@@ -38,7 +38,7 @@
 
 1. 「是」：完整模式或总结阶段输出条目；「做完再生成」：学生做对或说出「生成错题本」再输出；「否」则不生成
 2. 没写「我的答案/卡点」时，不要编造「我的错误」
-3. 复制条目，或运行 `python templates/wrong-notebook-generator.py`
+3. 复制条目，或按 `templates/entry-example.json` 的写法把条目存成 JSON，运行 `python <skill目录>/templates/wrong-notebook-generator.py add entry.json` 写入错题本（复习日自动排进复习计划表；同一编号再 add 是更新，复习后更新掌握标记也走 add）
 
 ## 常见问题
 

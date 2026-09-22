@@ -256,11 +256,16 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 - 复习建议：第 1、3、7、15 天
 - 掌握标记：未掌握 / 模糊 / 已掌握
 
-写入本地错题本时，可运行：
+写入本地错题本时，运行本 skill 目录下的 `templates/wrong-notebook-generator.py`；`错题本.xlsx` 默认生成在运行命令的当前目录，`-o` 可指定路径：
 
 ```bash
-python templates/wrong-notebook-generator.py
+# 生成空白模板（三个工作表与统计公式）
+python <skill目录>/templates/wrong-notebook-generator.py
+# 追加或更新一条错题；字段同【错题本条目】，写法见 templates/entry-example.json
+python <skill目录>/templates/wrong-notebook-generator.py add entry.json -o 错题本.xlsx
 ```
+
+`add` 只要求科目和题目摘要；日期缺省今天、编号自动递增、掌握标记缺省「未掌握」，并在复习计划表自动排好第 1/3/7/15 天。同一编号再次 add 是更新该条，不会重复；学生复习后更新掌握标记也用 add。
 
 ## 自检与禁止
 
