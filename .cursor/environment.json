@@ -1,0 +1,4 @@
+{
+  "name": "High School AI Tutor Skill",
+  "install": "pip install --user openpyxl==3.1.5"
+}
