@@ -12,7 +12,7 @@
 - `templates/wrong-notebook-generator.py`：一键生成带格式的错题本 Excel
 - `templates/wrong-notebook-template.csv`：错题本 CSV 模板，可直接导入
 - `templates/validation-tracker.csv`：学习效果验证记录表
-- `docs/testing-criteria.md`：测试标准，含五维难度、正确率、复发率
+- `docs/testing-criteria.md`：测试标准，含分科难度、正确率、复发率
 - `docs/validation-guide.md`：家庭验证方法，2-4 周可执行方案
 - `docs/usage-guide.md`：使用指南，含各平台导入方法
 
