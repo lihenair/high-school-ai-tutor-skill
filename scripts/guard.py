@@ -111,7 +111,7 @@ def check(mode, text, no_student_answer):
 
     if not has_level:
         issues.append(("WARN", "W6",
-                       "未检出难度等级（基础/中等/压轴/竞赛）；若本轮是科目确认可忽略", None))
+                       "未检出难度等级（基础/中等/压轴/竞赛）；科目确认轮或同一题后续轮次（难度未变不重报）可忽略", None))
 
     for ln in check_bad_difficulty(lines):
         issues.append(("ERROR", "E5" if mode == "socratic" else "E7",
