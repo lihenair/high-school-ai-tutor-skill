@@ -2,7 +2,7 @@
 
 ## 安装与调用
 
-把 `SKILL.md`、`references/`、`templates/` 拷到 Agent 的 skills 目录 `high-school-ai-tutor/`，启用后再调用。测科目时先点名这个 skill 再发题。可以直接发照片：先核对题干和手写作答，看不清就问，不拿猜的数字往下算。
+把仓库里的 `skills/high-school-ai-tutor/` 整个目录拷到 Agent 的 skills 路径（Claude Code 用 `~/.claude/skills/`；Codex、Cursor、Gemini CLI 等共用 `~/.agents/skills/`），或用 Claude Code 插件市场安装：`/plugin marketplace add lihenair/high-school-ai-tutor-skill` 后 `/plugin install high-school-ai-tutor@lihenair`。启用后再调用。测科目时先点名这个 skill 再发题。可以直接发照片：先核对题干和手写作答，看不清就问，不拿猜的数字往下算。
 
 数学、物理、化学、生物会加载 `references/` 里对应文件；语文、英语、文综用入口里各科自己的表。
 

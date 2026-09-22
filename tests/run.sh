@@ -9,7 +9,7 @@ fail=0
 run() {
   local file=$1 mode=$2 want=$3
   shift 3
-  python3 scripts/guard.py --mode "$mode" "$@" "tests/guard-cases/$file" >/dev/null 2>&1
+  python3 skills/high-school-ai-tutor/scripts/guard.py --mode "$mode" "$@" "tests/guard-cases/$file" >/dev/null 2>&1
   local got=$?
   if [ "$got" -eq "$want" ]; then
     pass=$((pass + 1))
