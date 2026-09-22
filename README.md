@@ -36,6 +36,8 @@ cp -r references templates scripts "<skills-dir>/high-school-ai-tutor/"
 
 若工具不会按路径加载 `references/`，发题时把该科目的 `references/*.md` 与 `SKILL.md` 一并提供。
 
+在本仓库里直接对话时，`SKILL.md` 不会自动出现在 Agent 的已安装技能列表里。学生发题、发照片或说自己选了哪个选项，都要先读根目录的 `SKILL.md`，数理化生再读对应的 `references/`。文件在仓库里，不等于这套讲题规则已经启用。
+
 ## 生成与维护错题本 Excel
 
 ```bash
