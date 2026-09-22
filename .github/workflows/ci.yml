@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 守卫测试
+        run: bash tests/run.sh
+
+      - name: 清单与结构校验
+        run: python3 tests/check.py
+
+      - name: 错题本脚本冒烟测试
+        run: |
+          pip install --quiet openpyxl
+          GEN="$PWD/skills/high-school-ai-tutor/templates/wrong-notebook-generator.py"
+          EXAMPLE="$PWD/skills/high-school-ai-tutor/templates/entry-example.json"
+          TMP="$(mktemp -d)"
+          cp "$EXAMPLE" "$TMP/e.json"
+          cd "$TMP"
+          python3 "$GEN" add e.json
+          python3 - <<'EOF'
+          from openpyxl import load_workbook
+          wb = load_workbook("错题本.xlsx")
+          assert wb["错题记录"].max_row == 2, "新增条目后记录表应有 2 行"
+          assert wb["复习计划"].max_row == 2, "复习计划表应有 2 行"
+          assert wb["统计看板"].cell(row=2, column=2).value.startswith("=COUNTA"), "统计公式缺失"
+          print("错题本冒烟测试 OK")
+          EOF
