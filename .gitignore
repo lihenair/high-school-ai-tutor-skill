@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+错题本.xlsx
+.venv/
