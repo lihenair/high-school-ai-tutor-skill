@@ -1,0 +1,20 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "name": "lihenair",
+  "owner": { "name": "lihenair", "url": "https://github.com/lihenair" },
+  "description": "中国初高中讲题辅导 skill。",
+  "version": "1.0.0",
+  "plugins": [{
+    "name": "high-school-ai-tutor",
+    "source": "./",
+    "displayName": "初高中 AI 讲题辅导",
+    "description": "苏格拉底引导与直接讲解、分科难度加权、验算清单、拍照识题、错题本与间隔复习；回复发送前机检教学红线。",
+    "version": "1.0.0",
+    "author": { "name": "lihenair", "url": "https://github.com/lihenair" },
+    "homepage": "https://github.com/lihenair/high-school-ai-tutor-skill",
+    "repository": "https://github.com/lihenair/high-school-ai-tutor-skill",
+    "license": "MIT",
+    "category": "education",
+    "keywords": ["tutor", "辅导", "初高中", "中考", "高考", "苏格拉底", "错题本", "education", "china", "agent-skill"]
+  }]
+}
