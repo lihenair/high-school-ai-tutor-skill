@@ -267,6 +267,18 @@ python <skill目录>/templates/wrong-notebook-generator.py add entry.json -o 错
 
 `add` 只要求科目和题目摘要；日期缺省今天、编号自动递增、掌握标记缺省「未掌握」，并在复习计划表自动排好第 1/3/7/15 天。同一编号再次 add 是更新该条，不会重复；学生复习后更新掌握标记也用 add。
 
+## 回复守卫（发送前必跑）
+
+每一轮把要发给用户的回复先写入临时文件（如 reply.txt），运行守卫，退出码为 0 才发送；有 ERROR 时按清单修改后重检：
+
+```bash
+python3 <skill目录>/scripts/guard.py --mode socratic reply.txt   # 引导模式
+python3 <skill目录>/scripts/guard.py --mode full reply.txt       # 完整模式与总结阶段（summary 同 full）
+python3 <skill目录>/scripts/guard.py --mode socratic --no-student-answer reply.txt
+```
+
+守卫机检红线：引导模式漏答案、报加权、输出总结标题或错题本条目；完整模式缺九段标题；非法难度用词；加权与五项分不一致；--no-student-answer 时出现「我的错误」。守卫查不出内容对错——验算仍按各科清单做，自检仍照下一节执行。
+
 ## 自检与禁止
 
 1. 本轮是否只使用了苏格拉底或直接讲解？该读的 reference 是否已读、不该读的是否没读？

@@ -53,3 +53,6 @@ A：回复「切回苏格拉底，只给第一个问题，不要给完整解法�
 
 **Q：技能开着但不按规则讲题？**
 A：先用该工具的 skill 调用方式点名 `high-school-ai-tutor`，再发题。
+
+**Q：怎么确保苏格拉底模式不漏答案？**
+A：发送前把回复存成文件，跑 `python3 <skill目录>/scripts/guard.py --mode socratic reply.txt`，退出码 0 再发（完整模式/总结阶段用 `--mode full`；守卫红线清单见 README）。
