@@ -31,6 +31,8 @@ cp SKILL.md "<skills-dir>/high-school-ai-tutor/"
 cp -r references templates "<skills-dir>/high-school-ai-tutor/"
 ```
 
+注意：直接 `git clone` 本仓库得到的目录名是 `high-school-ai-tutor-skill`，与 `SKILL.md` 里的 `name: high-school-ai-tutor` 不一致；部分 Agent 要求目录名与 name 一致，clone 后请把目录重命名为 `high-school-ai-tutor`，或按上面的命令拷贝。
+
 若工具不会按路径加载 `references/`，发题时把该科目的 `references/*.md` 与 `SKILL.md` 一并提供。
 
 ## 生成与维护错题本 Excel
