@@ -21,7 +21,7 @@
 1. 下载 `SKILL.md`，复制全文
 2. 粘贴到你的 AI 工具 system prompt / 自定义指令中
 3. 按 SKILL.md 末尾的模板填写年级、科目、教材版本、题目
-4. 完整模式下自动输出错题本条目
+4. 需要错题本时，完整模式或总结阶段输出错题本条目；没有学生答案时不编造「我的错误」
 5. 运行 `python wrong-notebook-generator.py` 生成 Excel 错题本
 
 ## 生成错题本 Excel
