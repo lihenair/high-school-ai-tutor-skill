@@ -149,6 +149,19 @@ def main():
         fail(f"SKILL.md 的 guard.py 用法未覆盖参数：{'、'.join(missing_flags)}")
     print("OK SKILL.md 覆盖 guard.py 全部命令行参数")
 
+    import nodes
+    canon_problems = nodes.audit()
+    if canon_problems:
+        fail("节点正典未通过：" + "；".join(canon_problems))
+    examples = re.findall(r'--subject\s+(\S+)\s+--node\s+"([^"]+)"', text)
+    for subject, node in examples:
+        _canon_subject, _canon_node, _raw, hit = nodes.normalize(subject, node)
+        if not hit:
+            fail(f"SKILL.md 示例节点不在正典：{subject} · {node}")
+    if not examples:
+        fail("SKILL.md 应有一条带 --subject 与 --node 的判题记录示例")
+    print("OK 节点正典，SKILL.md 示例节点落在正典内")
+
     print("全部通过。")
 
 

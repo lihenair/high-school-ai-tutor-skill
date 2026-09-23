@@ -240,6 +240,14 @@ python3 <skill目录>/scripts/records.py weak
 
 按脚本原文转述。脚本说「还没有判过的题。」或「目前没有薄弱点。」时，原句照用，不要补一个脚本里没有的考点，也不要改次数。有薄弱点时，只再问要不要先补最弱的那一个。
 
+`--node` 按 `references/nodes/` 收成标准名。命中时记录里的 `node` 是标准名，`raw_node` 留学生原话。没对上正典就照原文写入，并在 stderr 看到 `WARN 未命中节点正典`。`verify_status` 先留空，不要自己填。同一考点的不同说法在 `weak` 里合成一组，旧记录没有 `raw_node` 时用 `node` 当原文。要看哪些原文还没进正典，运行：
+
+```bash
+python3 <skill目录>/scripts/records.py unmatched
+```
+
+输出表头是「频次 | 原文 | 建议补录为」。人工确认后把别名补进对应科目的 `references/nodes/*.md`，不要改已经写过的记录。
+
 ## 核心规则
 
 1. 一题多解：有 2 种以上合理方法时才提供；只有 1 种最优解时写明。

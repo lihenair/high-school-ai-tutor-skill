@@ -5,6 +5,7 @@
 
     python3 records.py add --subject 化学 --node 氧化还原反应 --stem 电石除杂 --outcome 做错 --error 概念
     python3 records.py weak
+    python3 records.py unmatched
 """
 
 import argparse
@@ -119,6 +120,33 @@ def format_weak(items):
     return "\n".join(lines)
 
 
+def unmatched_rows(path):
+    counts = {}
+    for row in _read(path):
+        raw = str(row.get("raw_node") or row.get("node") or "").strip()
+        subject = str(row.get("subject") or "").strip()
+        _canon_subject, _canon_node, _original, hit = nodes.normalize(subject, raw)
+        if hit:
+            continue
+        bucket = counts.setdefault((subject, raw), {"count": 0, "subject": subject, "raw": raw})
+        bucket["count"] += 1
+    rows = []
+    for bucket in counts.values():
+        bucket["suggest"] = nodes.suggest(bucket["subject"], bucket["raw"])
+        rows.append(bucket)
+    rows.sort(key=lambda item: (-item["count"], item["subject"], item["raw"]))
+    return rows
+
+
+def format_unmatched(rows):
+    if not rows:
+        return "没有未命中的考点。"
+    lines = ["频次 | 原文 | 建议补录为"]
+    for item in rows:
+        lines.append(f"{item['count']} | {item['subject']} · {item['raw']} | {item['suggest']}")
+    return "\n".join(lines)
+
+
 def _read(path):
     path = Path(path)
     if not path.exists():
@@ -146,6 +174,7 @@ def main(argv=None):
     add.add_argument("--date", default=None)
 
     sub.add_parser("weak", parents=[shared])
+    sub.add_parser("unmatched", parents=[shared])
 
     args = parser.parse_args(argv)
     path = args.file or default_path()
@@ -153,6 +182,8 @@ def main(argv=None):
         if args.cmd == "add":
             row = add_record(path, args.subject, args.node, args.stem, args.outcome, args.error, args.date)
             print(f"已记下：{row['subject']} · {row['node']}，{row['outcome']}")
+        elif args.cmd == "unmatched":
+            print(format_unmatched(unmatched_rows(path)))
         else:
             print(format_weak(weak_points(path)))
     except RecordError as exc:

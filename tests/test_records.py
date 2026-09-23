@@ -132,6 +132,28 @@ class RecordTests(unittest.TestCase):
         self.assertEqual(weak[0]["node"], "函数单调性")
         self.assertEqual((weak[0]["wrong"], weak[0]["correct"]), (5, 1))
 
+    def test_unmatched_counts_misses_and_suggests_a_standard_name(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            records.add_record(
+                self.path, subject="数学", node="第三章 函数单调性", stem="求参数",
+                outcome="做错", error="概念", when="2026-09-23",
+            )
+            records.add_record(
+                self.path, subject="数学", node="第三章 函数单调性", stem="再求一次",
+                outcome="做错", error="计算", when="2026-09-24",
+            )
+            records.add_record(
+                self.path, subject="数学", node="函数单调性", stem="对照",
+                outcome="做对", when="2026-09-24",
+            )
+        text = records.format_unmatched(records.unmatched_rows(self.path))
+        self.assertEqual(
+            text,
+            "频次 | 原文 | 建议补录为\n2 | 数学 · 第三章 函数单调性 | 函数单调性",
+        )
+        self.assertEqual(records.format_unmatched(records.unmatched_rows(Path(self.tmp.name) / "empty.jsonl")), "没有未命中的考点。")
+
 
 if __name__ == "__main__":
     unittest.main()
