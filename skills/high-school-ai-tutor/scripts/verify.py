@@ -11,8 +11,9 @@ Python 接口：
     python3 verify.py --expr "a <= 0" --where "2*a <= 0"
     python3 verify.py --expr "2 + 2 == 4"
 
-status 为 通过、矛盾、无法解析、未安装，四态分别对应退出码 0、1、3、4
-（2 留给命令行用法错误）。命令行会把状态打到 stdout，有 detail 时另起一行。
+status 为 通过、矛盾、无法解析、未安装（正典见 STATUSES），四态分别对应退出码
+0、1、3、4（2 留给命令行用法错误）。命令行 stdout 第一行必为状态词，有 detail 时
+第二行以 `detail:` 前缀另起一行；权威信号只看第一行。
 只有「矛盾」（退出码 1）拦住发送；无法解析、未安装都不拦。
 
 物理里已经抽成式子的计算调用同一个函数。化学守恒和生物概念不在这里。
@@ -206,6 +207,8 @@ def _relation_text(sympy, expr, assignments=()):
 
 # 四态退出码；2 留给 argparse 的用法错误。
 EXIT_CODES = {"通过": 0, "矛盾": 1, "无法解析": 3, "未安装": 4}
+# 状态词正典：check.py 遍历它比对 SKILL.md，避免 verify 单方面改名后文档漂移。
+STATUSES = tuple(EXIT_CODES)
 
 
 def main(argv=None):
@@ -221,7 +224,7 @@ def main(argv=None):
     result = check_math(args.expr, args.where)
     print(result.status)
     if result.detail:
-        print(result.detail)
+        print(f"detail: {result.detail}")
     return EXIT_CODES.get(result.status, 3)
 
 

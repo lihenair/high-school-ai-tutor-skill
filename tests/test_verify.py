@@ -84,6 +84,11 @@ class CliTests(unittest.TestCase):
         self.assertEqual(verify.EXIT_CODES,
                          {"通过": 0, "矛盾": 1, "无法解析": 3, "未安装": 4})
 
+    def test_statuses_are_the_exit_code_keys(self):
+        # 单一事实源：STATUSES 由退出码表派生，check.py 遍历它比对 SKILL.md。
+        self.assertEqual(verify.STATUSES, tuple(verify.EXIT_CODES))
+        self.assertEqual(verify.STATUSES, ("通过", "矛盾", "无法解析", "未安装"))
+
     def test_missing_sympy_returns_four(self):
         with patch.object(verify, "_import_sympy", return_value=None):
             code, stdout = self._run_main(["--expr", "2 + 2 == 4"])
@@ -107,8 +112,9 @@ class CliTests(unittest.TestCase):
 
         code, stdout = self._run_main(["--expr", "(x + 1)**2", "--where", "x**2 + 1"])
         self.assertEqual(code, 1)
-        self.assertEqual(stdout.splitlines()[0], "矛盾")
-        self.assertIn("化简差为 2*x", stdout)
+        lines = stdout.splitlines()
+        self.assertEqual(lines[0], "矛盾")
+        self.assertEqual(lines[1], "detail: 化简差为 2*x")
 
     @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
     def test_unparsable_exit_code_is_three(self):
