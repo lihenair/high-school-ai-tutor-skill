@@ -85,11 +85,18 @@ def main():
         fail("SKILL.md 应要求总结第 9 节附本题图谱")
     sys.path.insert(0, str(SKILL_DIR / "scripts"))
     import guard
-    if guard.PEP_CHEM_BX1_CH1_MARKER not in text:
-        fail("SKILL.md 应含人教版化学必修第一册（2019）第一章的整章图标记")
-    chapter_problems = guard.check_pep_chem_chapter(text) + guard.check_mermaid_edges(text)
+    map_path = SKILL_DIR / "references" / "pep-chem-bx1-ch1.md"
+    if "references/pep-chem-bx1-ch1.md" not in text:
+        fail("SKILL.md 应指向人教版化学必修第一册（2019）第一章的整章图文件")
+    if not map_path.exists():
+        fail("缺少 references/pep-chem-bx1-ch1.md")
+    map_text = map_path.read_text(encoding="utf-8")
+    if guard.PEP_CHEM_BX1_CH1_MARKER not in map_text:
+        fail("整章图文件应含人教版化学必修第一册（2019）第一章的标记")
+    chapter_problems = guard.check_pep_chem_chapter(map_text) + guard.check_mermaid_edges(map_text)
+    chapter_problems += guard.check_mermaid_edges(text)
     if chapter_problems:
-        fail("SKILL.md 里的图谱未通过守卫：" + "；".join(chapter_problems))
+        fail("图谱未通过守卫：" + "；".join(chapter_problems))
     print("OK SKILL.md 含知识图谱规则")
 
     # 6. 判完一题落一条记录，下次按脚本回答薄弱点
