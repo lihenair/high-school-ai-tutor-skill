@@ -216,6 +216,7 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 
 ```bash
 python3 <skill目录>/scripts/records.py add --subject 化学 --node "氧化还原反应" --stem "电石除杂" --outcome 做错 --error 概念
+python3 <skill目录>/scripts/records.py add --subject 数学 --node "函数单调性" --stem "求参数" --outcome 跳过 --date 2026-09-23 --file ~/.high-school-ai-tutor/records.jsonl
 ```
 
 脚本成功后，回复里用一句话确认，例如「已记下：化学 · 氧化还原反应，做错。」不要念出文件里的其他题，也不要手写一份清单代替脚本。脚本失败时说明没记下，不要假装已经保存。漏跑这条，或失败后仍写「已记下」，这轮判题记录算失败。
@@ -312,9 +313,9 @@ python3 <skill目录>/scripts/records.py unmatched
 写入本地错题本时，先跑 `scripts/notebook.py`。主库是 `~/.high-school-ai-tutor/tutor.db`，同一科目、考点、题目摘要只留一行。新错题的下次复习是记录日的后一天。学生复习后按记得程度更新，间隔用 SM-2：未掌握回到 1 天并降低难度系数，模糊按记住推进且系数略降，已掌握则拉长间隔。同一题再次 `add` 时，JSON 里只要带了掌握标记，就按这一次复习重算下次日期，标记和上次相同也要推进；没带掌握标记时只改文字，排期不动。不要改数据库路径。
 
 ```bash
-python3 <skill目录>/scripts/notebook.py add entry.json
-python3 <skill目录>/scripts/notebook.py review --id 1 --result 已掌握
-python3 <skill目录>/scripts/notebook.py due
+python3 <skill目录>/scripts/notebook.py add entry.json --db ~/.high-school-ai-tutor/tutor.db
+python3 <skill目录>/scripts/notebook.py review --id 1 --result 已掌握 --date 2026-09-24
+python3 <skill目录>/scripts/notebook.py due --date 2026-09-24
 python3 <skill目录>/scripts/notebook.py export -o 错题本.xlsx
 ```
 
