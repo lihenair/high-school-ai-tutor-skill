@@ -21,6 +21,9 @@ jobs:
       - name: 清单与结构校验
         run: python3 tests/check.py
 
+      - name: 判题记录
+        run: python3 tests/test_records.py
+
       - name: 错题本脚本冒烟测试
         run: |
           pip install --quiet openpyxl

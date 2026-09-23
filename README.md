@@ -10,6 +10,8 @@
 
 知识图谱：直接问某一章的知识图谱是什么，就用 mermaid 画出当前章。蓝是概念，绿是技能，橙是实验，灰是后续章节。贴题做答时不自动出整章图，只在内部用来选前置和拼盘题。完整讲解和做完后的总结，第 9 节附本题切片，不是整章图。细则见 `docs/usage-guide.md`。
 
+判完一题就在本机记一条（做对、做错或换题时的跳过），苏格拉底的每一小步不记。下次问薄弱点，按这份记录回答，不另编考点。记录在 `~/.high-school-ai-tutor/records.jsonl`。
+
 整章图示例：人教版《化学 必修 第一册》（2019）第一章。跨章只写章名。
 
 整章图：人教版《化学 必修 第一册》（2019）第一章
@@ -83,6 +85,7 @@ skill 本体在 `skills/high-school-ai-tutor/`：`SKILL.md` 是入口，`referen
 - `skills/high-school-ai-tutor/templates/wrong-notebook-template.csv`：错题本 CSV
 - `skills/high-school-ai-tutor/templates/validation-tracker.csv`：学习效果记录表
 - `skills/high-school-ai-tutor/scripts/guard.py`：回复守卫——发送前机检教学红线（引导模式漏答案、九段标题缺失、非法用词、加权算错）
+- `skills/high-school-ai-tutor/scripts/records.py`：判完一题写一条记录，并汇总薄弱点
 - `.claude-plugin/marketplace.json`、`.claude-plugin/plugin.json`：插件市场清单
 - `docs/`、`tests/`：文档与守卫测试用例
 
@@ -122,6 +125,17 @@ python skills/high-school-ai-tutor/templates/wrong-notebook-generator.py add ent
 `add` 的条目 JSON 字段与「错题记录」表列名一致（写法见 `templates/entry-example.json`）：`科目`、`题目摘要` 必填；`日期` 缺省今天，`编号` 自动递增，`掌握标记` 缺省「未掌握」，`错因分类` 必须是 审题/概念/计算/方法/表达/心态 之一。追加时自动在「复习计划」表按日期排好第 1/3/7/15 天。同一 `编号` 再次 `add` 是更新该条，不产生重复行；复习后更新掌握标记也走 `add`。`-o PATH` 指定错题本路径，默认当前目录的 `错题本.xlsx`。
 
 `错题本.xlsx` 含三个工作表：错题记录、复习计划、统计看板（公式自动统计到第 1000 行）。
+
+## 判题记录与薄弱点
+
+一题有了最终结果才记一条：独立做对、没做对而进入完整讲解，或换题前还没有对错。同一小步说「过」不记。用户不要完整错题本时，这条短记录仍然写。
+
+```bash
+python3 skills/high-school-ai-tutor/scripts/records.py add --subject 化学 --node "氧化还原反应" --stem "电石除杂" --outcome 做错 --error 概念
+python3 skills/high-school-ai-tutor/scripts/records.py weak
+```
+
+`weak` 只按已有记录汇总。没有记录时输出「还没有判过的题。」有记录但做错和跳过没有超过做对时，输出「目前没有薄弱点。」默认文件是 `~/.high-school-ai-tutor/records.jsonl`。
 
 ## 回复守卫
 

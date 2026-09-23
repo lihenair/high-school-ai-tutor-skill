@@ -44,8 +44,8 @@ def main():
             f"marketplace 插件={entry.get('version')} "
             f"marketplace={market.get('version')}"
         )
-    if plugin.get("version") != "1.2.0":
-        fail(f"plugin.json 版本应为 1.2.0，当前是 {plugin.get('version')}")
+    if plugin.get("version") != "1.3.0":
+        fail(f"plugin.json 版本应为 1.3.0，当前是 {plugin.get('version')}")
     if not (SKILL_DIR / "SKILL.md").exists():
         fail(f"缺少 {SKILL_DIR.relative_to(ROOT)}/SKILL.md")
     print("OK 清单交叉一致，技能目录存在")
@@ -91,6 +91,15 @@ def main():
     if chapter_problems:
         fail("SKILL.md 里的图谱未通过守卫：" + "；".join(chapter_problems))
     print("OK SKILL.md 含知识图谱规则")
+
+    # 6. 判完一题落一条记录，下次按脚本回答薄弱点
+    record_bits = ("scripts/records.py", "还没有判过的题。", "目前没有薄弱点。", "--outcome 做错", "--outcome 跳过")
+    missing_bits = [w for w in record_bits if w not in text]
+    if missing_bits:
+        fail(f"SKILL.md 缺少判题记录规则：{'、'.join(missing_bits)}")
+    if not (SKILL_DIR / "scripts" / "records.py").exists():
+        fail("缺少 scripts/records.py")
+    print("OK SKILL.md 含判题记录与薄弱点规则")
 
     print("全部通过。")
 
