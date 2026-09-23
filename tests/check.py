@@ -117,18 +117,37 @@ def main():
         fail("SKILL.md 应写明判题记录与错题本各自的写入时机和失败条件")
     print("OK SKILL.md 写明两个库的写入时机")
 
-    verify_bits = ("check_math", "已机验：通过", "未机验：无法解析", "此结果未通过机验",
-                   "verify.py --expr", "退出码")
-    missing_verify = [w for w in verify_bits if w not in text]
-    if missing_verify:
-        fail(f"SKILL.md 缺少数学机验用语：{'、'.join(missing_verify)}")
+    import verify
     verify_py = SKILL_DIR / "scripts" / "verify.py"
     if not verify_py.exists():
         fail("缺少 scripts/verify.py")
     verify_src = verify_py.read_text(encoding="utf-8")
     if '--expr' not in verify_src or '__main__' not in verify_src:
         fail("verify.py 应提供命令行入口（--expr 与 __main__）")
+
+    # 非词表锚点：兜住删除类漂移（词表本身由下面两个正典遍历钉）
+    for bit in ("check_math", "verify.py --expr", "退出码"):
+        if bit not in text:
+            fail(f"SKILL.md 缺少数学机验用语：{bit}")
+    # 标记句正典住在 guard.py，逐句钉进 SKILL.md（含「未机验：未安装 SymPy」）
+    for marker in guard.VERIFY_MARKERS:
+        if marker not in text:
+            fail(f"SKILL.md 缺少机验标记：{marker}")
+    # 状态词正典住在 verify.py，逐词钉进 SKILL.md（verify 改名即红）
+    for status in verify.STATUSES:
+        if status not in text:
+            fail(f"SKILL.md 缺少机验状态词：{status}")
     print("OK SKILL.md 含数学机验")
+
+    # 泛化钉：guard.py 的每个命令行 flag 都要出现在 SKILL.md 的某条 guard.py 调用行上。
+    # 只看含 guard.py 的行，避免 records.py 等其它脚本共用同名参数（如 --subject）造成假绿。
+    guard_src = (SKILL_DIR / "scripts" / "guard.py").read_text(encoding="utf-8")
+    guard_flags = sorted(set(re.findall(r'add_argument\(\s*["\'](--[a-z0-9-]+)["\']', guard_src)))
+    guard_doc = "\n".join(ln for ln in text.splitlines() if "guard.py" in ln)
+    missing_flags = [f for f in guard_flags if f not in guard_doc]
+    if missing_flags:
+        fail(f"SKILL.md 的 guard.py 用法未覆盖参数：{'、'.join(missing_flags)}")
+    print("OK SKILL.md 覆盖 guard.py 全部命令行参数")
 
     print("全部通过。")
 
