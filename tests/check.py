@@ -64,7 +64,7 @@ def main():
     print("OK SKILL.md 引用的分科文件齐全")
 
     # 5. 自学知识图谱：触发、边类型、做题时不整张贴出
-    required = ("知识图谱", "直接前置", "同章衔接", "常考组合")
+    required = ("知识图谱", "mermaid", "直接前置", "同章衔接", "常考组合")
     missing = [w for w in required if w not in text]
     if missing:
         fail(f"SKILL.md 缺少知识图谱规则用语：{ '、'.join(missing) }")
