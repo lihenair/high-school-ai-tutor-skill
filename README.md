@@ -8,7 +8,7 @@
 
 把本目录安装到支持 `SKILL.md` 的 Agent，或把入口和对应分科文件一并提供给对话。按课标和主流教材讲题，生成结构化错题本，并在完整模式下给出变式。
 
-知识图谱：学生说「知识图谱」或「这一章的知识」时，用 mermaid 只画当前章。贴题做答时不自动出整章图，只在内部用来选前置和拼盘题。完整讲解和做完后的总结，第 9 节附本题切片，不是整章图。细则见 `docs/usage-guide.md`。
+知识图谱：直接问某一章的知识图谱是什么，就用 mermaid 画出当前章。蓝是概念，绿是技能，橙是实验，灰是后续章节。贴题做答时不自动出整章图，只在内部用来选前置和拼盘题。完整讲解和做完后的总结，第 9 节附本题切片，不是整章图。细则见 `docs/usage-guide.md`。
 
 整章图示例：人教版《化学 必修 第一册》（2019）第一章。跨章只写章名。
 
@@ -16,29 +16,33 @@
 
 ```mermaid
 flowchart TD
+  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A
+  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A
+  classDef experiment fill:#FFF4E5,stroke:#C47B17,color:#1A1A1A
+  classDef later fill:#F4F4F5,stroke:#71717A,color:#1A1A1A
   subgraph ch1["第一章 物质及其变化"]
     subgraph s1["物质的分类及转化"]
-      mix["纯净物 / 混合物（概念）"]
-      compound["单质 / 化合物；氧化物、酸、碱、盐（概念）"]
-      cross["交叉分类法（技能）"]
-      colloid["分散系：溶液、胶体、浊液（概念）"]
-      tyndall["丁达尔效应（实验）"]
-      transform["物质的转化（概念）"]
+      mix["纯净物 / 混合物（概念）"]:::concept
+      compound["单质 / 化合物；氧化物、酸、碱、盐（概念）"]:::concept
+      cross["交叉分类法（技能）"]:::skill
+      colloid["分散系：溶液、胶体、浊液（概念）"]:::concept
+      tyndall["丁达尔效应（实验）"]:::experiment
+      transform["物质的转化（概念）"]:::concept
     end
     subgraph s2["离子反应"]
-      ionize["电解质与电离（概念）"]
-      ionEq["离子方程式（技能）"]
-      ionCond["离子反应发生的条件（概念）"]
+      ionize["电解质与电离（概念）"]:::concept
+      ionEq["离子方程式（技能）"]:::skill
+      ionCond["离子反应发生的条件（概念）"]:::concept
     end
     subgraph s3["氧化还原反应"]
-      valence["化合价升降与电子转移（概念）"]
-      agent["氧化剂 / 还原剂（概念）"]
-      basic4["四种基本反应类型与氧化还原的关系（概念）"]
+      valence["化合价升降与电子转移（概念）"]:::concept
+      agent["氧化剂 / 还原剂（概念）"]:::concept
+      basic4["四种基本反应类型与氧化还原的关系（概念）"]:::concept
     end
   end
-  ch2["第二章 钠和氯"]
-  ch2n["第二章 物质的量"]
-  ch3["第三章 铁"]
+  ch2["第二章 钠和氯"]:::later
+  ch2n["第二章 物质的量"]:::later
+  ch3["第三章 铁"]:::later
   compound -->|同章衔接| transform
   colloid -->|同章衔接| tyndall
   compound -->|同章衔接| ionize
@@ -53,14 +57,16 @@ flowchart TD
   ionEq -.->|常考组合| ch2n
 ```
 
-图例：实线=直接前置或同章衔接，虚线=常考组合。
+图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。
 
 本题切片示例：2021 年北京高考化学，电石制乙炔并用硫酸铜除杂。只标切口，不写配平和选项结论，也不写入上面的整章图。
 
 ```mermaid
 flowchart TD
-  valence["化合价升降与电子转移（概念）"] -->|直接前置| agent["氧化剂 / 还原剂：PH₃ 与 Cu²⁺（概念）"]
-  ion["离子反应（概念）"] -.->|常考组合| agent
+  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A
+  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A
+  valence["化合价升降与电子转移（概念）"]:::concept -->|直接前置| agent["氧化剂 / 还原剂：PH₃ 与 Cu²⁺（概念）"]:::concept
+  ion["离子反应（概念）"]:::concept -.->|常考组合| agent
 ```
 
 skill 本体在 `skills/high-school-ai-tutor/`：`SKILL.md` 是入口，`references/` 是分科说明。仓库本身是一个单插件市场，Claude Code 可直接 `/plugin marketplace add` 安装。

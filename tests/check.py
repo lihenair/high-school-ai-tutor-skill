@@ -44,8 +44,8 @@ def main():
             f"marketplace 插件={entry.get('version')} "
             f"marketplace={market.get('version')}"
         )
-    if plugin.get("version") != "1.1.0":
-        fail(f"plugin.json 版本应为 1.1.0，当前是 {plugin.get('version')}")
+    if plugin.get("version") != "1.2.0":
+        fail(f"plugin.json 版本应为 1.2.0，当前是 {plugin.get('version')}")
     if not (SKILL_DIR / "SKILL.md").exists():
         fail(f"缺少 {SKILL_DIR.relative_to(ROOT)}/SKILL.md")
     print("OK 清单交叉一致，技能目录存在")

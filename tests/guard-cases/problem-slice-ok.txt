@@ -2,8 +2,10 @@
 
 ```mermaid
 flowchart TD
-  valence["化合价升降与电子转移（概念）"] -->|直接前置| agent["氧化剂 / 还原剂：PH₃ 与 Cu²⁺（概念）"]
-  ion["离子反应（概念）"] -.->|常考组合| agent
+  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A
+  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A
+  valence["化合价升降与电子转移（概念）"]:::concept -->|直接前置| agent["氧化剂 / 还原剂：PH₃ 与 Cu²⁺（概念）"]:::concept
+  ion["离子反应（概念）"]:::concept -.->|常考组合| agent
 ```
 
-图例：实线=直接前置或同章衔接，虚线=常考组合。
+图例：蓝=概念，绿=技能。实线=直接前置或同章衔接，虚线=常考组合。
