@@ -20,6 +20,7 @@ run() {
 }
 
 run socratic-ok.txt    socratic 0
+run map-ok.txt         socratic 0
 run socratic-bad.txt   socratic 1
 run full-ok.txt        full     0
 run full-ok.txt        summary  0
