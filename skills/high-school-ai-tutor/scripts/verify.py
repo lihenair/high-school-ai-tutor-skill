@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
-"""数学机验。只判定已经抽好的式子，不读整篇回复，也不提供命令行。
+"""数学机验。只判定已经抽好的式子，不读整篇回复，也不送中文大题原文。
+
+Python 接口：
 
     from verify import check_math
     check_math("a <= 0", "2*a <= 0")
 
-status 为 通过、矛盾、无法解析、未安装。
+命令行（只接收抽好的式子，同样不读整篇回复）：
+
+    python3 verify.py --expr "a <= 0" --where "2*a <= 0"
+    python3 verify.py --expr "2 + 2 == 4"
+
+status 为 通过、矛盾、无法解析、未安装，四态分别对应退出码 0、1、3、4
+（2 留给命令行用法错误）。命令行会把状态打到 stdout，有 detail 时另起一行。
+只有「矛盾」（退出码 1）拦住发送；无法解析、未安装都不拦。
+
 物理里已经抽成式子的计算调用同一个函数。化学守恒和生物概念不在这里。
 """
 
@@ -192,3 +202,30 @@ def _relation_text(sympy, expr, assignments=()):
         lhs = lhs.subs(item.lhs, item.rhs)
         rhs = rhs.subs(item.lhs, item.rhs)
     return f"{sympy.simplify(lhs)} {expr.rel_op} {sympy.simplify(rhs)}"
+
+
+# 四态退出码；2 留给 argparse 的用法错误。
+EXIT_CODES = {"通过": 0, "矛盾": 1, "无法解析": 3, "未安装": 4}
+
+
+def main(argv=None):
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="数学机验：只判定抽好的式子。返回四态并按 通过0/矛盾1/无法解析3/未安装4 退出。",
+    )
+    parser.add_argument("--expr", required=True, help="抽好的最终式，例如 'a <= 0' 或 '2 + 2 == 4'")
+    parser.add_argument("--where", default="", help="条件或参照式，例如 '2*a <= 0'、'a = 1'、'x**2 + 2*x + 1'")
+    args = parser.parse_args(argv)
+
+    result = check_math(args.expr, args.where)
+    print(result.status)
+    if result.detail:
+        print(result.detail)
+    return EXIT_CODES.get(result.status, 3)
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())
