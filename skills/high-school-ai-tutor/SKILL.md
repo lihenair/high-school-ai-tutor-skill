@@ -328,9 +328,19 @@ python3 <skill目录>/scripts/guard.py --mode socratic --no-student-answer reply
 
 ## 数学机验
 
-数学完整模式在写出第 2 节之前，把最终式和条件抽出来调用 `scripts/verify.py` 里的 `check_math(最终式, 条件)`。只传入已经抽好的式子，不送整段回复，也不送中文大题原文。这一版没有命令行。
+数学完整模式在写出第 2 节之前，把最终式和条件抽出来交给 `scripts/verify.py`。只传入已经抽好的式子，不送整段回复，也不送中文大题原文。两种调用都行：
 
-返回四种状态：通过、矛盾、无法解析、未安装。只有「矛盾」拦住发送。无法解析和未安装不拦住。
+```bash
+python3 <skill目录>/scripts/verify.py --expr "最终式" --where "条件"
+python3 <skill目录>/scripts/verify.py --expr "2 + 2 == 4"   # 无条件时省略 --where
+```
+
+```python
+from verify import check_math
+check_math("最终式", "条件")
+```
+
+返回四种状态：通过、矛盾、无法解析、未安装。命令行把状态打到 stdout，对应退出码 0、1、3、4（2 留给用法错误）。只有「矛盾」（退出码 1）拦住发送；无法解析、未安装都不拦。判断是否拦发送只看退出码是否等于 1，或读 stdout 第一行是否为「矛盾」。
 
 数学完整模式在第 2 节末尾写固定一句：通过时写「已机验：通过」；无法解析时写「未机验：无法解析」；没装 SymPy 时写「未机验：未安装 SymPy」。语文、英语、史政地的完整讲解不写这两句。苏格拉底可以在内部调用，但不要把状态说出来。
 

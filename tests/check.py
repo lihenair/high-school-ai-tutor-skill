@@ -117,12 +117,17 @@ def main():
         fail("SKILL.md 应写明判题记录与错题本各自的写入时机和失败条件")
     print("OK SKILL.md 写明两个库的写入时机")
 
-    verify_bits = ("check_math", "已机验：通过", "未机验：无法解析", "此结果未通过机验")
+    verify_bits = ("check_math", "已机验：通过", "未机验：无法解析", "此结果未通过机验",
+                   "verify.py --expr", "退出码")
     missing_verify = [w for w in verify_bits if w not in text]
     if missing_verify:
         fail(f"SKILL.md 缺少数学机验用语：{'、'.join(missing_verify)}")
-    if not (SKILL_DIR / "scripts" / "verify.py").exists():
+    verify_py = SKILL_DIR / "scripts" / "verify.py"
+    if not verify_py.exists():
         fail("缺少 scripts/verify.py")
+    verify_src = verify_py.read_text(encoding="utf-8")
+    if '--expr' not in verify_src or '__main__' not in verify_src:
+        fail("verify.py 应提供命令行入口（--expr 与 __main__）")
     print("OK SKILL.md 含数学机验")
 
     print("全部通过。")

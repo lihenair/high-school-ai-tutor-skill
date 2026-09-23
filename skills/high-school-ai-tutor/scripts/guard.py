@@ -6,12 +6,13 @@
     python3 guard.py --mode socratic reply.txt     # 引导模式（苏格拉底）
     python3 guard.py --mode full reply.txt         # 完整模式 / 总结阶段（summary 同 full）
     python3 guard.py --mode socratic --no-student-answer reply.txt
+    python3 guard.py --mode full --subject math reply.txt   # 数学完整模式额外查机验标记
     cat reply.txt | python3 guard.py --mode full -
 
 退出码：0 通过（可含 WARN）；1 存在 ERROR，按清单修改后重检；2 用法错误。
 
-守卫只机检红线（漏答案、缺九段标题、缺本题 mermaid 图谱、边标签、人教版化学必修第一册第一章节点、非法用词、加权算错、编造「我的错误」），
-查不出内容对错——验算仍按各科 reference 的清单做。
+守卫只机检红线（漏答案、缺九段标题、缺本题 mermaid 图谱、边标签、人教版化学必修第一册第一章节点、非法用词、加权算错、编造「我的错误」、
+数学完整模式缺机验标记 --subject math），查不出内容对错——验算仍按各科 reference 的清单做。
 """
 
 import argparse
@@ -28,6 +29,11 @@ RULE_GUIDED = "SKILL.md「每轮输出总则 → 引导模式本轮只输出」"
 RULE_SUMMARY_FMT = "SKILL.md「题目完成后的总结格式」"
 RULE_DIFFICULTY = "SKILL.md「难度总则」"
 RULE_NOTEBOOK = "SKILL.md「错题本何时生成」「核心规则 6」"
+RULE_VERIFY = "SKILL.md「数学机验」"
+# 数学完整模式第 2 节末尾只能用这四句机验标记之一，方便家长和老师按固定规则筛。
+VERIFY_MARKERS = ("已机验：通过", "未机验：无法解析", "未机验：未安装 SymPy", "此结果未通过机验")
+# 出现「机验」二字但不是上面四句之一，视为句式漂移。
+VERIFY_LOOSE_RE = re.compile(r"机验")
 
 # 引导模式疑似给出最终结果的写法
 ANSWER_LEAK_PATTERNS = [
@@ -188,7 +194,7 @@ def check_pep_chem_chapter(text):
     return problems
 
 
-def check(mode, text, no_student_answer):
+def check(mode, text, no_student_answer, subject=None):
     issues = []  # (severity, code, message, evidence lineno or None)
 
     lines = text.splitlines()
@@ -240,6 +246,15 @@ def check(mode, text, no_student_answer):
             issues.append(("WARN", "W4", "出现超纲标注但未附「考试慎用，可能不给分」提醒", None))
         for ln in hits(r"粗心|马虎", text):
             issues.append(("WARN", "W5", f"错因写「{ln[1][:12]}…」；要给具体改进动作，不要只说粗心（第 {ln[0]} 行）", ln[0]))
+        if subject == "math":
+            has_marker = any(marker in text for marker in VERIFY_MARKERS)
+            if not has_marker:
+                if VERIFY_LOOSE_RE.search(text):
+                    issues.append(("ERROR", "E14",
+                                   "机验标记句式不对；只能用「已机验：通过 / 未机验：无法解析 / 未机验：未安装 SymPy / 此结果未通过机验」之一", None))
+                else:
+                    issues.append(("ERROR", "E14",
+                                   "数学完整模式缺少机验标记；第 2 节末尾必须写「已机验：通过 / 未机验：无法解析 / 未机验：未安装 SymPy / 此结果未通过机验」之一", None))
 
     for problem in check_mermaid_edges(text):
         issues.append(("ERROR", "E11", problem, None))
@@ -259,6 +274,7 @@ def check(mode, text, no_student_answer):
                "E11": "SKILL.md「自学知识图谱」边标签",
                "E13": "SKILL.md「自学知识图谱」节点配色",
                "E12": "SKILL.md「自学知识图谱」人教版化学必修第一册（2019）第一章",
+               "E14": RULE_VERIFY,
                "W1": RULE_GUIDED, "W2": "各科 reference「苏格拉底不要先说的内容」", "W3": RULE_GUIDED,
                "W4": "SKILL.md「核心规则 2」", "W5": "SKILL.md「错因与错题本」", "W6": RULE_DIFFICULTY}
     return [(sev, code, msg, rule_of.get(code, "")) for sev, code, msg, _ in issues]
@@ -271,6 +287,8 @@ def main():
                     help="socratic=引导模式；full/summary=完整模式与总结阶段")
     ap.add_argument("--no-student-answer", action="store_true",
                     help="上下文中没有学生作答（拦截编造「我的错误」）")
+    ap.add_argument("--subject",
+                    help="科目；填 math 时，完整模式会额外要求第 2 节末尾出现固定机验标记")
     args = ap.parse_args()
 
     if args.reply == "-":
@@ -282,7 +300,7 @@ def main():
         sys.exit("回复为空。")
 
     mode = "full" if args.mode == "summary" else args.mode
-    issues = check(mode, text, args.no_student_answer)
+    issues = check(mode, text, args.no_student_answer, args.subject)
 
     errors = [i for i in issues if i[0] == "ERROR"]
     warns = [i for i in issues if i[0] == "WARN"]

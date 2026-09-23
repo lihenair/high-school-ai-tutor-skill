@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """数学机验：只判定已经抽好的式子。未安装 SymPy 时跳过真算例。"""
 
+import contextlib
+import io
+import subprocess
 import sys
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "skills" / "high-school-ai-tutor" / "scripts"))
+SCRIPTS = ROOT / "skills" / "high-school-ai-tutor" / "scripts"
+sys.path.insert(0, str(SCRIPTS))
 
 import verify  # noqa: E402
 
@@ -65,6 +69,61 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(verify.check_math("不是式子").status, "无法解析")
         self.assertEqual(verify.check_math("a <= 0", "在 [0,3] 单调递增").status, "无法解析")
         self.assertEqual(verify.check_math("x + 1").status, "无法解析")
+
+
+class CliTests(unittest.TestCase):
+    """命令行入口：四态退出码 通过0/矛盾1/无法解析3/未安装4，用法错误交给 argparse 的 2。"""
+
+    def _run_main(self, argv):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = verify.main(argv)
+        return code, out.getvalue()
+
+    def test_exit_code_table(self):
+        self.assertEqual(verify.EXIT_CODES,
+                         {"通过": 0, "矛盾": 1, "无法解析": 3, "未安装": 4})
+
+    def test_missing_sympy_returns_four(self):
+        with patch.object(verify, "_import_sympy", return_value=None):
+            code, stdout = self._run_main(["--expr", "2 + 2 == 4"])
+        self.assertEqual(code, 4)
+        self.assertEqual(stdout.splitlines()[0], "未安装")
+
+    def test_usage_error_is_two(self):
+        with self.assertRaises(SystemExit) as ctx:
+            with contextlib.redirect_stderr(io.StringIO()):
+                verify.main([])
+        self.assertEqual(ctx.exception.code, 2)
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_pass_and_contradiction_exit_codes(self):
+        code, stdout = self._run_main(["--expr", "2 + 2 == 4"])
+        self.assertEqual(code, 0)
+        self.assertEqual(stdout.splitlines()[0], "通过")
+
+        code, stdout = self._run_main(["--expr", "(x + 1)**2", "--where", "x**2 + 2*x + 1"])
+        self.assertEqual(code, 0)
+
+        code, stdout = self._run_main(["--expr", "(x + 1)**2", "--where", "x**2 + 1"])
+        self.assertEqual(code, 1)
+        self.assertEqual(stdout.splitlines()[0], "矛盾")
+        self.assertIn("化简差为 2*x", stdout)
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_unparsable_exit_code_is_three(self):
+        code, stdout = self._run_main(["--expr", "不是式子"])
+        self.assertEqual(code, 3)
+        self.assertEqual(stdout.splitlines()[0], "无法解析")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_end_to_end_subprocess(self):
+        proc = subprocess.run(
+            [sys.executable, str(SCRIPTS / "verify.py"), "--expr", "2 + 2 == 5"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual(proc.stdout.splitlines()[0], "矛盾")
 
 
 if __name__ == "__main__":
