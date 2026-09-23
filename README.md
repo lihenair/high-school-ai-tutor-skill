@@ -80,6 +80,8 @@ skill 本体在 `skills/high-school-ai-tutor/`：`SKILL.md` 是入口，`referen
 - `skills/high-school-ai-tutor/references/physics.md`：物理难度加权、方向与单位验算
 - `skills/high-school-ai-tutor/references/chemistry.md`：化学难度加权、配平与守恒验算
 - `skills/high-school-ai-tutor/references/biology.md`：生物难度加权、术语与实验核对
+- `skills/high-school-ai-tutor/references/humanities.md`：语文、英语、历史、政治、地理的难度表
+- `skills/high-school-ai-tutor/references/pep-chem-bx1-ch1.md`：人教版化学必修第一册（2019）第一章整章图，点名时再读
 - `skills/high-school-ai-tutor/scripts/notebook.py`：错题本 SQLite。同一题改一行，复习间隔用 SM-2
 - `skills/high-school-ai-tutor/templates/wrong-notebook-generator.py`：把错题本导出成 Excel
 - `skills/high-school-ai-tutor/templates/entry-example.json`：`add` 子命令的条目写法示例
