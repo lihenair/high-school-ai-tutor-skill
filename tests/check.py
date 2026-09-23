@@ -70,6 +70,8 @@ def main():
         fail(f"SKILL.md 缺少知识图谱规则用语：{ '、'.join(missing) }")
     if "不要把整张图谱贴出来" not in text:
         fail("SKILL.md 应写明做题时不要把整张图谱贴出来")
+    if "答题时怎么用" not in text or "拼盘题" not in text:
+        fail("SKILL.md 应写明答题时怎么用图谱，并区分拼盘题与换考点")
     print("OK SKILL.md 含知识图谱规则")
 
     print("全部通过。")
