@@ -21,6 +21,9 @@ jobs:
       - name: 清单与结构校验
         run: python3 tests/check.py
 
+      - name: check.py 咬合自测
+        run: python3 tests/test_check_bites.py
+
       - name: 判题记录
         run: python3 tests/test_records.py
 
