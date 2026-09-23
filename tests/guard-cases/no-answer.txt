@@ -29,5 +29,7 @@
 
 ```mermaid
 flowchart TD
-  domain["定义域（概念）"] -->|直接前置| mono["单调性（技能）"]
+  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A
+  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A
+  domain["定义域（概念）"]:::concept -->|直接前置| mono["单调性（技能）"]:::skill
 ```

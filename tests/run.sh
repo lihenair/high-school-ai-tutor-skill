@@ -26,6 +26,7 @@ run problem-slice-ok.txt socratic 0
 run socratic-bad.txt   socratic 1
 run chapter-map-bad.txt socratic 1
 run edge-bad.txt       socratic 1
+run style-bad.txt      socratic 1
 run full-ok.txt        full     0
 run full-ok.txt        summary  0
 run full-bad.txt       full     1

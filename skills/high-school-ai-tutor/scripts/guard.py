@@ -150,6 +150,27 @@ def chapter_mermaid(text):
     return found.group(1)
 
 
+def check_mermaid_style(text):
+    """概念、技能、实验、后续章节用固定配色，避免默认灰图。"""
+    problems = []
+    for block in mermaid_blocks(text):
+        if "classDef concept " not in block:
+            problems.append("mermaid 缺少概念配色 classDef concept")
+        if "classDef skill " not in block:
+            problems.append("mermaid 缺少技能配色 classDef skill")
+        if "（实验）" in block and "classDef experiment " not in block:
+            problems.append("有实验节点但缺少 classDef experiment")
+        if "第二章" in block and "classDef later " not in block:
+            problems.append("有后续章节节点但缺少 classDef later")
+        if "（概念）" in block and ":::concept" not in block:
+            problems.append("概念节点未标 :::concept")
+        if "（技能）" in block and ":::skill" not in block:
+            problems.append("技能节点未标 :::skill")
+        if "（实验）" in block and ":::experiment" not in block:
+            problems.append("实验节点未标 :::experiment")
+    return problems
+
+
 def check_pep_chem_chapter(text):
     """整章图标记出现时，核这一章的节点是否齐全，并拒绝电石题里的物质。"""
     block = chapter_mermaid(text)
@@ -222,6 +243,8 @@ def check(mode, text, no_student_answer):
 
     for problem in check_mermaid_edges(text):
         issues.append(("ERROR", "E11", problem, None))
+    for problem in check_mermaid_style(text):
+        issues.append(("ERROR", "E13", problem, None))
     for problem in check_pep_chem_chapter(text):
         issues.append(("ERROR", "E12", problem, None))
 
@@ -234,6 +257,7 @@ def check(mode, text, no_student_answer):
                "E8": RULE_DIFFICULTY + " 计分规则", "E9": RULE_NOTEBOOK,
                "E10": RULE_SUMMARY_FMT + " 第 9 节本题图谱",
                "E11": "SKILL.md「自学知识图谱」边标签",
+               "E13": "SKILL.md「自学知识图谱」节点配色",
                "E12": "SKILL.md「自学知识图谱」人教版化学必修第一册（2019）第一章",
                "W1": RULE_GUIDED, "W2": "各科 reference「苏格拉底不要先说的内容」", "W3": RULE_GUIDED,
                "W4": "SKILL.md「核心规则 2」", "W5": "SKILL.md「错因与错题本」", "W6": RULE_DIFFICULTY}
