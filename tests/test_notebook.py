@@ -87,6 +87,27 @@ class NotebookTests(unittest.TestCase):
         self.assertEqual(len(due), 1)
         self.assertIn("函数单调性", notebook.format_due(due))
 
+    def test_readd_with_same_mastery_still_advances_schedule(self):
+        notebook.add_entry(self.db, {
+            "日期": "2026-09-23",
+            "科目": "数学",
+            "章节/知识点": "函数单调性",
+            "题目摘要": "求参数 a",
+            "掌握标记": "模糊",
+        })
+        again = notebook.add_entry(self.db, {
+            "日期": "2026-09-24",
+            "科目": "数学",
+            "章节/知识点": "函数单调性",
+            "题目摘要": "求参数 a",
+            "掌握标记": "模糊",
+        })
+        self.assertEqual(again["mastery"], "模糊")
+        self.assertEqual(again["reps"], 1)
+        self.assertEqual(again["interval_days"], 1)
+        self.assertEqual(again["due"], "2026-09-25")
+        self.assertEqual(again["ease"], 2.36)
+
     def test_fuzzy_review_counts_as_pass_and_drops_ease(self):
         notebook.add_entry(self.db, {
             "日期": "2026-09-23",

@@ -117,7 +117,7 @@ cp -r skills/high-school-ai-tutor ~/.agents/skills/
 
 ## 错题本
 
-主库是 `~/.high-school-ai-tutor/tutor.db`。同一科目、考点、题目摘要只留一行。新错题的下次复习是记录日的后一天；复习时按未掌握、模糊、已掌握更新，间隔用 SM-2，不再排死第 1、3、7、15 天。`records.jsonl` 只记判题结果，不代替错题本。
+主库是 `~/.high-school-ai-tutor/tutor.db`。同一科目、考点、题目摘要只留一行。新错题的下次复习是记录日的后一天；复习时按未掌握、模糊、已掌握更新，间隔用 SM-2，不再排死第 1、3、7、15 天。同一题再次写入时只要带了掌握标记，标记没变也会推进下次日期。`records.jsonl` 只记判题结果，不代替错题本。
 
 ```bash
 python3 skills/high-school-ai-tutor/scripts/notebook.py add entry.json
