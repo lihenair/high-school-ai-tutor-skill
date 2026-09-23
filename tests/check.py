@@ -106,6 +106,9 @@ def main():
     if not (SKILL_DIR / "scripts" / "notebook.py").exists():
         fail("缺少 scripts/notebook.py")
     print("OK SKILL.md 含 SM-2 错题本")
+    if "已记入错题本" not in text or "漏跑这条" not in text:
+        fail("SKILL.md 应写明判题记录与错题本各自的写入时机和失败条件")
+    print("OK SKILL.md 写明两个库的写入时机")
 
     print("全部通过。")
 
