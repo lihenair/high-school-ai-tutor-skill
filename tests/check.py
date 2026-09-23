@@ -37,6 +37,15 @@ def main():
         fail(f"插件名不一致：marketplace={entry['name']} plugin.json={plugin['name']}")
     if entry["source"] != "./":
         fail(f"单插件仓库 source 应为 ./，当前是 {entry['source']}")
+    if plugin.get("version") != entry.get("version") or plugin.get("version") != market.get("version"):
+        fail(
+            "版本不一致："
+            f"plugin.json={plugin.get('version')} "
+            f"marketplace 插件={entry.get('version')} "
+            f"marketplace={market.get('version')}"
+        )
+    if plugin.get("version") != "1.1.0":
+        fail(f"plugin.json 版本应为 1.1.0，当前是 {plugin.get('version')}")
     if not (SKILL_DIR / "SKILL.md").exists():
         fail(f"缺少 {SKILL_DIR.relative_to(ROOT)}/SKILL.md")
     print("OK 清单交叉一致，技能目录存在")
