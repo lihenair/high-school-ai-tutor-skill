@@ -9,7 +9,7 @@
     python3 guard.py --mode full --subject math reply.txt   # 数学完整模式额外查机验标记
     cat reply.txt | python3 guard.py --mode full -
 
-退出码：0 通过（可含 WARN）；1 存在 ERROR，按清单修改后重检；2 用法错误。
+退出码：0 = 无 ERROR（可含 WARN，仍可发送，与 SKILL.md「退出码为 0 才发送」一致）；1 存在 ERROR，按清单修改后重检；2 用法错误。
 
 守卫只机检红线（漏答案、缺九段标题、缺本题 mermaid 图谱、边标签、人教版化学必修第一册第一章节点、非法用词、加权算错、编造「我的错误」、
 数学完整模式缺机验标记 --subject math），查不出内容对错——验算仍按各科 reference 的清单做。
@@ -287,7 +287,7 @@ def main():
                     help="socratic=引导模式；full/summary=完整模式与总结阶段")
     ap.add_argument("--no-student-answer", action="store_true",
                     help="上下文中没有学生作答（拦截编造「我的错误」）")
-    ap.add_argument("--subject",
+    ap.add_argument("--subject", choices=["math"],
                     help="科目；填 math 时，完整模式会额外要求第 2 节末尾出现固定机验标记")
     args = ap.parse_args()
 
