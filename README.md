@@ -87,10 +87,12 @@ skill 本体在 `skills/high-school-ai-tutor/`：`SKILL.md` 是入口，`referen
 - `skills/high-school-ai-tutor/templates/entry-example.json`：`add` 子命令的条目写法示例
 - `skills/high-school-ai-tutor/templates/wrong-notebook-template.csv`：错题本 CSV
 - `skills/high-school-ai-tutor/templates/validation-tracker.csv`：学习效果记录表
-- `skills/high-school-ai-tutor/scripts/guard.py`：回复守卫——发送前机检教学红线（引导模式漏答案、九段标题缺失、非法用词、加权算错）
+- `skills/high-school-ai-tutor/scripts/guard.py`：回复守卫——发送前机检教学红线（引导模式漏答案、九段标题缺失、非法用词、加权算错；数学完整模式另查机验标记）
 - `skills/high-school-ai-tutor/scripts/records.py`：判完一题写一条记录，并汇总薄弱点
+- `skills/high-school-ai-tutor/scripts/verify.py`：数学机验。只判定已经抽好的式子，返回通过、矛盾、无法解析、未安装
 - `.claude-plugin/marketplace.json`、`.claude-plugin/plugin.json`：插件市场清单
-- `docs/`、`tests/`：文档与守卫测试用例
+- `docs/`：使用指南、测试标准、效果验证
+- `tests/`：守卫用例、清单校验 `check.py`，以及判题记录、错题本、数学机验和 `check.py` 咬合自测
 
 ## 安装
 
@@ -150,6 +152,34 @@ python3 skills/high-school-ai-tutor/scripts/records.py weak
 python3 skills/high-school-ai-tutor/scripts/guard.py --mode socratic reply.txt    # 引导模式（苏格拉底）
 python3 skills/high-school-ai-tutor/scripts/guard.py --mode full reply.txt        # 完整模式 / 总结阶段
 python3 skills/high-school-ai-tutor/scripts/guard.py --mode socratic --no-student-answer reply.txt
+python3 skills/high-school-ai-tutor/scripts/guard.py --mode full --subject math reply.txt   # 数学完整模式：额外查机验标记
 ```
 
-引导模式查：漏答案、报加权、输出总结标题、错题本条目、问号过多、先说破关键公式。完整模式查：九段标题齐全、第 9 节有本题 mermaid 图谱、难度用词、加权与五项分一致。两种模式都查边标签；只有写明人教版化学必修第一册（2019）第一章整章图时，才核这一章的节点是否齐全。`--no-student-answer` 拦截无学生作答时编造「我的错误」。守卫只查红线，查不出内容对错——验算仍按各科 reference 清单做。测试用例在 `tests/`：`bash tests/run.sh`。
+引导模式查：漏答案、报加权、输出总结标题、错题本条目、问号过多、先说破关键公式。完整模式查：九段标题齐全、第 9 节有本题 mermaid 图谱、难度用词、加权与五项分一致。两种模式都查边标签；只有写明人教版化学必修第一册（2019）第一章整章图时，才核这一章的节点是否齐全。`--no-student-answer` 拦截无学生作答时编造「我的错误」。数学完整模式加上 `--subject math`，并要求第 2 节末尾出现机验标记。守卫只查红线，查不出内容对错——验算仍按各科 reference 清单做。数学式子交给下一节的 `verify.py`。
+
+## 数学机验
+
+数学完整模式在写出第 2 节之前，把最终式和条件交给 `scripts/verify.py`。只传入已经抽好的式子，不送整段回复，也不送中文大题原文。
+
+```bash
+python3 skills/high-school-ai-tutor/scripts/verify.py --expr "最终式" --where "条件"
+python3 skills/high-school-ai-tutor/scripts/verify.py --expr "2 + 2 == 4"
+```
+
+stdout 第一行是状态词，退出码为通过 0、矛盾 1、无法解析 3、未安装 4（2 留给用法错误）。有细节时第二行以 `detail:` 开头。只有「矛盾」拦住发送。通过时回复写「已机验：通过」；无法解析写「未机验：无法解析」；没装 SymPy 写「未机验：未安装 SymPy」。连续两次矛盾后写「此结果未通过机验」，不要把矛盾的式子当成正确答案。语文、英语、史政地的完整讲解不写这些句子。物理里已经抽成数值式的计算，以及生物里抽成式子的比例、浓度、计数，用同一个入口。单位、化学方程式配平、生物概念和实验结论这一版不机验。
+
+## 本地检查
+
+与 CI 同一批命令。咬合自测只读常量，放在安装 SymPy 之前即可。
+
+```bash
+bash tests/run.sh
+python3 tests/check.py
+python3 tests/test_check_bites.py
+python3 tests/test_records.py
+python3 tests/test_notebook.py
+pip install 'sympy==1.13.3'
+python3 tests/test_verify.py
+```
+
+`tests/check.py` 核对插件清单、技能目录和 `SKILL.md`：机验标记、状态词，以及 `guard.py` 的每个命令行参数，都要还在文档里。`tests/test_check_bites.py` 在临时整仓副本里各拆一条（删掉 `--subject` 那一行、把状态词 `通过` 改成 `通过_X`、删掉最后一条机验标记），确认退出码非零，且失败原因就是被拆的那一条。副本忽略 `.git`、`__pycache__`、`*.pyc` 和 `.venv`，不改真实工作树。错题本 Excel 冒烟另在 CI 里跑，需要 `openpyxl`。
