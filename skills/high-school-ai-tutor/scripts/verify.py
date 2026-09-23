@@ -131,7 +131,7 @@ def _closed(sympy, claim):
     if status == "通过":
         return VerifyResult("通过")
     if status == "矛盾":
-        return VerifyResult("矛盾")
+        return VerifyResult("矛盾", f"化简为 {_relation_text(sympy, claim)}")
     return VerifyResult("无法解析", "这个式子不是恒真或恒假")
 
 
@@ -143,7 +143,8 @@ def _substitute(sympy, claim, assignments):
     if status == "通过":
         return VerifyResult("通过")
     if status == "矛盾":
-        return VerifyResult("矛盾")
+        values = "，".join(f"{item.lhs} = {item.rhs}" for item in assignments)
+        return VerifyResult("矛盾", f"代入 {values} 后为 {_relation_text(sympy, claim, assignments)}")
     return VerifyResult("无法解析", "代入后仍无法判断")
 
 
@@ -158,7 +159,7 @@ def _expressions_equal(sympy, left, right):
     if same is True:
         return VerifyResult("通过")
     if same is False:
-        return VerifyResult("矛盾")
+        return VerifyResult("矛盾", f"化简差为 {diff}")
     return VerifyResult("无法解析", "两个式子无法判断是否相同")
 
 
@@ -177,4 +178,17 @@ def _relations_equal(sympy, claim, reference):
         return VerifyResult("无法解析", "解集无法比较")
     if got == expected:
         return VerifyResult("通过")
-    return VerifyResult("矛盾")
+    return VerifyResult("矛盾", f"解集 {got} 与 {expected}")
+
+
+def _relation_text(sympy, expr, assignments=()):
+    if not _is_relational(sympy, expr):
+        value = expr
+        for item in assignments:
+            value = value.subs(item.lhs, item.rhs)
+        return str(sympy.simplify(value))
+    lhs, rhs = expr.lhs, expr.rhs
+    for item in assignments:
+        lhs = lhs.subs(item.lhs, item.rhs)
+        rhs = rhs.subs(item.lhs, item.rhs)
+    return f"{sympy.simplify(lhs)} {expr.rel_op} {sympy.simplify(rhs)}"
