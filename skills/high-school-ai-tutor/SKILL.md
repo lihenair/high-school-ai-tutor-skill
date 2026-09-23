@@ -322,7 +322,10 @@ python3 <skill目录>/scripts/notebook.py export -o 错题本.xlsx
 python3 <skill目录>/scripts/guard.py --mode socratic reply.txt   # 引导模式
 python3 <skill目录>/scripts/guard.py --mode full reply.txt       # 完整模式与总结阶段（summary 同 full）
 python3 <skill目录>/scripts/guard.py --mode socratic --no-student-answer reply.txt
+python3 <skill目录>/scripts/guard.py --mode full --subject math reply.txt   # 数学完整模式：额外查机验标记
 ```
+
+数学完整模式跑守卫时带上该科目参数，其它科目不带。
 
 守卫机检红线：引导模式漏答案、报加权、输出总结标题或错题本条目；完整模式缺九段标题或本题 mermaid 图谱；边标签不是三种之一或线型用错；节点没有按概念、技能、实验、后续章节配色；人教版化学必修第一册（2019）第一章整章图缺节点或写入电石、PH₃、Cu₃P；非法难度用词；加权与五项分不一致；--no-student-answer 时出现「我的错误」。守卫查不出内容对错——验算仍按各科清单做，自检仍照下一节执行。数学式子的对错走下面的机验，不要把 SymPy 放进守卫。
 
@@ -340,7 +343,9 @@ from verify import check_math
 check_math("最终式", "条件")
 ```
 
-返回四种状态：通过、矛盾、无法解析、未安装。命令行把状态打到 stdout，对应退出码 0、1、3、4（2 留给用法错误）。只有「矛盾」（退出码 1）拦住发送；无法解析、未安装都不拦。判断是否拦发送只看退出码是否等于 1，或读 stdout 第一行是否为「矛盾」。
+返回四种状态：通过、矛盾、无法解析、未安装。命令行把状态打到 stdout，对应退出码 0、1、3、4（2 留给用法错误）；stdout 第一行必为状态词，有 detail 时第二行以 `detail:` 前缀另起一行。只有「矛盾」（退出码 1）拦住发送；无法解析、未安装都不拦。判断是否拦发送只看退出码是否等于 1，或读 stdout 第一行是否为「矛盾」。
+
+机验标记必须由 stdout 首行背书：首行是四态词之一时，才据此写对应标记；退出码为 2 或首行不是状态词，属调用错误，改对再调，不得凭空写「已机验：通过」。
 
 数学完整模式在第 2 节末尾写固定一句：通过时写「已机验：通过」；无法解析时写「未机验：无法解析」；没装 SymPy 时写「未机验：未安装 SymPy」。语文、英语、史政地的完整讲解不写这两句。苏格拉底可以在内部调用，但不要把状态说出来。
 
