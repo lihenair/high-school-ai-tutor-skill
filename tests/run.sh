@@ -32,6 +32,9 @@ run full-ok.txt        summary  0
 run full-bad.txt       full     1
 run no-answer.txt      full     0
 run no-answer.txt      full     1 --no-student-answer
+run full-ok.txt         full    1 --subject math
+run math-verify-ok.txt  full    0 --subject math
+run math-verify-ok.txt  full    0
 
 echo "通过 $pass / $((pass + fail))"
 [ "$fail" -eq 0 ]
