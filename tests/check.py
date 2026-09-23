@@ -72,6 +72,8 @@ def main():
         fail("SKILL.md 应写明做题时不要把整张图谱贴出来")
     if "答题时怎么用" not in text or "拼盘题" not in text:
         fail("SKILL.md 应写明答题时怎么用图谱，并区分拼盘题与换考点")
+    if "本题图谱" not in text:
+        fail("SKILL.md 应要求总结第 9 节附本题图谱")
     print("OK SKILL.md 含知识图谱规则")
 
     print("全部通过。")

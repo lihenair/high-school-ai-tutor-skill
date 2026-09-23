@@ -10,7 +10,7 @@
 
 退出码：0 通过（可含 WARN）；1 存在 ERROR，按清单修改后重检；2 用法错误。
 
-守卫只机检红线（漏答案、缺九段标题、非法用词、加权算错、编造「我的错误」），
+守卫只机检红线（漏答案、缺九段标题、缺本题 mermaid 图谱、非法用词、加权算错、编造「我的错误」），
 查不出内容对错——验算仍按各科 reference 的清单做。
 """
 
@@ -149,6 +149,8 @@ def check(mode, text, no_student_answer):
             if abs(claimed - expect) > 0.005:
                 issues.append(("ERROR", "E8",
                                f"加权与五项分不一致：{scores} 应得 {expect:.2f}，写的是 {claimed:.2f}", None))
+        if "```mermaid" not in text:
+            issues.append(("ERROR", "E10", "完整模式或总结阶段缺少本题 mermaid 图谱", None))
         if re.search(r"超纲|【大学知识下放", text) and not re.search(r"慎用|不给分", text):
             issues.append(("WARN", "W4", "出现超纲标注但未附「考试慎用，可能不给分」提醒", None))
         for ln in hits(r"粗心|马虎", text):
@@ -161,6 +163,7 @@ def check(mode, text, no_student_answer):
     rule_of = {"E1": RULE_GUIDED, "E2": RULE_SUMMARY_FMT, "E3": RULE_GUIDED + " " + RULE_NOTEBOOK,
                "E4": RULE_GUIDED, "E5": RULE_DIFFICULTY, "E6": RULE_SUMMARY_FMT, "E7": RULE_DIFFICULTY,
                "E8": RULE_DIFFICULTY + " 计分规则", "E9": RULE_NOTEBOOK,
+               "E10": RULE_SUMMARY_FMT + " 第 9 节本题图谱",
                "W1": RULE_GUIDED, "W2": "各科 reference「苏格拉底不要先说的内容」", "W3": RULE_GUIDED,
                "W4": "SKILL.md「核心规则 2」", "W5": "SKILL.md「错因与错题本」", "W6": RULE_DIFFICULTY}
     return [(sev, code, msg, rule_of.get(code, "")) for sev, code, msg, _ in issues]

@@ -72,4 +72,4 @@ python3 skills/high-school-ai-tutor/scripts/guard.py --mode full reply.txt      
 python3 skills/high-school-ai-tutor/scripts/guard.py --mode socratic --no-student-answer reply.txt
 ```
 
-引导模式查：漏答案、报加权、输出总结标题、错题本条目、问号过多、先说破关键公式。完整模式查：九段标题齐全、难度用词、加权与五项分一致。`--no-student-answer` 拦截无学生作答时编造「我的错误」。守卫只查红线，查不出内容对错——验算仍按各科 reference 清单做。测试用例在 `tests/`：`bash tests/run.sh`。
+引导模式查：漏答案、报加权、输出总结标题、错题本条目、问号过多、先说破关键公式。完整模式查：九段标题齐全、第 9 节有本题 mermaid 图谱、难度用词、加权与五项分一致。`--no-student-answer` 拦截无学生作答时编造「我的错误」。守卫只查红线，查不出内容对错——验算仍按各科 reference 清单做。测试用例在 `tests/`：`bash tests/run.sh`。
