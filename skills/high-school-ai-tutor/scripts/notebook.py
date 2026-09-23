@@ -16,6 +16,8 @@ import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import nodes
+
 ERROR_CATEGORIES = ("审题", "概念", "计算", "方法", "表达", "心态")
 MASTERY_STATES = ("未掌握", "模糊", "已掌握")
 QUALITY = {"未掌握": 2, "模糊": 3, "已掌握": 5}
@@ -84,7 +86,13 @@ def add_entry(path, entry, when=None):
     mastery = str(entry.get("掌握标记") or "").strip()
     if mastery and mastery not in MASTERY_STATES:
         raise NotebookError("掌握标记只能是未掌握、模糊、已掌握")
-    node = str(entry.get("章节/知识点") or "").strip()
+    raw_node = str(entry.get("章节/知识点") or "").strip()
+    canon_subject, canon_node, raw_node, hit = nodes.normalize(subject, raw_node)
+    if hit:
+        subject, node = canon_subject, canon_node
+    else:
+        node = raw_node
+        nodes.warn_miss(subject, raw_node)
     created = _parse_day(entry.get("日期") or when or date.today().isoformat())
     conn = _connect(path)
     try:
@@ -98,6 +106,8 @@ def add_entry(path, entry, when=None):
                 "created": created.isoformat(),
                 "subject": subject,
                 "node": node,
+                "raw_node": raw_node,
+                "verify_status": "",
                 "stem": stem,
                 "mastery": mastery or "未掌握",
                 "ease": 2.5,
@@ -127,6 +137,9 @@ def add_entry(path, entry, when=None):
         if mastery:
             reviewed = _apply_review(dict(row), mastery, created)
             updates.update(reviewed)
+        if "章节/知识点" in entry:
+            updates["node"] = node
+            updates["raw_node"] = raw_node
         if updates:
             sets = ", ".join(f"{name} = ?" for name in updates)
             conn.execute(
@@ -235,6 +248,8 @@ def _connect(path):
             subject TEXT NOT NULL,
             textbook TEXT DEFAULT '',
             node TEXT DEFAULT '',
+            raw_node TEXT DEFAULT '',
+            verify_status TEXT DEFAULT '',
             stem TEXT NOT NULL,
             my_error TEXT DEFAULT '',
             error_type TEXT DEFAULT '',
@@ -255,6 +270,11 @@ def _connect(path):
         )
         """
     )
+    columns = {row[1] for row in conn.execute("PRAGMA table_info(cards)")}
+    if "raw_node" not in columns:
+        conn.execute("ALTER TABLE cards ADD COLUMN raw_node TEXT DEFAULT ''")
+    if "verify_status" not in columns:
+        conn.execute("ALTER TABLE cards ADD COLUMN verify_status TEXT DEFAULT ''")
     return conn
 
 
