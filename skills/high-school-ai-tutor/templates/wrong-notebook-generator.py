@@ -4,18 +4,18 @@
 用法：
     pip install openpyxl
     python wrong-notebook-generator.py                 # 生成空白模板 错题本.xlsx（含一条示例与统计公式）
-    python wrong-notebook-generator.py add entry.json  # 追加或更新一条错题
+    python wrong-notebook-generator.py add entry.json  # 写入 SQLite，并导出 Excel
     python wrong-notebook-generator.py add -           # 从 stdin 读条目 JSON
 
 选项：
-    -o PATH    错题本路径，默认当前目录的 错题本.xlsx；放在 add 前后均可
+    -o PATH    导出的 Excel 路径，默认当前目录的 错题本.xlsx
+    --db PATH  错题本数据库，默认 ~/.high-school-ai-tutor/tutor.db
 
 条目 JSON 的键与「错题记录」表的列名一致（示例见 entry-example.json）：
 - 必填：科目、题目摘要
-- 日期 缺省为今天；编号 缺省自动递增；掌握标记 缺省「未掌握」；复习次数 缺省 0
+- 同一科目、考点、题目摘要再次 add 会改这一行，不另起一条
 - 错因分类 给出时必须是 审题/概念/计算/方法/表达/心态 之一
-- 追加后自动在「复习计划」表按日期填好第 1/3/7/15 天
-- 同一编号再次 add 视为更新该条，不产生重复行；复习后更新掌握标记也用 add
+- 新错题的下次复习是记录日的后一天。复习结果用 notebook.py review，间隔按 SM-2 伸缩
 """
 
 import argparse
@@ -34,11 +34,9 @@ RECORD_HEADERS = [
     "正确思路", "关键步骤", "易错点提醒",
     "变式题", "变式答案", "掌握标记", "复习次数", "备注",
 ]
-PLAN_HEADERS = ["编号", "题目摘要", "首次记录", "第1天", "第3天", "第7天", "第15天",
-                "第1次结果", "第2次结果", "第3次结果", "第4次结果", "最终状态"]
+PLAN_HEADERS = ["编号", "题目摘要", "首次记录", "下次复习", "间隔天数", "难度系数", "连续记住", "掌握标记"]
 ERROR_CATEGORIES = ("审题", "概念", "计算", "方法", "表达", "心态")
 MASTERY_STATES = ("未掌握", "模糊", "已掌握")
-REVIEW_OFFSETS = (1, 3, 7, 15)
 
 # ---------- 样式 ----------
 header_font = Font(bold=True, color="FFFFFF", size=11)
@@ -97,11 +95,9 @@ def build_template(include_sample=True):
     ws2.append(PLAN_HEADERS)
     style_header(ws2, 1, len(PLAN_HEADERS))
     if include_sample:
-        ws2.append(["001", "二次函数递增求参数", "2026-09-22", "2026-09-23",
-                    "2026-09-25", "2026-09-29", "2026-10-07",
-                    "未掌握", "", "", "", "复习中"])
+        ws2.append(["001", "二次函数递增求参数", "2026-09-22", "2026-09-23", 1, 2.5, 0, "未掌握"])
         style_body(ws2, 2, 2, len(PLAN_HEADERS))
-    widths2 = [6, 24, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12]
+    widths2 = [8, 24, 12, 12, 10, 10, 10, 10]
     for i, w in enumerate(widths2, 1):
         ws2.column_dimensions[get_column_letter(i)].width = w
     ws2.freeze_panes = "A2"
@@ -197,10 +193,46 @@ def find_row_by_id(ws, entry_id):
     return None
 
 
+def workbook_from_cards(cards):
+    """按数据库里的卡片重写三张表。下次复习日来自 SM-2。"""
+    wb = build_template(include_sample=False)
+    ws1, ws2 = wb["错题记录"], wb["复习计划"]
+    for card in cards:
+        record = [
+            str(card["id"]).zfill(3),
+            card["created"],
+            card.get("grade") or "",
+            card["subject"],
+            card.get("textbook") or "",
+            card.get("node") or "",
+            card["stem"],
+            card.get("my_error") or "",
+            card.get("error_type") or "",
+            card.get("error_detail") or "",
+            card.get("correct_approach") or "",
+            card.get("key_steps") or "",
+            card.get("pitfall") or "",
+            card.get("variant") or "",
+            card.get("variant_answer") or "",
+            card.get("mastery") or "",
+            card.get("reps") or 0,
+            card.get("note") or "",
+        ]
+        ws1.append(record)
+        ws2.append([
+            record[0], card["stem"], card["created"], card["due"],
+            card["interval_days"], card["ease"], card["reps"], card["mastery"],
+        ])
+    if cards:
+        style_body(ws1, 2, 1 + len(cards), len(RECORD_HEADERS))
+        style_body(ws2, 2, 1 + len(cards), len(PLAN_HEADERS))
+    return wb
+
+
 def add_entry(wb, entry):
+    """保留给直接改 Excel 的旧调用。新错题的下次复习是记录日的后一天。"""
     ws1, ws2 = wb["错题记录"], wb["复习计划"]
     record, first = normalize_entry(entry, ws1)
-
     r1 = find_row_by_id(ws1, record[0])
     is_update = r1 is not None
     if r1 is None:
@@ -210,31 +242,28 @@ def add_entry(wb, entry):
         for c, v in enumerate(record, 1):
             ws1.cell(row=r1, column=c, value=v)
     style_body(ws1, r1, r1, len(RECORD_HEADERS))
-
-    review = [(first + timedelta(days=n)).isoformat() for n in REVIEW_OFFSETS]
+    due = (first + timedelta(days=1)).isoformat()
+    plan = [record[0], record[6], record[1], due, 1, 2.5, record[16], record[15]]
     r2 = find_row_by_id(ws2, record[0])
     if r2 is None:
-        ws2.append([record[0], record[6], record[1],
-                    *review, "", "", "", "", "复习中"])
+        ws2.append(plan)
         r2 = ws2.max_row
     else:
-        # 更新摘要与复习日期；复习结果与最终状态保留已填内容
-        ws2.cell(row=r2, column=2, value=record[6])
-        ws2.cell(row=r2, column=3, value=record[1])
-        for c, v in zip((4, 5, 6, 7), review):
+        for c, v in enumerate(plan, 1):
             ws2.cell(row=r2, column=c, value=v)
     style_body(ws2, r2, r2, len(PLAN_HEADERS))
-
-    return record, review, is_update
+    return record, due, is_update
 
 
 def main():
     parser = argparse.ArgumentParser(description="错题本生成与维护")
-    parser.add_argument("-o", "--output", default="错题本.xlsx", help="错题本路径")
+    parser.add_argument("-o", "--output", default="错题本.xlsx", help="导出的 Excel 路径")
+    parser.add_argument("--db", default=None, help="错题本数据库，默认 ~/.high-school-ai-tutor/tutor.db")
     sub = parser.add_subparsers(dest="command")
-    p_add = sub.add_parser("add", help="追加或更新一条错题")
+    p_add = sub.add_parser("add", help="写入数据库并导出 Excel")
     p_add.add_argument("entry", help="条目 JSON 文件路径，- 表示 stdin")
-    p_add.add_argument("-o", "--output", default=argparse.SUPPRESS, help="错题本路径")
+    p_add.add_argument("-o", "--output", default=argparse.SUPPRESS, help="导出的 Excel 路径")
+    p_add.add_argument("--db", default=argparse.SUPPRESS, help="错题本数据库")
     args = parser.parse_args()
 
     if args.command != "add":
@@ -250,13 +279,19 @@ def main():
     if not isinstance(entry, dict):
         sys.exit("条目 JSON 应为一个对象（一组「列名: 值」）。")
 
-    wb = open_notebook(args.output)
-    record, review, is_update = add_entry(wb, entry)
-    wb.save(args.output)
-    action = "已更新" if is_update else "已写入"
-    print(f"{action} {args.output}：编号 {record[0]}（{record[3]}）"
-          f"「{str(record[6])[:20]}…」 复习日 第1天 {review[0]} / 第3天 {review[1]} "
-          f"/ 第7天 {review[2]} / 第15天 {review[3]}")
+    import importlib.util
+    nb_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "notebook.py")
+    spec = importlib.util.spec_from_file_location("tutor_notebook", os.path.abspath(nb_path))
+    nb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(nb)
+    db = args.db or nb.default_path()
+    try:
+        card = nb.add_entry(db, entry)
+    except nb.NotebookError as exc:
+        sys.exit(str(exc))
+    workbook_from_cards(nb.list_cards(db)).save(args.output)
+    print(f"已写入 {db}：编号 {card['id']}（{card['subject']}）"
+          f"「{str(card['stem'])[:20]}」 下次复习 {card['due']}，并导出 {args.output}")
 
 
 if __name__ == "__main__":
