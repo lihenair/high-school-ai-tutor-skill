@@ -124,11 +124,9 @@ def add_entry(path, entry, when=None):
                 updates[column] = str(entry[key])
         if error_type:
             updates["error_type"] = error_type
-        if mastery and mastery != row["mastery"]:
+        if mastery:
             reviewed = _apply_review(dict(row), mastery, created)
             updates.update(reviewed)
-        elif updates:
-            pass
         if updates:
             sets = ", ".join(f"{name} = ?" for name in updates)
             conn.execute(

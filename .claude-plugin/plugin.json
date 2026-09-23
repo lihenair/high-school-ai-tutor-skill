@@ -1,7 +1,7 @@
 {
   "name": "high-school-ai-tutor",
   "displayName": "初高中 AI 讲题辅导",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "苏格拉底引导与直接讲解、分科难度加权、验算清单、拍照识题、章节知识图谱、错题本（SQLite，SM-2 复习）与判题记录；回复发送前机检教学红线。",
   "author": { "name": "lihenair", "url": "https://github.com/lihenair" },
   "homepage": "https://github.com/lihenair/high-school-ai-tutor-skill",
