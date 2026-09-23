@@ -57,7 +57,7 @@ python3 <skill目录>/scripts/records.py weak
 
 1. 「是」：完整模式或总结阶段输出条目；「做完再生成」：学生做对或说出「生成错题本」再输出；「否」则不生成
 2. 没写「我的答案/卡点」时，不要编造「我的错误」
-3. 复制条目，或按 `templates/entry-example.json` 的写法把条目存成 JSON，运行 `python <skill目录>/templates/wrong-notebook-generator.py add entry.json` 写入错题本（复习日自动排进复习计划表；同一编号再 add 是更新，复习后更新掌握标记也走 add）
+3. 复制条目，或按 `templates/entry-example.json` 的写法把条目存成 JSON，运行 `python3 <skill目录>/scripts/notebook.py add entry.json` 写入 `~/.high-school-ai-tutor/tutor.db`。同一科目、考点、题目摘要会改原来那一行。复习时运行 `notebook.py review --id 编号 --result 未掌握|模糊|已掌握`，下次日期按 SM-2 计算。问今天复习什么时运行 `notebook.py due`。需要表格时再 `export`。
 
 ## 常见问题
 

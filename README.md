@@ -80,7 +80,8 @@ skill 本体在 `skills/high-school-ai-tutor/`：`SKILL.md` 是入口，`referen
 - `skills/high-school-ai-tutor/references/physics.md`：物理难度加权、方向与单位验算
 - `skills/high-school-ai-tutor/references/chemistry.md`：化学难度加权、配平与守恒验算
 - `skills/high-school-ai-tutor/references/biology.md`：生物难度加权、术语与实验核对
-- `skills/high-school-ai-tutor/templates/wrong-notebook-generator.py`：生成并维护错题本 Excel（模板生成、追加与更新条目）
+- `skills/high-school-ai-tutor/scripts/notebook.py`：错题本 SQLite。同一题改一行，复习间隔用 SM-2
+- `skills/high-school-ai-tutor/templates/wrong-notebook-generator.py`：把错题本导出成 Excel
 - `skills/high-school-ai-tutor/templates/entry-example.json`：`add` 子命令的条目写法示例
 - `skills/high-school-ai-tutor/templates/wrong-notebook-template.csv`：错题本 CSV
 - `skills/high-school-ai-tutor/templates/validation-tracker.csv`：学习效果记录表
@@ -114,17 +115,19 @@ cp -r skills/high-school-ai-tutor ~/.agents/skills/
 
 在本仓库里直接对话时，`SKILL.md` 不会自动出现在 Agent 的已安装技能列表里。学生发题、发照片或说自己选了哪个选项，都要先读 `skills/high-school-ai-tutor/SKILL.md`，数理化生再读对应的 `references/`。文件在仓库里，不等于这套讲题规则已经启用。
 
-## 生成与维护错题本 Excel
+## 错题本
+
+主库是 `~/.high-school-ai-tutor/tutor.db`。同一科目、考点、题目摘要只留一行。新错题的下次复习是记录日的后一天；复习时按未掌握、模糊、已掌握更新，间隔用 SM-2，不再排死第 1、3、7、15 天。`records.jsonl` 只记判题结果，不代替错题本。
 
 ```bash
+python3 skills/high-school-ai-tutor/scripts/notebook.py add entry.json
+python3 skills/high-school-ai-tutor/scripts/notebook.py review --id 1 --result 已掌握
+python3 skills/high-school-ai-tutor/scripts/notebook.py due
 pip install openpyxl
-python skills/high-school-ai-tutor/templates/wrong-notebook-generator.py                 # 生成空白模板（含示例与统计公式）
-python skills/high-school-ai-tutor/templates/wrong-notebook-generator.py add entry.json  # 追加或更新一条错题
+python3 skills/high-school-ai-tutor/scripts/notebook.py export -o 错题本.xlsx
 ```
 
-`add` 的条目 JSON 字段与「错题记录」表列名一致（写法见 `templates/entry-example.json`）：`科目`、`题目摘要` 必填；`日期` 缺省今天，`编号` 自动递增，`掌握标记` 缺省「未掌握」，`错因分类` 必须是 审题/概念/计算/方法/表达/心态 之一。追加时自动在「复习计划」表按日期排好第 1/3/7/15 天。同一 `编号` 再次 `add` 是更新该条，不产生重复行；复习后更新掌握标记也走 `add`。`-o PATH` 指定错题本路径，默认当前目录的 `错题本.xlsx`。
-
-`错题本.xlsx` 含三个工作表：错题记录、复习计划、统计看板（公式自动统计到第 1000 行）。
+`add` 的 JSON 字段与错题记录表列名一致（写法见 `templates/entry-example.json`）：`科目`、`题目摘要` 必填。导出的 Excel 仍是三张表：错题记录、复习计划、统计看板。复习计划列出下次复习日、间隔天数和难度系数。
 
 ## 判题记录与薄弱点
 

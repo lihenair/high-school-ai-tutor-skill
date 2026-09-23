@@ -23,7 +23,7 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 | 生物 | `references/biology.md` |
 | 语文、英语、历史、政治、地理 | 不加载上面四份；用本文件的「其他科目」一节 |
 
-路径相对本 `SKILL.md` 所在目录。错题本脚本在 `templates/wrong-notebook-generator.py`。判题记录脚本在 `scripts/records.py`。
+路径相对本 `SKILL.md` 所在目录。错题本脚本在 `scripts/notebook.py`。判题记录脚本在 `scripts/records.py`。
 
 ## 拍照识题
 
@@ -410,19 +410,21 @@ python3 <skill目录>/scripts/records.py weak
 - 典型易错：（仅在没有学生答案时使用，并标明推测）
 - 错因分类 / 错因细化 / 正确思路 / 关键步骤 / 易错点提醒
 - 变式练习：（1 道及参考答案；不能确定时不要写确定答案）
-- 复习建议：第 1、3、7、15 天
+- 复习建议：下次复习日按 SM-2 计算，不写死第 1、3、7、15 天
 - 掌握标记：未掌握 / 模糊 / 已掌握
 
-写入本地错题本时，运行本 skill 目录下的 `templates/wrong-notebook-generator.py`；`错题本.xlsx` 默认生成在运行命令的当前目录，`-o` 可指定路径：
+写入本地错题本时，先跑 `scripts/notebook.py`。主库是 `~/.high-school-ai-tutor/tutor.db`，同一科目、考点、题目摘要只留一行。新错题的下次复习是记录日的后一天。学生复习后按记得程度更新，间隔用 SM-2：未掌握回到 1 天并降低难度系数，模糊按记住推进且系数略降，已掌握则拉长间隔。不要改数据库路径。
 
 ```bash
-# 生成空白模板（三个工作表与统计公式）
-python <skill目录>/templates/wrong-notebook-generator.py
-# 追加或更新一条错题；字段同【错题本条目】，写法见 templates/entry-example.json
-python <skill目录>/templates/wrong-notebook-generator.py add entry.json -o 错题本.xlsx
+python3 <skill目录>/scripts/notebook.py add entry.json
+python3 <skill目录>/scripts/notebook.py review --id 1 --result 已掌握
+python3 <skill目录>/scripts/notebook.py due
+python3 <skill目录>/scripts/notebook.py export -o 错题本.xlsx
 ```
 
-`add` 只要求科目和题目摘要；日期缺省今天、编号自动递增、掌握标记缺省「未掌握」，并在复习计划表自动排好第 1/3/7/15 天。同一编号再次 add 是更新该条，不会重复；学生复习后更新掌握标记也用 add。
+`add` 的 JSON 字段与【错题本条目】一致，写法见 `templates/entry-example.json`。必填科目和题目摘要。错因分类只能是审题、概念、计算、方法、表达、心态。学生问「今天复习什么」时先跑 `due`，按脚本原文念到期的题，不要自己排日期。
+
+需要 Excel 时再 `export`，或用 `templates/wrong-notebook-generator.py add entry.json`，它会写入同一个数据库并导出工作簿。复习计划表只保留下次复习日、间隔天数和难度系数。`records.jsonl` 仍只记判题结果，不代替错题本。
 
 ## 回复守卫（发送前必跑）
 

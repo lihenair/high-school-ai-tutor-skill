@@ -44,8 +44,8 @@ def main():
             f"marketplace 插件={entry.get('version')} "
             f"marketplace={market.get('version')}"
         )
-    if plugin.get("version") != "1.3.0":
-        fail(f"plugin.json 版本应为 1.3.0，当前是 {plugin.get('version')}")
+    if plugin.get("version") != "1.4.0":
+        fail(f"plugin.json 版本应为 1.4.0，当前是 {plugin.get('version')}")
     if not (SKILL_DIR / "SKILL.md").exists():
         fail(f"缺少 {SKILL_DIR.relative_to(ROOT)}/SKILL.md")
     print("OK 清单交叉一致，技能目录存在")
@@ -100,6 +100,12 @@ def main():
     if not (SKILL_DIR / "scripts" / "records.py").exists():
         fail("缺少 scripts/records.py")
     print("OK SKILL.md 含判题记录与薄弱点规则")
+
+    if "tutor.db" not in text or "SM-2" not in text or "notebook.py review" not in text:
+        fail("SKILL.md 应写明错题本数据库、SM-2 和复习命令")
+    if not (SKILL_DIR / "scripts" / "notebook.py").exists():
+        fail("缺少 scripts/notebook.py")
+    print("OK SKILL.md 含 SM-2 错题本")
 
     print("全部通过。")
 
