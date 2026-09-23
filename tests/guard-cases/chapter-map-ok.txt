@@ -1,0 +1,44 @@
+整章图：人教版《化学 必修 第一册》（2019）第一章
+
+```mermaid
+flowchart TD
+  subgraph ch1["第一章 物质及其变化"]
+    subgraph s1["物质的分类及转化"]
+      mix["纯净物 / 混合物（概念）"]
+      compound["单质 / 化合物；氧化物、酸、碱、盐（概念）"]
+      cross["交叉分类法（技能）"]
+      colloid["分散系：溶液、胶体、浊液（概念）"]
+      tyndall["丁达尔效应（实验）"]
+      transform["物质的转化（概念）"]
+    end
+    subgraph s2["离子反应"]
+      ionize["电解质与电离（概念）"]
+      ionEq["离子方程式（技能）"]
+      ionCond["离子反应发生的条件（概念）"]
+    end
+    subgraph s3["氧化还原反应"]
+      valence["化合价升降与电子转移（概念）"]
+      agent["氧化剂 / 还原剂（概念）"]
+      basic4["四种基本反应类型与氧化还原的关系（概念）"]
+    end
+  end
+  ch2["第二章 钠和氯"]
+  ch2n["第二章 物质的量"]
+  ch3["第三章 铁"]
+  compound -->|同章衔接| transform
+  colloid -->|同章衔接| tyndall
+  compound -->|同章衔接| ionize
+  ionize -->|直接前置| ionEq
+  ionEq -->|直接前置| ionCond
+  valence -->|直接前置| agent
+  agent -->|同章衔接| basic4
+  ionEq -.->|常考组合| valence
+  ionEq -.->|常考组合| ch2
+  valence -.->|常考组合| ch2
+  valence -.->|常考组合| ch3
+  ionEq -.->|常考组合| ch2n
+```
+
+图例：实线=直接前置或同章衔接，虚线=常考组合。
+
+先学哪个节点：物质的分类、离子反应，还是氧化还原？

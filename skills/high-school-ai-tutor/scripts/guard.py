@@ -10,7 +10,7 @@
 
 退出码：0 通过（可含 WARN）；1 存在 ERROR，按清单修改后重检；2 用法错误。
 
-守卫只机检红线（漏答案、缺九段标题、缺本题 mermaid 图谱、非法用词、加权算错、编造「我的错误」），
+守卫只机检红线（漏答案、缺九段标题、缺本题 mermaid 图谱、边标签、人教版化学必修第一册第一章节点、非法用词、加权算错、编造「我的错误」），
 查不出内容对错——验算仍按各科 reference 的清单做。
 """
 
@@ -48,6 +48,19 @@ BAD_DIFFICULTY_RE = re.compile(r"偏难|偏易|中等偏上|中等偏下|较难|
 HEADING_RE = re.compile(r"^#{2,3}\s*([0-9０-９])\s*[\.、．]\s*(\S+)")
 SCORES_RE = re.compile(r"([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*分")
 WEIGHTED_EXPANSION_RE = re.compile(r"0\.30\s*[×x*]")
+MERMAID_RE = re.compile(r"```mermaid\n(.*?)```", re.S)
+LABELED_EDGE_RE = re.compile(r"(-\.->|-->)\s*\|([^|\n]+)\|")
+EDGE_LABELS = {"直接前置", "同章衔接", "常考组合"}
+SOLID_LABELS = {"直接前置", "同章衔接"}
+# 只核这一册这一章的整章图。本题切片不要写这一行。
+PEP_CHEM_BX1_CH1_MARKER = "整章图：人教版《化学 必修 第一册》（2019）第一章"
+PEP_CHEM_BX1_CH1_REQUIRED = (
+    "纯净物", "混合物", "单质", "化合物", "氧化物", "酸", "碱", "盐",
+    "交叉分类", "分散系", "丁达尔", "物质的转化",
+    "电解质", "电离", "离子方程式", "离子反应发生的条件",
+    "化合价", "氧化剂", "还原剂", "四种基本反应类型",
+)
+PEP_CHEM_BX1_CH1_FORBIDDEN = ("电石", "PH₃", "PH3", "Cu₃P", "Cu3P")
 
 
 def fullwidth_int(ch):
@@ -103,6 +116,57 @@ def check_weighted(lines):
     return scores, claimed, round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)
 
 
+def mermaid_blocks(text):
+    return MERMAID_RE.findall(text)
+
+
+def check_mermaid_edges(text):
+    """每条边的标签只能是三种，线型要和标签一致。返回问题说明。"""
+    problems = []
+    for block in mermaid_blocks(text):
+        for arrow, label in LABELED_EDGE_RE.findall(block):
+            label = label.strip()
+            if label not in EDGE_LABELS:
+                problems.append(f"边标签「{label}」不在直接前置、同章衔接、常考组合之中")
+                continue
+            if label in SOLID_LABELS and arrow != "-->":
+                problems.append(f"「{label}」要用实线 -->")
+            if label == "常考组合" and arrow != "-.->":
+                problems.append("「常考组合」要用虚线 -.->")
+        leftover = LABELED_EDGE_RE.sub("", block)
+        if re.search(r"-\.->|-->", leftover):
+            problems.append("mermaid 里有未标注类型的边")
+    return problems
+
+
+def chapter_mermaid(text):
+    """标记行之后的第一张 mermaid。没有标记则返回 None。"""
+    idx = text.find(PEP_CHEM_BX1_CH1_MARKER)
+    if idx < 0:
+        return None
+    found = MERMAID_RE.search(text[idx:])
+    if not found:
+        return ""
+    return found.group(1)
+
+
+def check_pep_chem_chapter(text):
+    """整章图标记出现时，核这一章的节点是否齐全，并拒绝电石题里的物质。"""
+    block = chapter_mermaid(text)
+    if block is None:
+        return []
+    if block == "":
+        return ["写了人教版化学必修第一册（2019）第一章的整章图标记，但后面没有 mermaid"]
+    problems = []
+    missing = [name for name in PEP_CHEM_BX1_CH1_REQUIRED if name not in block]
+    if missing:
+        problems.append("这一章整章图缺少节点：" + "、".join(missing))
+    present = [name for name in PEP_CHEM_BX1_CH1_FORBIDDEN if name in block]
+    if present:
+        problems.append("这一章整章图写入了题目物质：" + "、".join(present))
+    return problems
+
+
 def check(mode, text, no_student_answer):
     issues = []  # (severity, code, message, evidence lineno or None)
 
@@ -156,6 +220,11 @@ def check(mode, text, no_student_answer):
         for ln in hits(r"粗心|马虎", text):
             issues.append(("WARN", "W5", f"错因写「{ln[1][:12]}…」；要给具体改进动作，不要只说粗心（第 {ln[0]} 行）", ln[0]))
 
+    for problem in check_mermaid_edges(text):
+        issues.append(("ERROR", "E11", problem, None))
+    for problem in check_pep_chem_chapter(text):
+        issues.append(("ERROR", "E12", problem, None))
+
     if no_student_answer and hits(r"我的错误[：:]", text):
         issues.append(("ERROR", "E9",
                        "上下文没有学生作答却写了「我的错误：」；只能写「典型易错（推测）」", None))
@@ -164,6 +233,8 @@ def check(mode, text, no_student_answer):
                "E4": RULE_GUIDED, "E5": RULE_DIFFICULTY, "E6": RULE_SUMMARY_FMT, "E7": RULE_DIFFICULTY,
                "E8": RULE_DIFFICULTY + " 计分规则", "E9": RULE_NOTEBOOK,
                "E10": RULE_SUMMARY_FMT + " 第 9 节本题图谱",
+               "E11": "SKILL.md「自学知识图谱」边标签",
+               "E12": "SKILL.md「自学知识图谱」人教版化学必修第一册（2019）第一章",
                "W1": RULE_GUIDED, "W2": "各科 reference「苏格拉底不要先说的内容」", "W3": RULE_GUIDED,
                "W4": "SKILL.md「核心规则 2」", "W5": "SKILL.md「错因与错题本」", "W6": RULE_DIFFICULTY}
     return [(sev, code, msg, rule_of.get(code, "")) for sev, code, msg, _ in issues]

@@ -74,6 +74,13 @@ def main():
         fail("SKILL.md 应写明答题时怎么用图谱，并区分拼盘题与换考点")
     if "本题图谱" not in text:
         fail("SKILL.md 应要求总结第 9 节附本题图谱")
+    sys.path.insert(0, str(SKILL_DIR / "scripts"))
+    import guard
+    if guard.PEP_CHEM_BX1_CH1_MARKER not in text:
+        fail("SKILL.md 应含人教版化学必修第一册（2019）第一章的整章图标记")
+    chapter_problems = guard.check_pep_chem_chapter(text) + guard.check_mermaid_edges(text)
+    if chapter_problems:
+        fail("SKILL.md 里的图谱未通过守卫：" + "；".join(chapter_problems))
     print("OK SKILL.md 含知识图谱规则")
 
     print("全部通过。")

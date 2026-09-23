@@ -10,6 +10,59 @@
 
 知识图谱：学生说「知识图谱」或「这一章的知识」时，用 mermaid 只画当前章。贴题做答时不自动出整章图，只在内部用来选前置和拼盘题。完整讲解和做完后的总结，第 9 节附本题切片，不是整章图。细则见 `docs/usage-guide.md`。
 
+整章图示例：人教版《化学 必修 第一册》（2019）第一章。跨章只写章名。
+
+整章图：人教版《化学 必修 第一册》（2019）第一章
+
+```mermaid
+flowchart TD
+  subgraph ch1["第一章 物质及其变化"]
+    subgraph s1["物质的分类及转化"]
+      mix["纯净物 / 混合物（概念）"]
+      compound["单质 / 化合物；氧化物、酸、碱、盐（概念）"]
+      cross["交叉分类法（技能）"]
+      colloid["分散系：溶液、胶体、浊液（概念）"]
+      tyndall["丁达尔效应（实验）"]
+      transform["物质的转化（概念）"]
+    end
+    subgraph s2["离子反应"]
+      ionize["电解质与电离（概念）"]
+      ionEq["离子方程式（技能）"]
+      ionCond["离子反应发生的条件（概念）"]
+    end
+    subgraph s3["氧化还原反应"]
+      valence["化合价升降与电子转移（概念）"]
+      agent["氧化剂 / 还原剂（概念）"]
+      basic4["四种基本反应类型与氧化还原的关系（概念）"]
+    end
+  end
+  ch2["第二章 钠和氯"]
+  ch2n["第二章 物质的量"]
+  ch3["第三章 铁"]
+  compound -->|同章衔接| transform
+  colloid -->|同章衔接| tyndall
+  compound -->|同章衔接| ionize
+  ionize -->|直接前置| ionEq
+  ionEq -->|直接前置| ionCond
+  valence -->|直接前置| agent
+  agent -->|同章衔接| basic4
+  ionEq -.->|常考组合| valence
+  ionEq -.->|常考组合| ch2
+  valence -.->|常考组合| ch2
+  valence -.->|常考组合| ch3
+  ionEq -.->|常考组合| ch2n
+```
+
+图例：实线=直接前置或同章衔接，虚线=常考组合。
+
+本题切片示例：2021 年北京高考化学，电石制乙炔并用硫酸铜除杂。只标切口，不写配平和选项结论，也不写入上面的整章图。
+
+```mermaid
+flowchart TD
+  valence["化合价升降与电子转移（概念）"] -->|直接前置| agent["氧化剂 / 还原剂：PH₃ 与 Cu²⁺（概念）"]
+  ion["离子反应（概念）"] -.->|常考组合| agent
+```
+
 skill 本体在 `skills/high-school-ai-tutor/`：`SKILL.md` 是入口，`references/` 是分科说明。仓库本身是一个单插件市场，Claude Code 可直接 `/plugin marketplace add` 安装。
 
 ## 包含内容
@@ -74,4 +127,4 @@ python3 skills/high-school-ai-tutor/scripts/guard.py --mode full reply.txt      
 python3 skills/high-school-ai-tutor/scripts/guard.py --mode socratic --no-student-answer reply.txt
 ```
 
-引导模式查：漏答案、报加权、输出总结标题、错题本条目、问号过多、先说破关键公式。完整模式查：九段标题齐全、第 9 节有本题 mermaid 图谱、难度用词、加权与五项分一致。`--no-student-answer` 拦截无学生作答时编造「我的错误」。守卫只查红线，查不出内容对错——验算仍按各科 reference 清单做。测试用例在 `tests/`：`bash tests/run.sh`。
+引导模式查：漏答案、报加权、输出总结标题、错题本条目、问号过多、先说破关键公式。完整模式查：九段标题齐全、第 9 节有本题 mermaid 图谱、难度用词、加权与五项分一致。两种模式都查边标签；只有写明人教版化学必修第一册（2019）第一章整章图时，才核这一章的节点是否齐全。`--no-student-answer` 拦截无学生作答时编造「我的错误」。守卫只查红线，查不出内容对错——验算仍按各科 reference 清单做。测试用例在 `tests/`：`bash tests/run.sh`。
