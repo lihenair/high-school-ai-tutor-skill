@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """错题本：同一题改一行，复习间隔按 SM-2 伸缩。"""
 
+import contextlib
+import io
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -119,6 +122,79 @@ class NotebookTests(unittest.TestCase):
         self.assertEqual(card["reps"], 1)
         self.assertEqual(card["interval_days"], 1)
         self.assertEqual(card["ease"], 2.36)
+
+    def test_alias_collapses_to_one_card_and_keeps_raw_node(self):
+        card = notebook.add_entry(self.db, {
+            "日期": "2026-09-23",
+            "科目": "数学",
+            "章节/知识点": "必修一 函数单调性",
+            "题目摘要": "求参数 a",
+        })
+        self.assertEqual(card["node"], "函数单调性")
+        self.assertEqual(card["raw_node"], "必修一 函数单调性")
+        self.assertEqual(card["verify_status"], "")
+        again = notebook.add_entry(self.db, {
+            "日期": "2026-09-24",
+            "科目": "数学",
+            "章节/知识点": "函数单调性",
+            "题目摘要": "求参数 a",
+        })
+        self.assertEqual(again["id"], card["id"])
+        self.assertEqual(len(notebook.list_cards(self.db)), 1)
+
+    def test_unknown_node_warns_and_keeps_the_original(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            card = notebook.add_entry(self.db, {
+                "日期": "2026-09-23",
+                "科目": "化学",
+                "章节/知识点": "电石除杂",
+                "题目摘要": "除杂试剂",
+            })
+        self.assertEqual(card["node"], "电石除杂")
+        self.assertEqual(card["raw_node"], "电石除杂")
+        self.assertIn("WARN 未命中节点正典：化学 · 电石除杂", err.getvalue())
+
+    def test_existing_database_gains_reserved_columns(self):
+        conn = sqlite3.connect(self.db)
+        conn.execute(
+            """
+            CREATE TABLE cards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created TEXT NOT NULL,
+                grade TEXT DEFAULT '',
+                subject TEXT NOT NULL,
+                textbook TEXT DEFAULT '',
+                node TEXT DEFAULT '',
+                stem TEXT NOT NULL,
+                my_error TEXT DEFAULT '',
+                error_type TEXT DEFAULT '',
+                error_detail TEXT DEFAULT '',
+                correct_approach TEXT DEFAULT '',
+                key_steps TEXT DEFAULT '',
+                pitfall TEXT DEFAULT '',
+                variant TEXT DEFAULT '',
+                variant_answer TEXT DEFAULT '',
+                mastery TEXT NOT NULL,
+                ease REAL NOT NULL,
+                interval_days INTEGER NOT NULL,
+                reps INTEGER NOT NULL,
+                due TEXT NOT NULL,
+                last_review TEXT DEFAULT '',
+                note TEXT DEFAULT ''
+            )
+            """
+        )
+        conn.commit()
+        conn.close()
+        card = notebook.add_entry(self.db, {
+            "日期": "2026-09-23",
+            "科目": "数学",
+            "章节/知识点": "函数单调性",
+            "题目摘要": "求参数 a",
+        })
+        self.assertEqual(card["verify_status"], "")
+        self.assertEqual(card["raw_node"], "函数单调性")
 
 
 if __name__ == "__main__":

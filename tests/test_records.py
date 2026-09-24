@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """判题记录：一题一条，下次按考点汇总薄弱点。"""
 
+import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -93,6 +95,64 @@ class RecordTests(unittest.TestCase):
         )
         self.assertNotIn("答案", saved["stem"])
         self.assertLessEqual(len(saved["stem"]), 40)
+
+    def test_hit_stores_standard_name_and_raw_node(self):
+        saved = records.add_record(
+            self.path, subject="数学", node="必修一 函数单调性", stem="求参数",
+            outcome="做错", error="概念", when="2026-09-23",
+        )
+        self.assertEqual(saved["subject"], "数学")
+        self.assertEqual(saved["node"], "函数单调性")
+        self.assertEqual(saved["raw_node"], "必修一 函数单调性")
+        self.assertEqual(saved["verify_status"], "")
+
+    def test_miss_keeps_original_and_warns(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            saved = records.add_record(
+                self.path, subject="化学", node="电石除杂", stem="除杂试剂",
+                outcome="做错", error="概念", when="2026-09-23",
+            )
+        self.assertEqual(saved["node"], "电石除杂")
+        self.assertEqual(saved["raw_node"], "电石除杂")
+        self.assertIn("WARN 未命中节点正典：化学 · 电石除杂", err.getvalue())
+
+    def test_old_rows_without_raw_node_merge_on_read(self):
+        rows = [
+            {"id": 1, "date": "2026-09-23", "subject": "数学", "node": "函数单调性", "stem": "甲", "outcome": "做错", "error": "概念"},
+            {"id": 2, "date": "2026-09-23", "subject": "数学", "node": "函数单调性", "stem": "乙", "outcome": "做错", "error": "计算"},
+            {"id": 3, "date": "2026-09-23", "subject": "数学", "node": "函数单调性", "stem": "丙", "outcome": "做错", "error": "方法"},
+            {"id": 4, "date": "2026-09-23", "subject": "数学", "node": "函数单调性", "stem": "丁", "outcome": "做对", "error": ""},
+            {"id": 5, "date": "2026-09-23", "subject": "数学", "node": "必修一 函数单调性", "stem": "戊", "outcome": "做错", "error": "概念"},
+            {"id": 6, "date": "2026-09-23", "subject": "数学", "node": "必修一 函数单调性", "stem": "己", "outcome": "做错", "error": "概念"},
+        ]
+        self.path.write_text("".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows), encoding="utf-8")
+        weak = records.weak_points(self.path)
+        self.assertEqual(len(weak), 1)
+        self.assertEqual(weak[0]["node"], "函数单调性")
+        self.assertEqual((weak[0]["wrong"], weak[0]["correct"]), (5, 1))
+
+    def test_unmatched_counts_misses_and_suggests_a_standard_name(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            records.add_record(
+                self.path, subject="数学", node="第三章 函数单调性", stem="求参数",
+                outcome="做错", error="概念", when="2026-09-23",
+            )
+            records.add_record(
+                self.path, subject="数学", node="第三章 函数单调性", stem="再求一次",
+                outcome="做错", error="计算", when="2026-09-24",
+            )
+            records.add_record(
+                self.path, subject="数学", node="函数单调性", stem="对照",
+                outcome="做对", when="2026-09-24",
+            )
+        text = records.format_unmatched(records.unmatched_rows(self.path))
+        self.assertEqual(
+            text,
+            "频次 | 原文 | 建议补录为\n2 | 数学 · 第三章 函数单调性 | 函数单调性",
+        )
+        self.assertEqual(records.format_unmatched(records.unmatched_rows(Path(self.tmp.name) / "empty.jsonl")), "没有未命中的考点。")
 
 
 if __name__ == "__main__":

@@ -139,15 +139,35 @@ def main():
             fail(f"SKILL.md 缺少机验状态词：{status}")
     print("OK SKILL.md 含数学机验")
 
-    # 泛化钉：guard.py 的每个命令行 flag 都要出现在 SKILL.md 的某条 guard.py 调用行上。
-    # 只看含 guard.py 的行，避免 records.py 等其它脚本共用同名参数（如 --subject）造成假绿。
-    guard_src = (SKILL_DIR / "scripts" / "guard.py").read_text(encoding="utf-8")
-    guard_flags = sorted(set(re.findall(r'add_argument\(\s*["\'](--[a-z0-9-]+)["\']', guard_src)))
-    guard_doc = "\n".join(ln for ln in text.splitlines() if "guard.py" in ln)
-    missing_flags = [f for f in guard_flags if f not in guard_doc]
-    if missing_flags:
-        fail(f"SKILL.md 的 guard.py 用法未覆盖参数：{'、'.join(missing_flags)}")
-    print("OK SKILL.md 覆盖 guard.py 全部命令行参数")
+    # 每个脚本的命令行 flag 都要出现在 SKILL.md 里含该脚本文件名的行上。
+    # 按文件名切开，避免 records.py 与 guard.py 共用 --subject 时互相放水。
+    flag_re = re.compile(r'add_argument\(\s*["\'](--[a-z0-9-]+)["\']')
+    saw_flags = False
+    for script in sorted((SKILL_DIR / "scripts").glob("*.py")):
+        flags = sorted(set(flag_re.findall(script.read_text(encoding="utf-8"))))
+        if not flags:
+            continue
+        saw_flags = True
+        doc = "\n".join(line for line in text.splitlines() if script.name in line)
+        missing_flags = [flag for flag in flags if flag not in doc]
+        if missing_flags:
+            fail(f"SKILL.md 的 {script.name} 用法未覆盖参数：{'、'.join(missing_flags)}")
+    if not saw_flags:
+        fail("scripts/ 下没有命令行参数可钉")
+    print("OK SKILL.md 覆盖全部脚本的命令行参数")
+
+    import nodes
+    canon_problems = nodes.audit()
+    if canon_problems:
+        fail("节点正典未通过：" + "；".join(canon_problems))
+    examples = re.findall(r'--subject\s+(\S+)\s+--node\s+"([^"]+)"', text)
+    for subject, node in examples:
+        _canon_subject, _canon_node, _raw, hit = nodes.normalize(subject, node)
+        if not hit:
+            fail(f"SKILL.md 示例节点不在正典：{subject} · {node}")
+    if not examples:
+        fail("SKILL.md 应有一条带 --subject 与 --node 的判题记录示例")
+    print("OK 节点正典，SKILL.md 示例节点落在正典内")
 
     print("全部通过。")
 

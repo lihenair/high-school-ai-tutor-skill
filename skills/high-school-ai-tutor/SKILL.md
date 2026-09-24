@@ -216,6 +216,7 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 
 ```bash
 python3 <skill目录>/scripts/records.py add --subject 化学 --node "氧化还原反应" --stem "电石除杂" --outcome 做错 --error 概念
+python3 <skill目录>/scripts/records.py add --subject 数学 --node "函数单调性" --stem "求参数" --outcome 跳过 --date 2026-09-23 --file ~/.high-school-ai-tutor/records.jsonl
 ```
 
 脚本成功后，回复里用一句话确认，例如「已记下：化学 · 氧化还原反应，做错。」不要念出文件里的其他题，也不要手写一份清单代替脚本。脚本失败时说明没记下，不要假装已经保存。漏跑这条，或失败后仍写「已记下」，这轮判题记录算失败。
@@ -239,6 +240,14 @@ python3 <skill目录>/scripts/records.py weak
 ```
 
 按脚本原文转述。脚本说「还没有判过的题。」或「目前没有薄弱点。」时，原句照用，不要补一个脚本里没有的考点，也不要改次数。有薄弱点时，只再问要不要先补最弱的那一个。
+
+`--node` 按 `references/nodes/` 收成标准名。命中时记录里的 `node` 是标准名，`raw_node` 留学生原话。没对上正典就照原文写入，并在 stderr 看到 `WARN 未命中节点正典`。`verify_status` 先留空，不要自己填。同一考点的不同说法在 `weak` 里合成一组，旧记录没有 `raw_node` 时用 `node` 当原文。要看哪些原文还没进正典，运行：
+
+```bash
+python3 <skill目录>/scripts/records.py unmatched
+```
+
+输出表头是「频次 | 原文 | 建议补录为」。人工确认后把别名补进对应科目的 `references/nodes/*.md`，不要改已经写过的记录。
 
 ## 核心规则
 
@@ -304,9 +313,9 @@ python3 <skill目录>/scripts/records.py weak
 写入本地错题本时，先跑 `scripts/notebook.py`。主库是 `~/.high-school-ai-tutor/tutor.db`，同一科目、考点、题目摘要只留一行。新错题的下次复习是记录日的后一天。学生复习后按记得程度更新，间隔用 SM-2：未掌握回到 1 天并降低难度系数，模糊按记住推进且系数略降，已掌握则拉长间隔。同一题再次 `add` 时，JSON 里只要带了掌握标记，就按这一次复习重算下次日期，标记和上次相同也要推进；没带掌握标记时只改文字，排期不动。不要改数据库路径。
 
 ```bash
-python3 <skill目录>/scripts/notebook.py add entry.json
-python3 <skill目录>/scripts/notebook.py review --id 1 --result 已掌握
-python3 <skill目录>/scripts/notebook.py due
+python3 <skill目录>/scripts/notebook.py add entry.json --db ~/.high-school-ai-tutor/tutor.db
+python3 <skill目录>/scripts/notebook.py review --id 1 --result 已掌握 --date 2026-09-24
+python3 <skill目录>/scripts/notebook.py due --date 2026-09-24
 python3 <skill目录>/scripts/notebook.py export -o 错题本.xlsx
 ```
 
@@ -342,6 +351,14 @@ python3 <skill目录>/scripts/verify.py --expr "2 + 2 == 4"   # 无条件时省�
 from verify import check_math
 check_math("最终式", "条件")
 ```
+
+编号呈现的推导步骤是主链。主链上的每一步各自调一次 `check_math`。不编号的整理、合并同类项、草稿不验。把已知值代进式子可以验，也可以不验。
+
+步骤分三类：
+
+- 等价变形步：这一步和上一步是同一个关系的改写。直接验。`--expr` 写这一步，`--where` 写上一步；没有上一步就只验这一步本身。
+- 条件等价步：只有在某个前提下才等价。前提放进 `--where`，不要当成无条件的恒等。六类条件等价和分类讨论的写法见 `references/math.md` 的「条件步清单」。
+- 推理步：放缩、夹逼、构造。写明依据，不拿这一步去验等价。放缩本来就不是恒等，验等价会把对的步骤判成矛盾。
 
 返回四种状态：通过、矛盾、无法解析、未安装。命令行把状态打到 stdout，对应退出码 0、1、3、4（2 留给用法错误）；stdout 第一行必为状态词，有 detail 时第二行以 `detail:` 前缀另起一行。只有「矛盾」（退出码 1）拦住发送；无法解析、未安装都不拦。判断是否拦发送只看退出码是否等于 1，或读 stdout 第一行是否为「矛盾」。
 
