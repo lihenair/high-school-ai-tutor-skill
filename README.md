@@ -76,23 +76,25 @@ skill 本体在 `skills/high-school-ai-tutor/`：`SKILL.md` 是入口，`referen
 ## 包含内容
 
 - `skills/high-school-ai-tutor/SKILL.md`：入口。含 YAML 头、风格判定、错题本规则；语文、英语、文综的难度表暂放在这里
-- `skills/high-school-ai-tutor/references/math.md`：数学难度加权、定义域与端点验算
+- `skills/high-school-ai-tutor/references/math.md`：数学难度加权、定义域与端点验算、条件步清单
 - `skills/high-school-ai-tutor/references/physics.md`：物理难度加权、方向与单位验算
 - `skills/high-school-ai-tutor/references/chemistry.md`：化学难度加权、配平与守恒验算
 - `skills/high-school-ai-tutor/references/biology.md`：生物难度加权、术语与实验核对
 - `skills/high-school-ai-tutor/references/humanities.md`：语文、英语、历史、政治、地理的难度表
 - `skills/high-school-ai-tutor/references/pep-chem-bx1-ch1.md`：人教版化学必修第一册（2019）第一章整章图，点名时再读
-- `skills/high-school-ai-tutor/scripts/notebook.py`：错题本 SQLite。同一题改一行，复习间隔用 SM-2
+- `skills/high-school-ai-tutor/references/nodes/`：九科考点正典。一行是「标准名 | 别名 | 所属章」
+- `skills/high-school-ai-tutor/scripts/nodes.py`：考点正典的唯一解析器。科目是封闭枚举
+- `skills/high-school-ai-tutor/scripts/notebook.py`：错题本 SQLite。同一题改一行，复习间隔用 SM-2。考点与判题记录走同一套正典
 - `skills/high-school-ai-tutor/templates/wrong-notebook-generator.py`：把错题本导出成 Excel
 - `skills/high-school-ai-tutor/templates/entry-example.json`：`add` 子命令的条目写法示例
 - `skills/high-school-ai-tutor/templates/wrong-notebook-template.csv`：错题本 CSV
 - `skills/high-school-ai-tutor/templates/validation-tracker.csv`：学习效果记录表
 - `skills/high-school-ai-tutor/scripts/guard.py`：回复守卫——发送前机检教学红线（引导模式漏答案、九段标题缺失、非法用词、加权算错；数学完整模式另查机验标记）
-- `skills/high-school-ai-tutor/scripts/records.py`：判完一题写一条记录，并汇总薄弱点
+- `skills/high-school-ai-tutor/scripts/records.py`：判完一题写一条记录，按正典汇总薄弱点，并列出未命中的原文
 - `skills/high-school-ai-tutor/scripts/verify.py`：数学机验。只判定已经抽好的式子，返回通过、矛盾、无法解析、未安装
 - `.claude-plugin/marketplace.json`、`.claude-plugin/plugin.json`：插件市场清单
 - `docs/`：使用指南、测试标准、效果验证
-- `tests/`：守卫用例、清单校验 `check.py`，以及判题记录、错题本、数学机验和 `check.py` 咬合自测
+- `tests/`：守卫用例、清单校验 `check.py`，以及节点正典、判题记录、错题本、数学机验和 `check.py` 咬合自测
 
 ## 安装
 
@@ -131,7 +133,7 @@ pip install openpyxl
 python3 skills/high-school-ai-tutor/scripts/notebook.py export -o 错题本.xlsx
 ```
 
-`add` 的 JSON 字段与错题记录表列名一致（写法见 `templates/entry-example.json`）：`科目`、`题目摘要` 必填。导出的 Excel 仍是三张表：错题记录、复习计划、统计看板。复习计划列出下次复习日、间隔天数和难度系数。
+`add` 的 JSON 字段与错题记录表列名一致（写法见 `templates/entry-example.json`）：`科目`、`题目摘要` 必填。「章节/知识点」和判题记录的 `--node` 走同一套正典：命中写标准名，原文留在 `raw_node`。导出的 Excel 仍是三张表：错题记录、复习计划、统计看板。复习计划列出下次复习日、间隔天数和难度系数。
 
 ## 判题记录与薄弱点
 
@@ -140,9 +142,10 @@ python3 skills/high-school-ai-tutor/scripts/notebook.py export -o 错题本.xlsx
 ```bash
 python3 skills/high-school-ai-tutor/scripts/records.py add --subject 化学 --node "氧化还原反应" --stem "电石除杂" --outcome 做错 --error 概念
 python3 skills/high-school-ai-tutor/scripts/records.py weak
+python3 skills/high-school-ai-tutor/scripts/records.py unmatched
 ```
 
-`weak` 只按已有记录汇总。没有记录时输出「还没有判过的题。」有记录但做错和跳过没有超过做对时，输出「目前没有薄弱点。」默认文件是 `~/.high-school-ai-tutor/records.jsonl`。
+`--node` 按 `references/nodes/` 收成标准名。命中时 `node` 是标准名，`raw_node` 留学生原话。没对上正典就照原文写入，stderr 打 `WARN 未命中节点正典`。`verify_status` 先留空。`weak` 聚合前再走一遍正典，所以「函数单调性」和「必修一 函数单调性」算同一个考点；旧记录没有 `raw_node` 时用 `node` 当原文。没有记录时输出「还没有判过的题。」有记录但做错和跳过没有超过做对时，输出「目前没有薄弱点。」`unmatched` 按频次输出「频次 | 原文 | 建议补录为」，确认后把别名补进对应科目文件，不要改已经写过的记录。默认文件是 `~/.high-school-ai-tutor/records.jsonl`。
 
 ## 回复守卫
 
@@ -168,6 +171,8 @@ python3 skills/high-school-ai-tutor/scripts/verify.py --expr "2 + 2 == 4"
 
 stdout 第一行是状态词，退出码为通过 0、矛盾 1、无法解析 3、未安装 4（2 留给用法错误）。有细节时第二行以 `detail:` 开头。只有「矛盾」拦住发送。通过时回复写「已机验：通过」；无法解析写「未机验：无法解析」；没装 SymPy 写「未机验：未安装 SymPy」。连续两次矛盾后写「此结果未通过机验」，不要把矛盾的式子当成正确答案。语文、英语、史政地的完整讲解不写这些句子。物理里已经抽成数值式的计算，以及生物里抽成式子的比例、浓度、计数，用同一个入口。单位、化学方程式配平、生物概念和实验结论这一版不机验。
 
+编号呈现的推导步骤是主链，每一步各自调一次。不编号的整理、合并同类项、草稿不验。等价变形步直接验。条件等价步把前提放进 `--where`，六类和分类讨论见 `references/math.md` 的「条件步清单」。推理步（放缩、夹逼、构造）注明依据，不验等价。
+
 ## 本地检查
 
 与 CI 同一批命令。咬合自测只读常量，放在安装 SymPy 之前即可。
@@ -180,6 +185,7 @@ python3 tests/test_records.py
 python3 tests/test_notebook.py
 pip install 'sympy==1.13.3'
 python3 tests/test_verify.py
+python3 tests/test_nodes.py
 ```
 
-`tests/check.py` 核对插件清单、技能目录和 `SKILL.md`：机验标记、状态词，以及 `guard.py` 的每个命令行参数，都要还在文档里。`tests/test_check_bites.py` 在临时整仓副本里各拆一条（删掉 `--subject` 那一行、把状态词 `通过` 改成 `通过_X`、删掉最后一条机验标记），确认退出码非零，且失败原因就是被拆的那一条。副本忽略 `.git`、`__pycache__`、`*.pyc` 和 `.venv`，不改真实工作树。错题本 Excel 冒烟另在 CI 里跑，需要 `openpyxl`。
+上面除最后一行外与 CI 相同。`tests/test_nodes.py` 在 CI 里没有单独一步，正典由 `tests/check.py` 覆盖。`tests/check.py` 核对插件清单、技能目录、节点正典和 `SKILL.md`：机验标记、状态词，以及 `scripts/` 下每个脚本的命令行参数，都要出现在含该脚本文件名的行上。正典还查行格式、科目与文件一一对应、别名不重复、示例 `--node` 落在正典内。`tests/test_check_bites.py` 在临时整仓副本里各拆一条（删掉 `--subject` 那一行、把状态词 `通过` 改成 `通过_X`、删掉最后一条机验标记），确认退出码非零，且失败原因就是被拆的那一条。副本忽略 `.git`、`__pycache__`、`*.pyc` 和 `.venv`，不改真实工作树。错题本 Excel 冒烟另在 CI 里跑，需要 `openpyxl`。
