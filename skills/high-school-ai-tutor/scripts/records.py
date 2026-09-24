@@ -14,6 +14,9 @@ import sys
 from datetime import date
 from pathlib import Path
 
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
 import nodes
 
 OUTCOMES = ("做对", "做错", "跳过")

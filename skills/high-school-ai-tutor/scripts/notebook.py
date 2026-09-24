@@ -16,6 +16,10 @@ import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+# 错题本生成器按文件路径加载本模块，sys.path 里没有 scripts/，要先补上才能找到 nodes。
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
 import nodes
 
 ERROR_CATEGORIES = ("审题", "概念", "计算", "方法", "表达", "心态")
