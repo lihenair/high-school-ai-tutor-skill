@@ -36,5 +36,22 @@ run full-ok.txt         full    1 --subject math
 run math-verify-ok.txt  full    0 --subject math
 run math-verify-ok.txt  full    0
 
+run self-study/01-missing-label.txt study 1
+run self-study/02-bad-state.txt study 1
+run self-study/03-unknown-node.txt study 1
+run self-study/04-uncovered-chapter.txt study 0
+run self-study/05-node-mermaid.txt study 1
+run self-study/06-end-mermaid.txt study 1
+run self-study/07-overview-no-map.txt study 0
+run self-study/08-overview-ok.txt study 0
+run self-study/09-selftest-marked.txt study 0
+run self-study/10-selftest-unmarked.txt study 1
+run self-study/11-example-without-marker.txt study 0
+run self-study/12-notebook-extension.txt study 1
+run self-study/13-diagnosis-ask.txt study 0
+run self-study/14-diagnosis-judge.txt study 0
+run self-study/15-repair-step.txt study 0
+run self-study/16-solve-unlabeled.txt study 0
+
 echo "通过 $pass / $((pass + fail))"
 [ "$fail" -eq 0 ]

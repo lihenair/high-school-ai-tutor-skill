@@ -44,10 +44,12 @@ def main():
             f"marketplace 插件={entry.get('version')} "
             f"marketplace={market.get('version')}"
         )
-    if plugin.get("version") != "1.6.0":
-        fail(f"plugin.json 版本应为 1.6.0，当前是 {plugin.get('version')}")
+    if plugin.get("version") != "1.7.0":
+        fail(f"plugin.json 版本应为 1.7.0，当前是 {plugin.get('version')}")
     if not (SKILL_DIR / "SKILL.md").exists():
         fail(f"缺少 {SKILL_DIR.relative_to(ROOT)}/SKILL.md")
+    if not (SKILL_DIR / "modes" / "self-study.md").exists():
+        fail("缺少 modes/self-study.md")
     print("OK 清单交叉一致，技能目录存在")
 
     # 3. SKILL.md frontmatter：name 与目录名一致、description 非空
@@ -157,7 +159,28 @@ def main():
     print("OK SKILL.md 覆盖全部脚本的命令行参数")
 
     import nodes
-    canon_problems = nodes.audit()
+    if "modes/self-study.md" not in text:
+        fail("SKILL.md 应指向 modes/self-study.md")
+    for bit in ("补状态标签重发", "节点讲解请单独发一次", "此章正典待补录"):
+        if bit not in text and bit not in (SKILL_DIR / "modes" / "self-study.md").read_text(encoding="utf-8"):
+            fail(f"自学规则缺少用语：{bit}")
+    if not (SKILL_DIR / "data" / "graph.db").exists():
+        fail("缺少 skills/high-school-ai-tutor/data/graph.db")
+    explore_import = re.compile(r"(^|\n)\s*(?:import|from)\s+(?:records|notebook|profile)\b")
+    explore_call = re.compile(
+        r"\b(?:records|notebook|profile)\s*\.\s*(?:mastery_apply|mastery_get|weak_points|add_entry|add_record)\s*\("
+    )
+    for script in sorted((SKILL_DIR / "scripts").glob("*.py")):
+        source = script.read_text(encoding="utf-8")
+        if "explore_log" not in source:
+            continue
+        if script.name in ("records.py", "notebook.py", "profile.py"):
+            fail(f"{script.name} 把 explore_log 接到了掌握度、错题本或判题记录")
+        if explore_import.search(source) or explore_call.search(source):
+            fail(f"{script.name} 把 explore_log 接到了掌握度、错题本或判题记录")
+    print("OK explore_log 未接入掌握度")
+
+    canon_problems = nodes.check_nodes()
     if canon_problems:
         fail("节点正典未通过：" + "；".join(canon_problems))
     examples = re.findall(r'--subject\s+(\S+)\s+--node\s+"([^"]+)"', text)

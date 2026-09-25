@@ -18,6 +18,7 @@ class NodeTests(unittest.TestCase):
             ["math.md", "physics.md", "chemistry.md", "biology.md", "chinese.md", "english.md", "history.md", "politics.md", "geography.md"],
         )
         self.assertEqual(nodes.audit(), [])
+        self.assertEqual(nodes.check_nodes(), [])
 
     def test_alias_hits_standard_name_and_keeps_original(self):
         subject, node, raw, hit = nodes.normalize("数学", "必修一 函数单调性")

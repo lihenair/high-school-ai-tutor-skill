@@ -27,6 +27,15 @@ jobs:
       - name: 判题记录
         run: python3 tests/test_records.py
 
+      - name: 自学守卫
+        run: python3 tests/test_guard_study.py
+
+      - name: 学生画像与开场路由
+        run: python3 tests/test_profile.py
+
+      - name: 章节图
+        run: python3 tests/test_graph.py
+
       - name: 错题本 SM-2
         run: python3 tests/test_notebook.py
 

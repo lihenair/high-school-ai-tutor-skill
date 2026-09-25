@@ -1,0 +1,10 @@
+【模式：自学 · 状态：章览】
+```mermaid
+flowchart TD
+  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A
+  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A
+  a["纯净物 / 混合物（概念）"]:::concept -->|同章衔接| b["物质的转化（概念）"]:::concept
+```
+
+拓扑学习顺序：纯净物 / 混合物 → 物质的转化。
+诊断入口：下一轮开始快诊。

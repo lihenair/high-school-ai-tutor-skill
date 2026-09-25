@@ -7,6 +7,8 @@
     python3 guard.py --mode full reply.txt         # 完整模式 / 总结阶段（summary 同 full）
     python3 guard.py --mode socratic --no-student-answer reply.txt
     python3 guard.py --mode full --subject math reply.txt   # 数学完整模式额外查机验标记
+    python3 guard.py --mode study reply.txt                 # 自学模式
+    python3 guard.py --mode study --dir tests/guard-cases/self-study/
     cat reply.txt | python3 guard.py --mode full -
 
 退出码：0 = 无 ERROR（可含 WARN，仍可发送，与 SKILL.md「退出码为 0 才发送」一致）；1 存在 ERROR，按清单修改后重检；2 用法错误。
@@ -194,6 +196,157 @@ def check_pep_chem_chapter(text):
     return problems
 
 
+STUDY_STATES = ("章览", "诊断", "节点", "章末")
+STUDY_LABEL_RE = re.compile(r"^【模式：自学 · 状态：([^·】]+?)(?: · 节点：([^】]+))?】\s*$")
+SLOT_MARKERS = (
+    "一句话定义", "为什么重要", "最小例子", "易错点",
+    "易混辨析", "判别自测", "拓展入口",
+)
+QUESTION_LINE_RE = re.compile(r"^\s*(?:（\d+）|\(\d+\)|\d+[.、．])")
+EXTEND_MARK_RE = re.compile(r"L3|拓展|延伸")
+NOTEBOOK_HEADING = "【错题本条目】"
+UNCOVERED_MARK = "此章正典待补录"
+RULE_STUDY = "modes/self-study.md"
+RULE_LABEL = "SKILL.md「全局模式」状态标签"
+
+
+def canon_display(name):
+    """节点名落到任一科目的正典显示名时返回该显示名，否则空串。"""
+    import nodes
+    text = str(name or "").strip()
+    if not text:
+        return ""
+    for subject in nodes.SUBJECTS:
+        _subject, standard, _raw, hit = nodes.normalize(subject, text)
+        if hit and standard:
+            return standard
+    return ""
+
+
+def looks_like_solving(text):
+    """解题轮免标。七槽或判别自测出现时不再当成解题轮。"""
+    if "判别自测" in text or "一句话定义" in text:
+        return False
+    if "难度：" in text or "难度:" in text:
+        return True
+    return False
+
+
+def question_lines(lines):
+    numbered = [index for index, line in enumerate(lines, 1) if QUESTION_LINE_RE.match(line)]
+    if numbered:
+        return numbered
+    return [index for index, line in enumerate(lines, 1) if ("？" in line or "?" in line)]
+
+
+def check_study(text):
+    """自学红线。返回 (severity, code, lineno, message, hint)。"""
+    issues = []
+    lines = text.splitlines() or [""]
+    first = lines[0].strip()
+    label = STUDY_LABEL_RE.match(first)
+    state = node_name = None
+    if label:
+        state, node_name = label.group(1).strip(), (label.group(2) or "").strip()
+        if state not in STUDY_STATES:
+            issues.append(("ERROR", "E17b", 1,
+                           f"状态词「{state}」不在封闭集（章览、诊断、节点、章末）",
+                           "改成封闭集里的状态词后重发"))
+            state = None
+    elif first.startswith("【模式：自学 · 状态："):
+        issues.append(("ERROR", "E17b", 1, "状态词不在封闭集（章览、诊断、节点、章末）",
+                       "改成封闭集里的状态词后重发"))
+    elif not looks_like_solving(text):
+        issues.append(("ERROR", "E17a", 1, "自学轮缺状态标签", "补状态标签重发"))
+
+    if state == "节点":
+        hit = canon_display(node_name)
+        if not hit:
+            if UNCOVERED_MARK in text:
+                issues.append(("WARN", "E17c", 1,
+                               f"节点名「{node_name}」未命中正典，{UNCOVERED_MARK}",
+                               "正典补录前保留这句标注"))
+            else:
+                issues.append(("ERROR", "E17c", 1,
+                               f"节点名「{node_name or '（空）'}」未命中正典显示名",
+                               "改为正典显示名后重发；本章若未覆盖，正文标注「此章正典待补录」"))
+
+    mermaid_at = next((index for index, line in enumerate(lines, 1) if "```mermaid" in line), None)
+    if state in ("诊断", "节点", "章末") and mermaid_at:
+        issues.append(("ERROR", "R1a", mermaid_at, "非章览轮出现了 mermaid 整章图",
+                       "删掉 mermaid；章末预告改成文本列表"))
+    if state == "章览" and mermaid_at is None:
+        issues.append(("WARN", "R1b", 1, "章览轮缺少整章 mermaid", "补上整章图"))
+
+    notebook_at = next((index for index, line in enumerate(lines, 1) if NOTEBOOK_HEADING in line), None)
+    if notebook_at:
+        blob = "\n".join(lines[notebook_at - 1:])
+        if EXTEND_MARK_RE.search(blob):
+            issues.append(("ERROR", "R2", notebook_at, "错题本条目含拓展标记词（L3、拓展或延伸）",
+                           "拓展只留在节点第七槽，不要写入错题本"))
+
+    slot_at = next((index for index, line in enumerate(lines, 1) if "判别自测" in line), None)
+    if slot_at:
+        end = len(lines) + 1
+        for index in range(slot_at, len(lines)):
+            if "拓展入口" in lines[index] or re.match(r"^Step\s*7\b", lines[index].strip()):
+                end = index + 1
+                break
+        block = lines[slot_at - 1:end - 1]
+        cursor = 0
+        while cursor < len(block):
+            if not QUESTION_LINE_RE.match(block[cursor]):
+                cursor += 1
+                continue
+            nxt = cursor + 1
+            while nxt < len(block) and not QUESTION_LINE_RE.match(block[nxt]):
+                nxt += 1
+            span = "\n".join(block[cursor:nxt])
+            if not any(marker in span for marker in VERIFY_MARKERS):
+                issues.append(("ERROR", "R3", slot_at + cursor, "判别自测有题目但没有机验标记句",
+                               "在该题下补一句「已机验：通过 / 未机验：无法解析 / 未机验：未安装 SymPy / 此结果未通过机验」"))
+            cursor = nxt
+
+    if state == "章览" and "拓扑" not in text:
+        issues.append(("ERROR", "E18", 1, "章览缺少拓扑学习顺序", "在整章图后写出拓扑学习顺序"))
+    if state == "诊断":
+        bodies = lines[1:]
+        count = len(question_lines(bodies))
+        judged = "判定" in text
+        if judged and count == 0:
+            pass
+        elif not judged and count == 1:
+            pass
+        else:
+            issues.append(("ERROR", "E18", 1,
+                           "诊断轮须是恰一题的出题形态，或不再出题的判定形态",
+                           "出题轮只留一道题；判定轮写判定、记录和下一跳，不要出新题"))
+    if state == "节点":
+        has_slots = all(marker in text for marker in SLOT_MARKERS)
+        if not has_slots and "补步" not in text:
+            issues.append(("ERROR", "E18", 1, "节点轮既不是七槽，也不是补步问答",
+                           "按七槽输出，或在连错两次后只写补步问答"))
+    if state == "章末":
+        has_list = "下一章" in text and any(re.match(r"\s*-\s+\S", line) for line in lines)
+        if not has_list:
+            issues.append(("ERROR", "E18", 1, "章末预告不是文本列表", "用「下一章」加「- 」列表，不要画图"))
+
+    for problem in check_mermaid_edges(text):
+        issues.append(("ERROR", "E11", mermaid_at or 1, problem, "边标签只用直接前置、同章衔接、常考组合，并配上对应线型"))
+    for problem in check_mermaid_style(text):
+        issues.append(("ERROR", "E13", mermaid_at or 1, problem, "补上概念、技能、实验、后续章节的配色"))
+    for problem in check_pep_chem_chapter(text):
+        issues.append(("ERROR", "E12", mermaid_at or 1, problem, "整章图按人教版化学必修第一册第一章的节点名单改"))
+    weighted = check_weighted(lines)
+    if weighted:
+        scores, claimed, expect = weighted
+        if abs(claimed - expect) > 0.005:
+            issues.append(("ERROR", "E8", 1,
+                           f"加权与五项分不一致：{scores} 应得 {expect:.2f}，写的是 {claimed:.2f}",
+                           "按 0.30、0.25、0.20、0.15、0.10 重算"))
+    return issues
+
+
 def check(mode, text, no_student_answer, subject=None):
     issues = []  # (severity, code, message, evidence lineno or None)
 
@@ -280,24 +433,68 @@ def check(mode, text, no_student_answer, subject=None):
     return [(sev, code, msg, rule_of.get(code, "")) for sev, code, msg, _ in issues]
 
 
+def _read_reply(path):
+    if path == "-":
+        return sys.stdin.read()
+    with open(path, encoding="utf-8") as handle:
+        return handle.read()
+
+
+def _print_study(path, issues):
+    for sev, code, lineno, message, hint in issues:
+        print(f"{path}:{lineno or 1} {code} [{sev}] {message} 修复：{hint}")
+    errors = [item for item in issues if item[0] == "ERROR"]
+    warns = [item for item in issues if item[0] == "WARN"]
+    if errors:
+        print(f"\n未通过：{len(errors)} 项 ERROR，修改后重检。")
+        return 1
+    if warns:
+        print(f"\n通过（注意 {len(warns)} 项 WARN）。")
+    else:
+        print("通过。")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description="回复守卫：发送前机检教学红线")
-    ap.add_argument("reply", help="回复文本文件路径，- 表示 stdin")
-    ap.add_argument("--mode", required=True, choices=["socratic", "full", "summary"],
-                    help="socratic=引导模式；full/summary=完整模式与总结阶段")
+    ap.add_argument("reply", nargs="?", default=None, help="回复文本文件路径，- 表示 stdin")
+    ap.add_argument("--mode", required=True, choices=["socratic", "full", "summary", "study"],
+                    help="socratic=引导模式；full/summary=完整模式与总结阶段；study=自学模式")
+    ap.add_argument("--dir", default=None, help="自学模式：逐个检查目录里的 txt")
     ap.add_argument("--no-student-answer", action="store_true",
                     help="上下文中没有学生作答（拦截编造「我的错误」）")
     ap.add_argument("--subject", choices=["math"],
                     help="科目；填 math 时，完整模式会额外要求第 2 节末尾出现固定机验标记")
     args = ap.parse_args()
 
-    if args.reply == "-":
-        text = sys.stdin.read()
-    else:
-        with open(args.reply, encoding="utf-8") as f:
-            text = f.read()
+    if args.mode == "study" and args.dir:
+        from pathlib import Path
+        folder = Path(args.dir)
+        if not folder.is_dir():
+            sys.exit(f"不是目录：{args.dir}")
+        worst = 0
+        files = sorted(folder.glob("*.txt"))
+        if not files:
+            sys.exit(f"目录里没有 txt：{args.dir}")
+        for path in files:
+            text = path.read_text(encoding="utf-8")
+            if not text.strip():
+                print(f"{path}:1 E17a [ERROR] 回复为空 修复：补状态标签重发")
+                worst = 1
+                continue
+            code = _print_study(path, check_study(text))
+            worst = max(worst, code)
+        sys.exit(worst)
+
+    if not args.reply:
+        sys.exit("缺少回复文件。自学目录检查请加 --dir。")
+
+    text = _read_reply(args.reply)
     if not text.strip():
         sys.exit("回复为空。")
+
+    if args.mode == "study":
+        sys.exit(_print_study(args.reply, check_study(text)))
 
     mode = "full" if args.mode == "summary" else args.mode
     issues = check(mode, text, args.no_student_answer, args.subject)
