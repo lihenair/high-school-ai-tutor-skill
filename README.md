@@ -6,7 +6,7 @@
 
 ## 这是什么
 
-把本目录安装到支持 `SKILL.md` 的 Agent，或把入口和对应分科文件一并提供给对话。按课标和主流教材讲题，生成结构化错题本，并在完整模式下给出变式。
+把本目录安装到支持 `SKILL.md` 的 Agent，或把入口和对应分科文件一并提供给对话。按正典和分科验算清单讲题，生成结构化错题本，并在完整模式下给出变式。教材版本只用来对齐章节命名和顺序；没有课标或教材原文可以引用时，写不确定或「待补录」，不编页码、考频和原文。
 
 知识图谱：直接问某一章的知识图谱是什么，就用 mermaid 画出当前章。蓝是概念，绿是技能，橙是实验，灰是后续章节。贴题做答时不自动出整章图，只在内部用来选前置和拼盘题。完整讲解和做完后的总结，第 9 节附本题切片，不是整章图。细则见 `docs/usage-guide.md`。
 
@@ -82,7 +82,7 @@ skill 本体在 `skills/high-school-ai-tutor/`：`SKILL.md` 是入口，`referen
 - `skills/high-school-ai-tutor/references/biology.md`：生物难度加权、术语与实验核对
 - `skills/high-school-ai-tutor/references/humanities.md`：语文、英语、历史、政治、地理的难度表
 - `skills/high-school-ai-tutor/references/pep-chem-bx1-ch1.md`：人教版化学必修第一册（2019）第一章整章图，点名时再读
-- `skills/high-school-ai-tutor/references/nodes/`：九科考点正典。一行是「标准名 | 别名 | 所属章」
+- `skills/high-school-ai-tutor/references/nodes/`：九科考点正典。六列是「显示名 | 别名 | 学段·章节 | L1 课标会什么 | L2 考试考什么 | L3 延伸」。别名用顿号，可以留空。化学必修第一册第一章另有 `# id kp_*` 注释。没有依据的格子写「待补录」
 - `skills/high-school-ai-tutor/scripts/nodes.py`：考点正典的唯一解析器。科目是封闭枚举
 - `skills/high-school-ai-tutor/scripts/notebook.py`：错题本 SQLite。同一题改一行，复习间隔用 SM-2。考点与判题记录走同一套正典
 - `skills/high-school-ai-tutor/templates/wrong-notebook-generator.py`：把错题本导出成 Excel
@@ -127,6 +127,36 @@ cp -r skills/high-school-ai-tutor ~/.agents/skills/
 
 在本仓库里直接对话时，`SKILL.md` 不会自动出现在 Agent 的已安装技能列表里。学生发题、发照片或说自己选了哪个选项，都要先读 `skills/high-school-ai-tutor/SKILL.md`，数理化生再读对应的 `references/`。文件在仓库里，不等于这套讲题规则已经启用。
 
+## 两种模式
+
+解题是默认。学生把题贴过来，就按苏格拉底提问；说「直接讲解」或「给我解析」才给完整解法。做完或要求总结时用九段式，第 9 节是本题切片，不是整章图。
+
+自学要显式说出来，例如「自学：第三章」「学第三章」「这一章怎么学」。本轮进入章览、诊断、节点或章末，细则在 `modes/self-study.md`。回复第一行写状态标签，发送前用 `guard.py --mode study`。贴题不会打开首次三问；有画像时，题做完再问要不要回到刚才的节点。
+
+学生数据在家目录，不进仓库：
+
+| 文件 | 用途 |
+|---|---|
+| `~/.high-school-ai-tutor/student_profile.json` | 年级、考试类型、教材版本、自学进度、掌握度 |
+| `~/.high-school-ai-tutor/records.jsonl` | 判题记录。诊断题带 `context=自学诊断` |
+| `~/.high-school-ai-tutor/tutor.db` | 错题本。自测错题进入 SM-2；诊断错题不进 |
+| `~/.high-school-ai-tutor/explore_log.jsonl` | 超纲原问。不参与掌握度、薄弱点、变式和复习 |
+
+掌握度和 `records.py weak` 并列看，各写来源，不合成一份薄弱点。只有自测能新建掌握度。解题错题只改已经存在的条目。
+
+## 教材、考纲与检索
+
+现在不做教材或考纲的检索，也没有 Graph RAG。仓库里没有可引用的教材全文，也没有考试说明文本。`textbook_version` 不能当成页码、引文或任何 source 字段。
+
+把「学习的教材」和「考试大纲」放进同一个向量库，并不能靠检索本身提高自学或讲题。两份材料回答的是不同的问题：
+
+- 课程标准、考试说明划范围：这一问在不在当前学段，算不算超纲。
+- 有使用权的教材段落给自学节点提供定义、例子和章节顺序。
+
+自学比讲题更依赖这两份材料。讲题时若整段检索教材，苏格拉底轮次容易提前露出解法，延伸内容也容易和考试范围混在同一次结果里。
+
+以后若要加，分开建库，并且没命中就写不确定，不用模型记忆补原文。图谱检索仍单独判断：未命中变多，或单章节点变得很多，再考虑；不和教材检索绑在一起。兴趣原问日志也不拿来做推荐，除非单独改审计规则。
+
 ## 错题本
 
 主库是 `~/.high-school-ai-tutor/tutor.db`。同一科目、考点、题目摘要只留一行。新错题的下次复习是记录日的后一天；复习时按未掌握、模糊、已掌握更新，间隔用 SM-2，不再排死第 1、3、7、15 天。同一题再次写入时只要带了掌握标记，标记没变也会推进下次日期。`records.jsonl` 只记判题结果，不代替错题本。有最终对错就写判题记录；只有该生成错题本条目时才写入数据库。用户说不要错题本时不写数据库。
@@ -168,7 +198,7 @@ python3 skills/high-school-ai-tutor/scripts/guard.py --mode study --dir tests/gu
 
 引导模式查：漏答案、报加权、输出总结标题、错题本条目、问号过多、先说破关键公式。完整模式查：九段标题齐全、第 9 节有本题 mermaid 图谱、难度用词、加权与五项分一致。两种模式都查边标签；只有写明人教版化学必修第一册（2019）第一章整章图时，才核这一章的节点是否齐全。`--no-student-answer` 拦截无学生作答时编造「我的错误」。数学完整模式加上 `--subject math`，并要求第 2 节末尾出现机验标记。自学模式（`--mode study`）查缺标签、非法状态词、节点名、不该出现的 mermaid、判别自测缺标记、错题本混入拓展词，以及标签和正文是否冲突。章览缺图是 WARN，不拦截发送。边标签和配色与解题共用同一套检查。守卫只查红线，查不出内容对错——验算仍按各科 reference 清单做。数学式子交给下一节的 `verify.py`。
 
-学生画像、掌握度和兴趣原问都在家目录，不进仓库。诊断题用 `records.py add --context 自学诊断`，不进错题本。自测错题才进 `notebook.py`。`explore_log.py` 只记超纲原问。
+诊断题用 `records.py add --context 自学诊断`，不进错题本。自测错题才进 `notebook.py`。画像和兴趣原问的位置见上面的「两种模式」。
 
 ## 数学机验
 
