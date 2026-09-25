@@ -1,0 +1,12 @@
+【模式：自学 · 状态：章末】
+自测通过率：4/5。
+薄弱点原文照念。
+下一章：必修一 第二章
+- 钠（仅正典，现场生成）
+鼓励：这一章的框架已经搭好了。
+```mermaid
+flowchart TD
+  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A
+  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A
+  a["纯净物 / 混合物（概念）"]:::concept -->|同章衔接| b["物质的转化（概念）"]:::concept
+```

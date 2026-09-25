@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/lihenair/high-school-ai-tutor-skill/actions/workflows/ci.yml/badge.svg)](https://github.com/lihenair/high-school-ai-tutor-skill/actions/workflows/ci.yml)
 
-面向中国初高中的讲题 skill。默认苏格拉底式提问；需要完整结果时再切直接讲解。数学、物理、化学、生物已拆成按需加载的分科说明，各科使用自己的难度加权。
+面向中国初高中的讲题 skill。默认苏格拉底式提问；需要完整结果时再切直接讲解。学生显式说自学某一章时进入自学模式（章览、诊断、节点、章末），和讲题共用正典、错题本和守卫。数学、物理、化学、生物已拆成按需加载的分科说明，各科使用自己的难度加权。
 
 ## 这是什么
 
@@ -89,7 +89,13 @@ skill 本体在 `skills/high-school-ai-tutor/`：`SKILL.md` 是入口，`referen
 - `skills/high-school-ai-tutor/templates/entry-example.json`：`add` 子命令的条目写法示例
 - `skills/high-school-ai-tutor/templates/wrong-notebook-template.csv`：错题本 CSV
 - `skills/high-school-ai-tutor/templates/validation-tracker.csv`：学习效果记录表
-- `skills/high-school-ai-tutor/scripts/guard.py`：回复守卫——发送前机检教学红线（引导模式漏答案、九段标题缺失、非法用词、加权算错；数学完整模式另查机验标记）
+- `skills/high-school-ai-tutor/modes/self-study.md`：自学四子状态、七槽、诊断两轮次、超纲四类、补步声明
+- `skills/high-school-ai-tutor/references/study-pages/`：按章存放的节点页。化学必修第一册第一章已有；其余章按七槽现场生成
+- `skills/high-school-ai-tutor/scripts/guard.py`：回复守卫——发送前机检教学红线（引导模式漏答案、九段标题缺失、非法用词、加权算错；数学完整模式另查机验标记；自学模式查状态标签、整章图位置、自测标记和错题本拓展词）
+- `skills/high-school-ai-tutor/scripts/profile.py`：学生画像与掌握度。文件在 `~/.high-school-ai-tutor/student_profile.json`
+- `skills/high-school-ai-tutor/scripts/graph.py`：章节学习顺序、直接前置、章末预告。库文件是 `skills/high-school-ai-tutor/data/graph.db`
+- `skills/high-school-ai-tutor/scripts/explore_log.py`：兴趣原问。不参与掌握度、薄弱点、变式和复习
+- `skills/high-school-ai-tutor/data/graph.db`：化学必修第一册第一章的节点和边
 - `skills/high-school-ai-tutor/scripts/records.py`：判完一题写一条记录，按正典汇总薄弱点，并列出未命中的原文
 - `skills/high-school-ai-tutor/scripts/verify.py`：数学机验。只判定已经抽好的式子，返回通过、矛盾、无法解析、未安装
 - `.claude-plugin/marketplace.json`、`.claude-plugin/plugin.json`：插件市场清单
@@ -156,9 +162,13 @@ python3 skills/high-school-ai-tutor/scripts/guard.py --mode socratic reply.txt  
 python3 skills/high-school-ai-tutor/scripts/guard.py --mode full reply.txt        # 完整模式 / 总结阶段
 python3 skills/high-school-ai-tutor/scripts/guard.py --mode socratic --no-student-answer reply.txt
 python3 skills/high-school-ai-tutor/scripts/guard.py --mode full --subject math reply.txt   # 数学完整模式：额外查机验标记
+python3 skills/high-school-ai-tutor/scripts/guard.py --mode study reply.txt                   # 自学模式
+python3 skills/high-school-ai-tutor/scripts/guard.py --mode study --dir tests/guard-cases/self-study/
 ```
 
-引导模式查：漏答案、报加权、输出总结标题、错题本条目、问号过多、先说破关键公式。完整模式查：九段标题齐全、第 9 节有本题 mermaid 图谱、难度用词、加权与五项分一致。两种模式都查边标签；只有写明人教版化学必修第一册（2019）第一章整章图时，才核这一章的节点是否齐全。`--no-student-answer` 拦截无学生作答时编造「我的错误」。数学完整模式加上 `--subject math`，并要求第 2 节末尾出现机验标记。守卫只查红线，查不出内容对错——验算仍按各科 reference 清单做。数学式子交给下一节的 `verify.py`。
+引导模式查：漏答案、报加权、输出总结标题、错题本条目、问号过多、先说破关键公式。完整模式查：九段标题齐全、第 9 节有本题 mermaid 图谱、难度用词、加权与五项分一致。两种模式都查边标签；只有写明人教版化学必修第一册（2019）第一章整章图时，才核这一章的节点是否齐全。`--no-student-answer` 拦截无学生作答时编造「我的错误」。数学完整模式加上 `--subject math`，并要求第 2 节末尾出现机验标记。自学模式（`--mode study`）查缺标签、非法状态词、节点名、不该出现的 mermaid、判别自测缺标记、错题本混入拓展词，以及标签和正文是否冲突。章览缺图是 WARN，不拦截发送。边标签和配色与解题共用同一套检查。守卫只查红线，查不出内容对错——验算仍按各科 reference 清单做。数学式子交给下一节的 `verify.py`。
+
+学生画像、掌握度和兴趣原问都在家目录，不进仓库。诊断题用 `records.py add --context 自学诊断`，不进错题本。自测错题才进 `notebook.py`。`explore_log.py` 只记超纲原问。
 
 ## 数学机验
 
@@ -182,10 +192,13 @@ bash tests/run.sh
 python3 tests/check.py
 python3 tests/test_check_bites.py
 python3 tests/test_records.py
+python3 tests/test_guard_study.py
+python3 tests/test_profile.py
+python3 tests/test_graph.py
 python3 tests/test_notebook.py
 pip install 'sympy==1.13.3'
 python3 tests/test_verify.py
 python3 tests/test_nodes.py
 ```
 
-上面除最后一行外与 CI 相同。`tests/test_nodes.py` 在 CI 里没有单独一步，正典由 `tests/check.py` 覆盖。`tests/check.py` 核对插件清单、技能目录、节点正典和 `SKILL.md`：机验标记、状态词，以及 `scripts/` 下每个脚本的命令行参数，都要出现在含该脚本文件名的行上。正典还查行格式、科目与文件一一对应、别名不重复、示例 `--node` 落在正典内。`tests/test_check_bites.py` 在临时整仓副本里各拆一条（删掉 `--subject` 那一行、把状态词 `通过` 改成 `通过_X`、删掉最后一条机验标记），确认退出码非零，且失败原因就是被拆的那一条。副本忽略 `.git`、`__pycache__`、`*.pyc` 和 `.venv`，不改真实工作树。错题本 Excel 冒烟另在 CI 里跑，需要 `openpyxl`。
+上面除最后一行外与 CI 相同。`tests/test_nodes.py` 在 CI 里没有单独一步，正典由 `tests/check.py` 覆盖。`tests/check.py` 核对插件清单、技能目录、节点正典和 `SKILL.md`：机验标记、状态词，以及 `scripts/` 下每个脚本的命令行参数，都要出现在含该脚本文件名的行上。正典还查行格式、科目与文件一一对应、别名不重复、示例 `--node` 落在正典内，并确认 `explore_log` 没有被掌握度、错题本或判题记录读走。`tests/test_check_bites.py` 在临时整仓副本里各拆一条（删掉 `--subject` 那一行、删掉自学 `--dir` 那一行、把状态词 `通过` 改成 `通过_X`、删掉最后一条机验标记、在 `records.py` 里写入 `explore_log`），确认退出码非零，且失败原因就是被拆的那一条。副本忽略 `.git`、`__pycache__`、`*.pyc` 和 `.venv`，不改真实工作树。错题本 Excel 冒烟另在 CI 里跑，需要 `openpyxl`。

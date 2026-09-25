@@ -4,6 +4,7 @@
 默认写到 ~/.high-school-ai-tutor/records.jsonl，不进仓库。
 
     python3 records.py add --subject 化学 --node 氧化还原反应 --stem 电石除杂 --outcome 做错 --error 概念
+    python3 records.py add --subject 化学 --node 氧化还原反应 --stem 诊断快诊 --outcome 做错 --error 概念 --context 自学诊断
     python3 records.py weak
     python3 records.py unmatched
 """
@@ -21,6 +22,7 @@ import nodes
 
 OUTCOMES = ("做对", "做错", "跳过")
 ERRORS = ("审题", "概念", "计算", "方法", "表达", "心态")
+CONTEXTS = ("", "自学诊断", "自学自测")
 STEM_MARKERS = ("答案", "解析", "配平", "解：", "所以", "因此")
 
 
@@ -45,7 +47,7 @@ def clean_stem(stem):
     return text[:40]
 
 
-def add_record(path, subject, node, stem, outcome, error="", when=None):
+def add_record(path, subject, node, stem, outcome, error="", when=None, context="", node_id=""):
     path = Path(path)
     subject = str(subject or "").strip()
     node = str(node or "").strip()
@@ -59,6 +61,10 @@ def add_record(path, subject, node, stem, outcome, error="", when=None):
             raise RecordError("做错时错因只能是审题、概念、计算、方法、表达、心态")
     elif error:
         raise RecordError("做对或跳过不要写错因")
+    context = str(context or "").strip()
+    if context not in CONTEXTS:
+        raise RecordError("context 只能是自学诊断或自学自测")
+    node_id = str(node_id or "").strip()
     stem = clean_stem(stem)
     when = when or date.today().isoformat()
     canon_subject, canon_node, raw_node, hit = nodes.normalize(subject, node)
@@ -79,6 +85,10 @@ def add_record(path, subject, node, stem, outcome, error="", when=None):
         "outcome": outcome,
         "error": error,
     }
+    if context:
+        row["context"] = context
+    if node_id:
+        row["node_id"] = node_id
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -175,6 +185,8 @@ def main(argv=None):
     add.add_argument("--outcome", required=True)
     add.add_argument("--error", default="")
     add.add_argument("--date", default=None)
+    add.add_argument("--context", default="", help="自学诊断或自学自测；解题记录留空")
+    add.add_argument("--node-id", default="", help="正典 kp_*；显示名仍写在 --node")
 
     sub.add_parser("weak", parents=[shared])
     sub.add_parser("unmatched", parents=[shared])
@@ -183,7 +195,10 @@ def main(argv=None):
     path = args.file or default_path()
     try:
         if args.cmd == "add":
-            row = add_record(path, args.subject, args.node, args.stem, args.outcome, args.error, args.date)
+            row = add_record(
+                path, args.subject, args.node, args.stem, args.outcome, args.error, args.date,
+                context=args.context, node_id=getattr(args, "node_id", ""),
+            )
             print(f"已记下：{row['subject']} · {row['node']}，{row['outcome']}")
         elif args.cmd == "unmatched":
             print(format_unmatched(unmatched_rows(path)))

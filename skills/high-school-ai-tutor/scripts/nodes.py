@@ -29,21 +29,89 @@ def _fold(text):
     return _SPACE.sub("", str(text or "").strip())
 
 
+_ID_LINE = re.compile(r"^#\s*id\s+(\S+)\s+(.+)$")
+
+
 def parse_lines(filename, text):
-    """一行一个节点：标准名 | 别名列表 | 所属章。别名用顿号分隔，可以留空。"""
+    """一行一个节点。
+
+    三列：标准名 | 别名列表 | 所属章。
+    六列再加 L1、L2、L3，格子不能空。
+    `# id kp_xxx 显示名` 是 ID 注释，不参与别名表。
+    """
     entries = []
     problems = []
     for lineno, raw in enumerate(text.splitlines(), 1):
         line = raw.strip()
-        if not line:
+        if not line or line.startswith("#"):
             continue
         parts = [part.strip() for part in line.split("|")]
-        if len(parts) != 3 or not parts[0] or not parts[2]:
+        if len(parts) == 6:
+            if not (parts[0] and parts[2] and parts[3] and parts[4] and parts[5]):
+                problems.append(f"正典格式错误：{filename}:{lineno}")
+                continue
+            name, alias_field, chapter = parts[0], parts[1], parts[2]
+        elif len(parts) == 3 and parts[0] and parts[2]:
+            name, alias_field, chapter = parts
+        else:
             problems.append(f"正典格式错误：{filename}:{lineno}")
             continue
-        aliases = [alias for alias in (part.strip() for part in parts[1].split(_ALIAS_SEP)) if alias]
-        entries.append((parts[0], aliases, parts[2]))
+        aliases = [alias for alias in (part.strip() for part in alias_field.split(_ALIAS_SEP)) if alias]
+        entries.append((name, aliases, chapter))
     return entries, problems
+
+
+def parse_levels(filename, text):
+    """六列行的 L1/L2/L3。三列行不在这里。"""
+    levels = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [part.strip() for part in line.split("|")]
+        if len(parts) == 6 and parts[0] and parts[2] and parts[3] and parts[4] and parts[5]:
+            levels[parts[0]] = {"chapter": parts[2], "L1": parts[3], "L2": parts[4], "L3": parts[5]}
+    return levels
+
+
+def load_ids():
+    """正典里的 `# id` 注释。返回 {id: (subject, display)}。"""
+    mapping = {}
+    for subject, filename in SUBJECT_FILES:
+        path = NODES_DIR / filename
+        if not path.exists():
+            continue
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            matched = _ID_LINE.match(raw.strip())
+            if not matched:
+                continue
+            mapping[matched.group(1)] = (subject, matched.group(2).strip())
+    return mapping
+
+
+def display_for_id(node_id):
+    found = load_ids().get(str(node_id or "").strip())
+    if not found:
+        return ""
+    return found[1]
+
+
+def id_for_display(display):
+    target = str(display or "").strip()
+    for node_id, (_subject, name) in load_ids().items():
+        if name == target:
+            return node_id
+    return ""
+
+
+def check_nodes():
+    """正典审计，外加 ID 必须指向显示名本身，不能只指向别名。"""
+    problems = audit()
+    for node_id, (subject, display) in load_ids().items():
+        _subject, standard, _raw, hit = normalize(subject, display)
+        if not hit or standard != display:
+            problems.append(f"正典 ID 未指向显示名：{node_id} → {display}")
+    return problems
 
 
 def collision_problems(subject, entries):

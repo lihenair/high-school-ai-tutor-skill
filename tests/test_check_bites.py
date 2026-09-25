@@ -91,6 +91,25 @@ class CheckBiteTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn(f"缺少机验标记：{marker}", result.stdout)
 
+    def test_dropping_study_dir_flag_fails_on_that_flag(self):
+        self.assertIn("--dir", guard_flags())
+        skill = self.copy / SKILL_REL
+        lines = skill.read_text(encoding="utf-8").splitlines(keepends=True)
+        kept = [ln for ln in lines if not ("guard.py" in ln and "--dir" in ln)]
+        self.assertLess(len(kept), len(lines))
+        skill.write_text("".join(kept), encoding="utf-8")
+
+        result = self.run_check()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("guard.py 用法未覆盖参数：--dir", result.stdout)
+
+    def test_reading_explore_log_from_records_fails_the_audit(self):
+        records = self.copy / "skills" / "high-school-ai-tutor" / "scripts" / "records.py"
+        records.write_text(records.read_text(encoding="utf-8") + "\nexplore_log = 'blocked'\n", encoding="utf-8")
+        result = self.run_check()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("explore_log", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
