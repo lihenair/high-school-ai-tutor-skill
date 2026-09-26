@@ -6,6 +6,7 @@ OWNED_LATER = {
     'bio-bx1-ch3': ('bx1_ch5',),
     'bio-bx1-ch4': ('bx1_ch6',),
     'bio-bx1-ch6': ('bio_bx2',),
+    'bio-bx2-ch1': ('bx2_ch2',),
 }
 
 SEED_NODES = (
@@ -73,6 +74,12 @@ SEED_NODES = (
     ('kp_cell_aging', '生物', '细胞的衰老', 'bio-bx1-ch6', 0),
     ('kp_cell_death', '生物', '细胞凋亡', 'bio-bx1-ch6', 0),
     ('bio_bx2', '生物', '必修2《遗传与进化》', 'bio-bx1-later', 1),
+    ('kp_mendel_pea_cross', '生物', '一对相对性状的杂交实验', 'bio-bx2-ch1', 0),
+    ('kp_segregation_law', '生物', '分离定律', 'bio-bx2-ch1', 0),
+    ('kp_hypothesis_deduction', '生物', '假说-演绎法', 'bio-bx2-ch1', 0),
+    ('kp_free_combination', '生物', '自由组合定律', 'bio-bx2-ch1', 0),
+    ('kp_mendel_methods', '生物', '孟德尔实验方法的启示', 'bio-bx2-ch1', 0),
+    ('bx2_ch2', '生物', '第二章 基因和染色体的关系', 'bio-bx2-later', 1),
 )
 
 SEED_EDGES = (
@@ -142,4 +149,10 @@ SEED_EDGES = (
     ('kp_cell_aging', 'kp_cell_death', '同章衔接'),
     ('kp_mitosis', 'kp_nucleic_acids', '常考组合'),
     ('kp_totipotency', 'kp_nucleus', '常考组合'),
+    ('kp_mendel_pea_cross', 'kp_segregation_law', '同章衔接'),
+    ('kp_segregation_law', 'kp_hypothesis_deduction', '同章衔接'),
+    ('kp_hypothesis_deduction', 'kp_free_combination', '同章衔接'),
+    ('kp_free_combination', 'kp_mendel_methods', '同章衔接'),
+    ('kp_segregation_law', 'kp_mitosis', '常考组合'),
+    ('kp_free_combination', 'kp_mitosis', '常考组合'),
 )
