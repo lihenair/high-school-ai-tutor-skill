@@ -2,6 +2,7 @@
 
 OWNED_LATER = {
     'bio-bx1-ch1': ('bx1_ch2', 'bx1_ch3'),
+    'bio-bx1-ch2': ('bx1_ch4',),
 }
 
 SEED_NODES = (
@@ -29,6 +30,15 @@ SEED_NODES = (
     ('kp_cell_diversity_unity', '生物', '细胞的多样性和统一性', 'bio-bx1-ch1', 0),
     ('bx1_ch2', '生物', '第二章 组成细胞的分子', 'bio-bx1-later', 1),
     ('bx1_ch3', '生物', '第三章 细胞的基本结构', 'bio-bx1-later', 1),
+    ('kp_elements', '生物', '组成细胞的元素', 'bio-bx1-ch2', 0),
+    ('kp_biomass_detection', '生物', '检测生物组织中的有机物', 'bio-bx1-ch2', 0),
+    ('kp_water', '生物', '细胞中的水', 'bio-bx1-ch2', 0),
+    ('kp_inorganic_salts', '生物', '细胞中的无机盐', 'bio-bx1-ch2', 0),
+    ('kp_sugars', '生物', '糖类', 'bio-bx1-ch2', 0),
+    ('kp_lipids', '生物', '脂质', 'bio-bx1-ch2', 0),
+    ('kp_proteins', '生物', '蛋白质', 'bio-bx1-ch2', 0),
+    ('kp_nucleic_acids', '生物', '核酸', 'bio-bx1-ch2', 0),
+    ('bx1_ch4', '生物', '第四章 细胞的能量供应和利用', 'bio-bx1-later', 1),
 )
 
 SEED_EDGES = (
@@ -54,4 +64,13 @@ SEED_EDGES = (
     ('kp_prokaryote_eukaryote', 'kp_cell_diversity_unity', '直接前置'),
     ('kp_cell_theory', 'kp_prokaryote_eukaryote', '常考组合'),
     ('kp_prokaryote_eukaryote', 'bx1_ch3', '常考组合'),
+    ('kp_elements', 'kp_biomass_detection', '同章衔接'),
+    ('kp_biomass_detection', 'kp_water', '同章衔接'),
+    ('kp_water', 'kp_inorganic_salts', '同章衔接'),
+    ('kp_inorganic_salts', 'kp_sugars', '同章衔接'),
+    ('kp_sugars', 'kp_lipids', '同章衔接'),
+    ('kp_lipids', 'kp_proteins', '同章衔接'),
+    ('kp_proteins', 'kp_nucleic_acids', '同章衔接'),
+    ('kp_biomass_detection', 'kp_proteins', '常考组合'),
+    ('kp_nucleic_acids', 'bx1_ch3', '常考组合'),
 )
