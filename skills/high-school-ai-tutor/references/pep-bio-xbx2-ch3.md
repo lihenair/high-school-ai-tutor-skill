@@ -25,13 +25,13 @@ flowchart TD
       kp_ecosystem_stability["生态系统的稳定性（概念）"]:::concept
     end
   end
-  xbx2_ch4["第四章 人与环境"]:::later
   kp_ecosystem_structure -->|同章衔接| kp_energy_flow
   kp_energy_flow -->|同章衔接| kp_material_cycle
   kp_material_cycle -->|同章衔接| kp_information_transfer
   kp_information_transfer -->|同章衔接| kp_ecosystem_stability
   kp_energy_flow -.->|常考组合| kp_photosynthesis_principle
   kp_ecosystem_stability -.->|常考组合| kp_homeostasis
+  kp_energy_flow -.->|常考组合| kp_aerobic_respiration
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

@@ -19,10 +19,10 @@ flowchart TD
       kp_humoral_nervous["体液调节与神经调节的关系（概念）"]:::concept
     end
   end
-  xbx1_ch4["第四章 免疫调节"]:::later
   kp_hormones_endocrine -->|同章衔接| kp_hormone_process
   kp_hormone_process -->|同章衔接| kp_humoral_nervous
   kp_hormone_process -.->|常考组合| kp_internal_env_properties
+  kp_hormone_process -.->|常考组合| kp_aerobic_respiration
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

@@ -26,7 +26,6 @@ flowchart TD
       kp_brain_functions["人脑的高级功能（概念）"]:::concept
     end
   end
-  xbx1_ch3["第三章 体液调节"]:::later
   kp_neuron_structure -->|同章衔接| kp_reflex_arc
   kp_reflex_arc -->|同章衔接| kp_nerve_impulse
   kp_nerve_impulse -->|同章衔接| kp_synapse

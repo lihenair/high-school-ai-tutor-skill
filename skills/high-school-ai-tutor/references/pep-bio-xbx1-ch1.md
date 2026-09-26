@@ -17,7 +17,6 @@ flowchart TD
       kp_homeostasis["内环境的稳态（概念）"]:::concept
     end
   end
-  xbx1_ch2["第二章 神经调节"]:::later
   kp_internal_environment -->|同章衔接| kp_internal_env_properties
   kp_internal_env_properties -->|同章衔接| kp_homeostasis
   kp_internal_env_properties -.->|常考组合| kp_osmosis

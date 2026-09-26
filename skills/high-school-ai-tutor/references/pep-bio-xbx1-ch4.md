@@ -22,11 +22,12 @@ flowchart TD
       kp_immune_application["免疫学的应用（概念）"]:::concept
     end
   end
-  xbx1_ch5["第五章 植物生命活动的调节"]:::later
   kp_immune_system -->|同章衔接| kp_specific_immunity
   kp_specific_immunity -->|同章衔接| kp_immune_disorder
   kp_immune_disorder -->|同章衔接| kp_immune_application
   kp_specific_immunity -.->|常考组合| kp_hormone_process
+  kp_specific_immunity -.->|常考组合| kp_proteins
+  kp_immune_system -.->|常考组合| kp_homeostasis
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

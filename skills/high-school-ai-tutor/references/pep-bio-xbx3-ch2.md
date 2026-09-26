@@ -22,7 +22,6 @@ flowchart TD
       kp_embryo_engineering["胚胎工程（概念）"]:::concept
     end
   end
-  xbx3_ch3["第三章 基因工程"]:::later
   kp_plant_cell_engineering -->|同章衔接| kp_animal_cell_engineering
   kp_animal_cell_engineering -->|同章衔接| kp_stem_cell_application
   kp_stem_cell_application -->|同章衔接| kp_embryo_engineering

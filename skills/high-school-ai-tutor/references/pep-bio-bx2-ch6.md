@@ -23,13 +23,13 @@ flowchart TD
       kp_coevolution_biodiversity["协同进化与生物多样性的形成（概念）"]:::concept
     end
   end
-  bio_xbx1["选择性必修1《稳态与调节》"]:::later
   kp_common_ancestor -->|同章衔接| kp_natural_selection_adaptation
   kp_natural_selection_adaptation -->|同章衔接| kp_population_gene_frequency
   kp_population_gene_frequency -->|同章衔接| kp_speciation
   kp_speciation -->|同章衔接| kp_coevolution_biodiversity
   kp_natural_selection_adaptation -.->|常考组合| kp_gene_mutation
   kp_population_gene_frequency -.->|常考组合| kp_mendel_methods
+  kp_gene_mutation -.->|常考组合| kp_natural_selection_adaptation
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

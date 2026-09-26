@@ -19,7 +19,6 @@ flowchart TD
       kp_mendel_methods["孟德尔实验方法的启示（概念）"]:::concept
     end
   end
-  bx2_ch2["第二章 基因和染色体的关系"]:::later
   kp_mendel_pea_cross -->|同章衔接| kp_segregation_law
   kp_segregation_law -->|同章衔接| kp_hypothesis_deduction
   kp_hypothesis_deduction -->|同章衔接| kp_free_combination

@@ -16,7 +16,6 @@ flowchart TD
       kp_biodiversity_protection["生物多样性及其保护（概念）"]:::concept
     end
   end
-  bio_xbx3["选择性必修3《生物技术与工程》"]:::later
   kp_human_impact -->|同章衔接| kp_biodiversity_protection
   kp_biodiversity_protection -.->|常考组合| kp_coevolution_biodiversity
 ```

@@ -27,7 +27,6 @@ flowchart TD
       kp_photosynthesis_factors["影响光合作用强度的因素（概念）"]:::concept
     end
   end
-  bx1_ch6["第六章 细胞的生命历程"]:::later
   kp_enzyme_role -->|同章衔接| kp_enzyme_properties
   kp_enzyme_properties -->|同章衔接| kp_atp
   kp_atp -->|同章衔接| kp_aerobic_respiration
@@ -39,6 +38,7 @@ flowchart TD
   kp_atp -.->|常考组合| kp_aerobic_respiration
   kp_organelles -.->|常考组合| kp_aerobic_respiration
   kp_enzyme_properties -.->|常考组合| kp_photosynthesis_factors
+  kp_photosynthesis_principle -.->|常考组合| kp_aerobic_respiration
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

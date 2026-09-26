@@ -18,7 +18,6 @@ flowchart TD
       kp_epigenetics["表观遗传（概念）"]:::concept
     end
   end
-  bx2_ch5["第五章 基因突变及其他变异"]:::later
   kp_transcription_translation -->|同章衔接| kp_central_dogma
   kp_central_dogma -->|同章衔接| kp_gene_expression_trait
   kp_gene_expression_trait -->|同章衔接| kp_epigenetics

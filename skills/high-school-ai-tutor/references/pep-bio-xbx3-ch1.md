@@ -22,7 +22,6 @@ flowchart TD
       kp_fermentation_engineering["发酵工程及其应用（概念）"]:::concept
     end
   end
-  xbx3_ch2["第二章 细胞工程"]:::later
   kp_traditional_fermentation -->|同章衔接| kp_microbe_culture
   kp_microbe_culture -->|同章衔接| kp_microbe_isolation
   kp_microbe_isolation -->|同章衔接| kp_fermentation_engineering

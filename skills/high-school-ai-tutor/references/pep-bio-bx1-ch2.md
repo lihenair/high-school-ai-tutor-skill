@@ -28,8 +28,6 @@ flowchart TD
       kp_nucleic_acids["核酸（概念）"]:::concept
     end
   end
-  bx1_ch3["第三章 细胞的基本结构"]:::later
-  bx1_ch4["第四章 细胞的物质输入和输出"]:::later
   kp_elements -->|同章衔接| kp_biomass_detection
   kp_biomass_detection -->|同章衔接| kp_water
   kp_water -->|同章衔接| kp_inorganic_salts
@@ -38,7 +36,7 @@ flowchart TD
   kp_lipids -->|同章衔接| kp_proteins
   kp_proteins -->|同章衔接| kp_nucleic_acids
   kp_biomass_detection -.->|常考组合| kp_proteins
-  kp_nucleic_acids -.->|常考组合| bx1_ch3
+  kp_nucleic_acids -.->|常考组合| kp_nucleus
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

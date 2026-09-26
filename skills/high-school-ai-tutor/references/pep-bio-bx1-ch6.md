@@ -22,7 +22,6 @@ flowchart TD
       kp_cell_death["细胞凋亡（概念）"]:::concept
     end
   end
-  bio_bx2["必修2《遗传与进化》"]:::later
   kp_cell_cycle -->|同章衔接| kp_mitosis
   kp_mitosis -->|同章衔接| kp_cell_differentiation
   kp_cell_differentiation -->|同章衔接| kp_totipotency

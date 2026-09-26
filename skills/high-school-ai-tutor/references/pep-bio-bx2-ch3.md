@@ -22,7 +22,6 @@ flowchart TD
       kp_gene_dna_fragment["基因通常是有遗传效应的 DNA 片段（概念）"]:::concept
     end
   end
-  bx2_ch4["第四章 基因的表达"]:::later
   kp_dna_genetic_material -->|同章衔接| kp_dna_structure
   kp_dna_structure -->|同章衔接| kp_dna_replication
   kp_dna_replication -->|同章衔接| kp_gene_dna_fragment

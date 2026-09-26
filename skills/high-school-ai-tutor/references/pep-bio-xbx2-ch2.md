@@ -19,7 +19,6 @@ flowchart TD
       kp_ecological_succession["群落的演替（概念）"]:::concept
     end
   end
-  xbx2_ch3["第三章 生态系统及其稳定性"]:::later
   kp_community_structure -->|同章衔接| kp_community_types
   kp_community_types -->|同章衔接| kp_ecological_succession
 ```

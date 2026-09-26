@@ -22,7 +22,6 @@ flowchart TD
       kp_environment_plant["环境因素参与调节植物的生命活动（概念）"]:::concept
     end
   end
-  bio_xbx2["选择性必修2《生物与环境》"]:::later
   kp_auxin_discovery -->|同章衔接| kp_other_hormones
   kp_other_hormones -->|同章衔接| kp_growth_regulators
   kp_growth_regulators -->|同章衔接| kp_environment_plant

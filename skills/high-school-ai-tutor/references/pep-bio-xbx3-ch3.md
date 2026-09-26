@@ -22,7 +22,6 @@ flowchart TD
       kp_protein_engineering["蛋白质工程的原理和应用（概念）"]:::concept
     end
   end
-  xbx3_ch4["第四章 生物技术的安全性与伦理问题"]:::later
   kp_recombinant_dna_tools -->|同章衔接| kp_gene_engineering_procedure
   kp_gene_engineering_procedure -->|同章衔接| kp_gene_engineering_applications
   kp_gene_engineering_applications -->|同章衔接| kp_protein_engineering

@@ -24,8 +24,6 @@ flowchart TD
       kp_nucleus["细胞核（概念）"]:::concept
     end
   end
-  bx1_ch4["第四章 细胞的物质输入和输出"]:::later
-  bx1_ch5["第五章 细胞的能量供应和利用"]:::later
   kp_cell_membrane_functions -->|同章衔接| kp_fluid_mosaic
   kp_fluid_mosaic -->|同章衔接| kp_differential_centrifugation
   kp_differential_centrifugation -->|同章衔接| kp_cell_wall
@@ -33,7 +31,7 @@ flowchart TD
   kp_organelles -->|同章衔接| kp_secretory_protein
   kp_secretory_protein -->|同章衔接| kp_biomembrane_system
   kp_biomembrane_system -->|同章衔接| kp_nucleus
-  kp_fluid_mosaic -.->|常考组合| bx1_ch4
+  kp_fluid_mosaic -.->|常考组合| kp_active_transport
   kp_organelles -.->|常考组合| kp_proteins
   kp_nucleus -.->|常考组合| kp_nucleic_acids
 ```

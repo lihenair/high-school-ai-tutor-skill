@@ -19,13 +19,11 @@ flowchart TD
       kp_cell_diversity_unity["细胞的多样性和统一性（概念）"]:::concept
     end
   end
-  bx1_ch2["第二章 组成细胞的分子"]:::later
-  bx1_ch3["第三章 细胞的基本结构"]:::later
   kp_cell_theory -->|同章衔接| kp_life_system
   kp_microscope_use -->|同章衔接| kp_cell_diversity_unity
   kp_prokaryote_eukaryote -->|直接前置| kp_cell_diversity_unity
   kp_cell_theory -.->|常考组合| kp_prokaryote_eukaryote
-  kp_prokaryote_eukaryote -.->|常考组合| bx1_ch3
+  kp_prokaryote_eukaryote -.->|常考组合| kp_nucleus
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

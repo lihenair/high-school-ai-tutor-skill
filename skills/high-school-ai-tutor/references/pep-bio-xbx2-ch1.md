@@ -19,7 +19,6 @@ flowchart TD
       kp_population_factors["影响种群数量变化的因素（概念）"]:::concept
     end
   end
-  xbx2_ch2["第二章 群落及其演替"]:::later
   kp_population_features -->|同章衔接| kp_population_change
   kp_population_change -->|同章衔接| kp_population_factors
 ```

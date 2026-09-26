@@ -20,7 +20,6 @@ flowchart TD
       kp_human_genetic_disease["人类遗传病（概念）"]:::concept
     end
   end
-  bx2_ch6["第六章 生物的进化"]:::later
   kp_gene_mutation -->|同章衔接| kp_gene_recombination
   kp_gene_recombination -->|同章衔接| kp_chromosome_variation
   kp_chromosome_variation -->|同章衔接| kp_human_genetic_disease

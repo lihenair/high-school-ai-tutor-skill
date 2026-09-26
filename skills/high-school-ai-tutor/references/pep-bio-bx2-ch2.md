@@ -20,12 +20,12 @@ flowchart TD
       kp_sex_linked["伴性遗传（概念）"]:::concept
     end
   end
-  bx2_ch3["第三章 基因的本质"]:::later
   kp_meiosis -->|同章衔接| kp_fertilization
   kp_fertilization -->|同章衔接| kp_gene_on_chromosome
   kp_gene_on_chromosome -->|同章衔接| kp_sex_linked
   kp_meiosis -.->|常考组合| kp_segregation_law
   kp_meiosis -.->|常考组合| kp_free_combination
+  kp_meiosis -.->|常考组合| kp_dna_replication
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

@@ -19,15 +19,13 @@ flowchart TD
       kp_endocytosis_exocytosis["胞吞和胞吐（概念）"]:::concept
     end
   end
-  bx1_ch5["第五章 细胞的能量供应和利用"]:::later
-  bx1_ch6["第六章 细胞的生命历程"]:::later
   kp_osmosis -->|同章衔接| kp_plasmolysis
   kp_plasmolysis -->|同章衔接| kp_passive_transport
   kp_passive_transport -->|同章衔接| kp_active_transport
   kp_active_transport -->|同章衔接| kp_endocytosis_exocytosis
   kp_cell_membrane_functions -.->|常考组合| kp_passive_transport
   kp_fluid_mosaic -.->|常考组合| kp_endocytosis_exocytosis
-  kp_active_transport -.->|常考组合| bx1_ch5
+  kp_active_transport -.->|常考组合| kp_aerobic_respiration
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。
