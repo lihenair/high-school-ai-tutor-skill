@@ -4,6 +4,7 @@ OWNED_LATER = {
     'bio-bx1-ch1': ('bx1_ch2', 'bx1_ch3'),
     'bio-bx1-ch2': ('bx1_ch4',),
     'bio-bx1-ch3': ('bx1_ch5',),
+    'bio-bx1-ch4': ('bx1_ch6',),
 }
 
 SEED_NODES = (
@@ -49,6 +50,12 @@ SEED_NODES = (
     ('kp_biomembrane_system', '生物', '生物膜系统', 'bio-bx1-ch3', 0),
     ('kp_nucleus', '生物', '细胞核', 'bio-bx1-ch3', 0),
     ('bx1_ch5', '生物', '第五章 细胞的能量供应和利用', 'bio-bx1-later', 1),
+    ('kp_osmosis', '生物', '渗透作用', 'bio-bx1-ch4', 0),
+    ('kp_plasmolysis', '生物', '质壁分离及复原', 'bio-bx1-ch4', 0),
+    ('kp_passive_transport', '生物', '被动运输', 'bio-bx1-ch4', 0),
+    ('kp_active_transport', '生物', '主动运输', 'bio-bx1-ch4', 0),
+    ('kp_endocytosis_exocytosis', '生物', '胞吞和胞吐', 'bio-bx1-ch4', 0),
+    ('bx1_ch6', '生物', '第六章 细胞的生命历程', 'bio-bx1-later', 1),
 )
 
 SEED_EDGES = (
@@ -93,4 +100,11 @@ SEED_EDGES = (
     ('kp_fluid_mosaic', 'bx1_ch4', '常考组合'),
     ('kp_organelles', 'kp_proteins', '常考组合'),
     ('kp_nucleus', 'kp_nucleic_acids', '常考组合'),
+    ('kp_osmosis', 'kp_plasmolysis', '同章衔接'),
+    ('kp_plasmolysis', 'kp_passive_transport', '同章衔接'),
+    ('kp_passive_transport', 'kp_active_transport', '同章衔接'),
+    ('kp_active_transport', 'kp_endocytosis_exocytosis', '同章衔接'),
+    ('kp_cell_membrane_functions', 'kp_passive_transport', '常考组合'),
+    ('kp_fluid_mosaic', 'kp_endocytosis_exocytosis', '常考组合'),
+    ('kp_active_transport', 'bx1_ch5', '常考组合'),
 )
