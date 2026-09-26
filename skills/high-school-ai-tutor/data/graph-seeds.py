@@ -12,6 +12,8 @@ OWNED_LATER = {
     'bio-bx2-ch4': ('bx2_ch5',),
     'bio-bx2-ch5': ('bx2_ch6',),
     'bio-bx2-ch6': ('bio_xbx1',),
+    'xbx1-ch1': ('xbx1_ch2',),
+    'xbx1-ch2': ('xbx1_ch3',),
 }
 
 SEED_NODES = (
@@ -111,6 +113,17 @@ SEED_NODES = (
     ('kp_speciation', '生物', '物种的形成', 'bio-bx2-ch6', 0),
     ('kp_coevolution_biodiversity', '生物', '协同进化与生物多样性的形成', 'bio-bx2-ch6', 0),
     ('bio_xbx1', '生物', '选择性必修1《稳态与调节》', 'bio-bx2-later', 1),
+    ('kp_internal_environment', '生物', '内环境的组成', 'xbx1-ch1', 0),
+    ('kp_internal_env_properties', '生物', '内环境的理化性质', 'xbx1-ch1', 0),
+    ('kp_homeostasis', '生物', '内环境的稳态', 'xbx1-ch1', 0),
+    ('xbx1_ch2', '生物', '第二章 神经调节', 'bio-xbx1-later', 1),
+    ('kp_neuron_structure', '生物', '神经调节的结构基础', 'xbx1-ch2', 0),
+    ('kp_reflex_arc', '生物', '神经调节的基本方式', 'xbx1-ch2', 0),
+    ('kp_nerve_impulse', '生物', '神经冲动的产生和传导', 'xbx1-ch2', 0),
+    ('kp_synapse', '生物', '神经冲动在突触处的传递', 'xbx1-ch2', 0),
+    ('kp_hierarchical_regulation', '生物', '神经系统的分级调节', 'xbx1-ch2', 0),
+    ('kp_brain_functions', '生物', '人脑的高级功能', 'xbx1-ch2', 0),
+    ('xbx1_ch3', '生物', '第三章 体液调节', 'bio-xbx1-later', 1),
 )
 
 SEED_EDGES = (
@@ -212,4 +225,14 @@ SEED_EDGES = (
     ('kp_speciation', 'kp_coevolution_biodiversity', '同章衔接'),
     ('kp_natural_selection_adaptation', 'kp_gene_mutation', '常考组合'),
     ('kp_population_gene_frequency', 'kp_mendel_methods', '常考组合'),
+    ('kp_internal_environment', 'kp_internal_env_properties', '同章衔接'),
+    ('kp_internal_env_properties', 'kp_homeostasis', '同章衔接'),
+    ('kp_internal_env_properties', 'kp_osmosis', '常考组合'),
+    ('kp_neuron_structure', 'kp_reflex_arc', '同章衔接'),
+    ('kp_reflex_arc', 'kp_nerve_impulse', '同章衔接'),
+    ('kp_nerve_impulse', 'kp_synapse', '同章衔接'),
+    ('kp_synapse', 'kp_hierarchical_regulation', '同章衔接'),
+    ('kp_hierarchical_regulation', 'kp_brain_functions', '同章衔接'),
+    ('kp_reflex_arc', 'kp_hierarchical_regulation', '常考组合'),
+    ('kp_brain_functions', 'kp_homeostasis', '常考组合'),
 )
