@@ -116,6 +116,7 @@ SEED_EDGES = (
     ('kp_cell_membrane_functions', 'kp_passive_transport', '常考组合'),
     ('kp_fluid_mosaic', 'kp_endocytosis_exocytosis', '常考组合'),
     ('kp_active_transport', 'bx1_ch5', '常考组合'),
+    ('kp_organelles', 'kp_aerobic_respiration', '常考组合'),
     ('kp_enzyme_role', 'kp_enzyme_properties', '同章衔接'),
     ('kp_enzyme_properties', 'kp_atp', '同章衔接'),
     ('kp_atp', 'kp_aerobic_respiration', '同章衔接'),
@@ -125,6 +126,5 @@ SEED_EDGES = (
     ('kp_pigment_separation', 'kp_photosynthesis_principle', '同章衔接'),
     ('kp_photosynthesis_principle', 'kp_photosynthesis_factors', '同章衔接'),
     ('kp_atp', 'kp_aerobic_respiration', '常考组合'),
-    ('kp_organelles', 'kp_aerobic_respiration', '常考组合'),
     ('kp_enzyme_properties', 'kp_photosynthesis_factors', '常考组合'),
 )
