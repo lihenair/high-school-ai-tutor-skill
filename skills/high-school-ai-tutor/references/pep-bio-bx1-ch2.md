@@ -29,7 +29,7 @@ flowchart TD
     end
   end
   bx1_ch3["第三章 细胞的基本结构"]:::later
-  bx1_ch4["第四章 细胞的能量供应和利用"]:::later
+  bx1_ch4["第四章 细胞的物质输入和输出"]:::later
   kp_elements -->|同章衔接| kp_biomass_detection
   kp_biomass_detection -->|同章衔接| kp_water
   kp_water -->|同章衔接| kp_inorganic_salts

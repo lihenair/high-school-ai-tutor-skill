@@ -38,7 +38,7 @@ SEED_NODES = (
     ('kp_lipids', '生物', '脂质', 'bio-bx1-ch2', 0),
     ('kp_proteins', '生物', '蛋白质', 'bio-bx1-ch2', 0),
     ('kp_nucleic_acids', '生物', '核酸', 'bio-bx1-ch2', 0),
-    ('bx1_ch4', '生物', '第四章 细胞的能量供应和利用', 'bio-bx1-later', 1),
+    ('bx1_ch4', '生物', '第四章 细胞的物质输入和输出', 'bio-bx1-later', 1),
 )
 
 SEED_EDGES = (
