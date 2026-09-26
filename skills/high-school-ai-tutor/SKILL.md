@@ -9,7 +9,7 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 
 后文与「每轮输出总则」冲突时，以总则为准。
 
-本文件是 skill 入口，只放每轮都要用的规则。数学、物理、化学、生物判定科目后再读对应 `references/`，不要一次读完。语文、英语、历史、政治、地理读 `references/humanities.md`。人教版化学必修第一册（2019）第一章的整章图在 `references/pep-chem-bx1-ch1.md`，人教版生物学必修1（2019）第一章的整章图在 `references/pep-bio-bx1-ch1.md`，第二章的整章图在 `references/pep-bio-bx1-ch2.md`，第三章的整章图在 `references/pep-bio-bx1-ch3.md`，第四章的整章图在 `references/pep-bio-bx1-ch4.md`，第五章的整章图在 `references/pep-bio-bx1-ch5.md`，第六章的整章图在 `references/pep-bio-bx1-ch6.md`，人教版生物学必修2（2019）第一章的整章图在 `references/pep-bio-bx2-ch1.md`，第二章的整章图在 `references/pep-bio-bx2-ch2.md`，第三章的整章图在 `references/pep-bio-bx2-ch3.md`，第四章的整章图在 `references/pep-bio-bx2-ch4.md`，第五章的整章图在 `references/pep-bio-bx2-ch5.md`，点名要对应章时再读，原样输出。自学模式的四子状态、七槽、超纲四类和补步声明在 `modes/self-study.md`，判为自学后再读。解题三态的规则仍只在本文件，不迁出。
+本文件是 skill 入口，只放每轮都要用的规则。数学、物理、化学、生物判定科目后再读对应 `references/`，不要一次读完。语文、英语、历史、政治、地理读 `references/humanities.md`。人教版化学必修第一册（2019）第一章的整章图在 `references/pep-chem-bx1-ch1.md`，人教版生物学必修1（2019）第一章的整章图在 `references/pep-bio-bx1-ch1.md`，第二章的整章图在 `references/pep-bio-bx1-ch2.md`，第三章的整章图在 `references/pep-bio-bx1-ch3.md`，第四章的整章图在 `references/pep-bio-bx1-ch4.md`，第五章的整章图在 `references/pep-bio-bx1-ch5.md`，第六章的整章图在 `references/pep-bio-bx1-ch6.md`，人教版生物学必修2（2019）第一章的整章图在 `references/pep-bio-bx2-ch1.md`，第二章的整章图在 `references/pep-bio-bx2-ch2.md`，第三章的整章图在 `references/pep-bio-bx2-ch3.md`，第四章的整章图在 `references/pep-bio-bx2-ch4.md`，第五章的整章图在 `references/pep-bio-bx2-ch5.md`，第六章的整章图在 `references/pep-bio-bx2-ch6.md`，点名要对应章时再读，原样输出。自学模式的四子状态、七槽、超纲四类和补步声明在 `modes/self-study.md`，判为自学后再读。解题三态的规则仍只在本文件，不迁出。
 
 ## 科目分流
 
@@ -186,6 +186,7 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 - 人教版《生物学 必修2 遗传与进化》（2019）第三章：读 `references/pep-bio-bx2-ch3.md`，从「整章图：人教版《生物学 必修2 遗传与进化》（2019）第三章」起原样输出。
 - 人教版《生物学 必修2 遗传与进化》（2019）第四章：读 `references/pep-bio-bx2-ch4.md`，从「整章图：人教版《生物学 必修2 遗传与进化》（2019）第四章」起原样输出。
 - 人教版《生物学 必修2 遗传与进化》（2019）第五章：读 `references/pep-bio-bx2-ch5.md`，从「整章图：人教版《生物学 必修2 遗传与进化》（2019）第五章」起原样输出。
+- 人教版《生物学 必修2 遗传与进化》（2019）第六章：读 `references/pep-bio-bx2-ch6.md`，从「整章图：人教版《生物学 必修2 遗传与进化》（2019）第六章」起原样输出。
 - 其他册、其他章没有这份名单时不要套用，写不确定。
 
 答题时怎么用（学生贴题、要解析或变式时走这里，不要先出图）：

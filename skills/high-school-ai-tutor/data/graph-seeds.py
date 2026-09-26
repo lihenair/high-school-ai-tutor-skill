@@ -11,6 +11,7 @@ OWNED_LATER = {
     'bio-bx2-ch3': ('bx2_ch4',),
     'bio-bx2-ch4': ('bx2_ch5',),
     'bio-bx2-ch5': ('bx2_ch6',),
+    'bio-bx2-ch6': ('bio_xbx1',),
 }
 
 SEED_NODES = (
@@ -104,6 +105,12 @@ SEED_NODES = (
     ('kp_chromosome_variation', '生物', '染色体变异', 'bio-bx2-ch5', 0),
     ('kp_human_genetic_disease', '生物', '人类遗传病', 'bio-bx2-ch5', 0),
     ('bx2_ch6', '生物', '第六章 生物的进化', 'bio-bx2-later', 1),
+    ('kp_common_ancestor', '生物', '生物有共同祖先的证据', 'bio-bx2-ch6', 0),
+    ('kp_natural_selection_adaptation', '生物', '自然选择与适应的形成', 'bio-bx2-ch6', 0),
+    ('kp_population_gene_frequency', '生物', '种群基因组成的变化', 'bio-bx2-ch6', 0),
+    ('kp_speciation', '生物', '物种的形成', 'bio-bx2-ch6', 0),
+    ('kp_coevolution_biodiversity', '生物', '协同进化与生物多样性的形成', 'bio-bx2-ch6', 0),
+    ('bio_xbx1', '生物', '选择性必修1《稳态与调节》', 'bio-bx2-later', 1),
 )
 
 SEED_EDGES = (
@@ -199,4 +206,10 @@ SEED_EDGES = (
     ('kp_chromosome_variation', 'kp_human_genetic_disease', '同章衔接'),
     ('kp_gene_mutation', 'kp_dna_replication', '常考组合'),
     ('kp_gene_recombination', 'kp_meiosis', '常考组合'),
+    ('kp_common_ancestor', 'kp_natural_selection_adaptation', '同章衔接'),
+    ('kp_natural_selection_adaptation', 'kp_population_gene_frequency', '同章衔接'),
+    ('kp_population_gene_frequency', 'kp_speciation', '同章衔接'),
+    ('kp_speciation', 'kp_coevolution_biodiversity', '同章衔接'),
+    ('kp_natural_selection_adaptation', 'kp_gene_mutation', '常考组合'),
+    ('kp_population_gene_frequency', 'kp_mendel_methods', '常考组合'),
 )
