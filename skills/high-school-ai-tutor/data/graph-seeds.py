@@ -7,6 +7,7 @@ OWNED_LATER = {
     'bio-bx1-ch4': ('bx1_ch6',),
     'bio-bx1-ch6': ('bio_bx2',),
     'bio-bx2-ch1': ('bx2_ch2',),
+    'bio-bx2-ch2': ('bx2_ch3',),
 }
 
 SEED_NODES = (
@@ -80,6 +81,11 @@ SEED_NODES = (
     ('kp_free_combination', '生物', '自由组合定律', 'bio-bx2-ch1', 0),
     ('kp_mendel_methods', '生物', '孟德尔实验方法的启示', 'bio-bx2-ch1', 0),
     ('bx2_ch2', '生物', '第二章 基因和染色体的关系', 'bio-bx2-later', 1),
+    ('kp_meiosis', '生物', '减数分裂', 'bio-bx2-ch2', 0),
+    ('kp_fertilization', '生物', '受精作用', 'bio-bx2-ch2', 0),
+    ('kp_gene_on_chromosome', '生物', '基因在染色体上', 'bio-bx2-ch2', 0),
+    ('kp_sex_linked', '生物', '伴性遗传', 'bio-bx2-ch2', 0),
+    ('bx2_ch3', '生物', '第三章 基因的本质', 'bio-bx2-later', 1),
 )
 
 SEED_EDGES = (
@@ -155,4 +161,9 @@ SEED_EDGES = (
     ('kp_free_combination', 'kp_mendel_methods', '同章衔接'),
     ('kp_segregation_law', 'kp_mitosis', '常考组合'),
     ('kp_free_combination', 'kp_mitosis', '常考组合'),
+    ('kp_meiosis', 'kp_fertilization', '同章衔接'),
+    ('kp_fertilization', 'kp_gene_on_chromosome', '同章衔接'),
+    ('kp_gene_on_chromosome', 'kp_sex_linked', '同章衔接'),
+    ('kp_meiosis', 'kp_segregation_law', '常考组合'),
+    ('kp_meiosis', 'kp_free_combination', '常考组合'),
 )
