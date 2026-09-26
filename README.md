@@ -12,7 +12,64 @@
 
 自学要显式说，例如「自学：第三章」「学第三章」「这一章怎么学」。一轮只处一个状态：章览、诊断、节点、章末。细则在 `modes/self-study.md`。自学回复第一行写状态标签，发送前跑 `guard.py --mode study`。贴题不会打开首次三问。有画像时，题做完再问要不要回到刚才的节点。
 
-学生点名要某一章的图时，用 mermaid 只画这一章。蓝是概念，绿是技能，橙是实验，灰是后续章节。边只用直接前置、同章衔接、常考组合。人教版《化学 必修 第一册》（2019）第一章的图在 `references/pep-chem-bx1-ch1.md`。做题时不贴整章图。
+学生点名要某一章的图时，用 mermaid 只画这一章。蓝是概念，绿是技能，橙是实验，灰是后续章节。边只用直接前置、同章衔接、常考组合。做题时不贴整章图。人教版《化学 必修 第一册》（2019）第一章的原文在 `references/pep-chem-bx1-ch1.md`。跨章只写章名。
+
+整章图：人教版《化学 必修 第一册》（2019）第一章
+
+```mermaid
+flowchart TD
+  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A
+  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A
+  classDef experiment fill:#FFF4E5,stroke:#C47B17,color:#1A1A1A
+  classDef later fill:#F4F4F5,stroke:#71717A,color:#1A1A1A
+  subgraph ch1["第一章 物质及其变化"]
+    subgraph s1["物质的分类及转化"]
+      mix["纯净物 / 混合物（概念）"]:::concept
+      compound["单质 / 化合物；氧化物、酸、碱、盐（概念）"]:::concept
+      cross["交叉分类法（技能）"]:::skill
+      colloid["分散系：溶液、胶体、浊液（概念）"]:::concept
+      tyndall["丁达尔效应（实验）"]:::experiment
+      transform["物质的转化（概念）"]:::concept
+    end
+    subgraph s2["离子反应"]
+      ionize["电解质与电离（概念）"]:::concept
+      ionEq["离子方程式（技能）"]:::skill
+      ionCond["离子反应发生的条件（概念）"]:::concept
+    end
+    subgraph s3["氧化还原反应"]
+      valence["化合价升降与电子转移（概念）"]:::concept
+      agent["氧化剂 / 还原剂（概念）"]:::concept
+      basic4["四种基本反应类型与氧化还原的关系（概念）"]:::concept
+    end
+  end
+  ch2["第二章 钠和氯"]:::later
+  ch2n["第二章 物质的量"]:::later
+  ch3["第三章 铁"]:::later
+  compound -->|同章衔接| transform
+  colloid -->|同章衔接| tyndall
+  compound -->|同章衔接| ionize
+  ionize -->|直接前置| ionEq
+  ionEq -->|直接前置| ionCond
+  valence -->|直接前置| agent
+  agent -->|同章衔接| basic4
+  ionEq -.->|常考组合| valence
+  ionEq -.->|常考组合| ch2
+  valence -.->|常考组合| ch2
+  valence -.->|常考组合| ch3
+  ionEq -.->|常考组合| ch2n
+```
+
+图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。
+
+本题切片示例：2021 年北京高考化学，电石制乙炔并用硫酸铜除杂。只标切口，不写配平和选项结论，也不写入上面的整章图。
+
+```mermaid
+flowchart TD
+  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A
+  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A
+  valence["化合价升降与电子转移（概念）"]:::concept -->|直接前置| agent["氧化剂 / 还原剂：PH₃ 与 Cu²⁺（概念）"]:::concept
+  ion["离子反应（概念）"]:::concept -.->|常考组合| agent
+```
 
 教材版本只对齐正典里的章节名和顺序。没有课标或教材原文可引用时写不确定或「待补录」，不编页码、考频和原文。现在不做教材或考纲检索。课程标准划范围，有使用权的教材段落才供自学引用；两份材料不放进同一个向量库。图谱检索和兴趣推荐仍未启用。
 
