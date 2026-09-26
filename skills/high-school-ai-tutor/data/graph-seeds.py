@@ -10,6 +10,7 @@ OWNED_LATER = {
     'bio-bx2-ch1': ('bx2_ch2',),
     'bio-bx2-ch3': ('bx2_ch4',),
     'bio-bx2-ch4': ('bx2_ch5',),
+    'bio-bx2-ch5': ('bx2_ch6',),
 }
 
 SEED_NODES = (
@@ -98,6 +99,11 @@ SEED_NODES = (
     ('kp_gene_expression_trait', '生物', '基因表达与性状的关系', 'bio-bx2-ch4', 0),
     ('kp_epigenetics', '生物', '表观遗传', 'bio-bx2-ch4', 0),
     ('bx2_ch5', '生物', '第五章 基因突变及其他变异', 'bio-bx2-later', 1),
+    ('kp_gene_mutation', '生物', '基因突变', 'bio-bx2-ch5', 0),
+    ('kp_gene_recombination', '生物', '基因重组', 'bio-bx2-ch5', 0),
+    ('kp_chromosome_variation', '生物', '染色体变异', 'bio-bx2-ch5', 0),
+    ('kp_human_genetic_disease', '生物', '人类遗传病', 'bio-bx2-ch5', 0),
+    ('bx2_ch6', '生物', '第六章 生物的进化', 'bio-bx2-later', 1),
 )
 
 SEED_EDGES = (
@@ -188,4 +194,9 @@ SEED_EDGES = (
     ('kp_gene_expression_trait', 'kp_epigenetics', '同章衔接'),
     ('kp_transcription_translation', 'kp_proteins', '常考组合'),
     ('kp_gene_expression_trait', 'kp_cell_differentiation', '常考组合'),
+    ('kp_gene_mutation', 'kp_gene_recombination', '同章衔接'),
+    ('kp_gene_recombination', 'kp_chromosome_variation', '同章衔接'),
+    ('kp_chromosome_variation', 'kp_human_genetic_disease', '同章衔接'),
+    ('kp_gene_mutation', 'kp_dna_replication', '常考组合'),
+    ('kp_gene_recombination', 'kp_meiosis', '常考组合'),
 )
