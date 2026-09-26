@@ -56,6 +56,15 @@ SEED_NODES = (
     ('kp_active_transport', '生物', '主动运输', 'bio-bx1-ch4', 0),
     ('kp_endocytosis_exocytosis', '生物', '胞吞和胞吐', 'bio-bx1-ch4', 0),
     ('bx1_ch6', '生物', '第六章 细胞的生命历程', 'bio-bx1-later', 1),
+    ('kp_enzyme_role', '生物', '酶的作用和本质', 'bio-bx1-ch5', 0),
+    ('kp_enzyme_properties', '生物', '酶的特性', 'bio-bx1-ch5', 0),
+    ('kp_atp', '生物', 'ATP', 'bio-bx1-ch5', 0),
+    ('kp_aerobic_respiration', '生物', '有氧呼吸', 'bio-bx1-ch5', 0),
+    ('kp_anaerobic_respiration', '生物', '无氧呼吸', 'bio-bx1-ch5', 0),
+    ('kp_respiration_application', '生物', '细胞呼吸原理的应用', 'bio-bx1-ch5', 0),
+    ('kp_pigment_separation', '生物', '绿叶中色素的提取和分离', 'bio-bx1-ch5', 0),
+    ('kp_photosynthesis_principle', '生物', '光合作用的原理', 'bio-bx1-ch5', 0),
+    ('kp_photosynthesis_factors', '生物', '影响光合作用强度的因素', 'bio-bx1-ch5', 0),
 )
 
 SEED_EDGES = (
@@ -107,4 +116,15 @@ SEED_EDGES = (
     ('kp_cell_membrane_functions', 'kp_passive_transport', '常考组合'),
     ('kp_fluid_mosaic', 'kp_endocytosis_exocytosis', '常考组合'),
     ('kp_active_transport', 'bx1_ch5', '常考组合'),
+    ('kp_enzyme_role', 'kp_enzyme_properties', '同章衔接'),
+    ('kp_enzyme_properties', 'kp_atp', '同章衔接'),
+    ('kp_atp', 'kp_aerobic_respiration', '同章衔接'),
+    ('kp_aerobic_respiration', 'kp_anaerobic_respiration', '同章衔接'),
+    ('kp_anaerobic_respiration', 'kp_respiration_application', '同章衔接'),
+    ('kp_respiration_application', 'kp_pigment_separation', '同章衔接'),
+    ('kp_pigment_separation', 'kp_photosynthesis_principle', '同章衔接'),
+    ('kp_photosynthesis_principle', 'kp_photosynthesis_factors', '同章衔接'),
+    ('kp_atp', 'kp_aerobic_respiration', '常考组合'),
+    ('kp_organelles', 'kp_aerobic_respiration', '常考组合'),
+    ('kp_enzyme_properties', 'kp_photosynthesis_factors', '常考组合'),
 )
