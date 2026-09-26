@@ -17,6 +17,10 @@ OWNED_LATER = {
     'xbx1-ch3': ('xbx1_ch4',),
     'xbx1-ch4': ('xbx1_ch5',),
     'xbx1-ch5': ('bio_xbx2',),
+    'xbx2-ch2': ('xbx2_ch3',),
+    'xbx2-ch3': ('xbx2_ch4',),
+    'xbx2-ch1': ('xbx2_ch2',),
+    'xbx2-ch4': ('bio_xbx3',),
 }
 
 SEED_NODES = (
@@ -141,6 +145,23 @@ SEED_NODES = (
     ('kp_growth_regulators', '生物', '植物生长调节剂的应用', 'xbx1-ch5', 0),
     ('kp_environment_plant', '生物', '环境因素参与调节植物的生命活动', 'xbx1-ch5', 0),
     ('bio_xbx2', '生物', '选择性必修2《生物与环境》', 'bio-xbx1-later', 1),
+    ('kp_community_structure', '生物', '群落的结构', 'xbx2-ch2', 0),
+    ('kp_community_types', '生物', '群落的主要类型', 'xbx2-ch2', 0),
+    ('kp_ecological_succession', '生物', '群落的演替', 'xbx2-ch2', 0),
+    ('xbx2_ch3', '生物', '第三章 生态系统及其稳定性', 'bio-xbx2-later', 1),
+    ('kp_ecosystem_structure', '生物', '生态系统的结构', 'xbx2-ch3', 0),
+    ('kp_energy_flow', '生物', '生态系统的能量流动', 'xbx2-ch3', 0),
+    ('kp_material_cycle', '生物', '生态系统的物质循环', 'xbx2-ch3', 0),
+    ('kp_information_transfer', '生物', '生态系统的信息传递', 'xbx2-ch3', 0),
+    ('kp_ecosystem_stability', '生物', '生态系统的稳定性', 'xbx2-ch3', 0),
+    ('xbx2_ch4', '生物', '第四章 人与环境', 'bio-xbx2-later', 1),
+    ('kp_population_features', '生物', '种群的数量特征', 'xbx2-ch1', 0),
+    ('kp_population_change', '生物', '种群数量的变化', 'xbx2-ch1', 0),
+    ('kp_population_factors', '生物', '影响种群数量变化的因素', 'xbx2-ch1', 0),
+    ('xbx2_ch2', '生物', '第二章 群落及其演替', 'bio-xbx2-later', 1),
+    ('kp_human_impact', '生物', '人类活动对生态环境的影响', 'xbx2-ch4', 0),
+    ('kp_biodiversity_protection', '生物', '生物多样性及其保护', 'xbx2-ch4', 0),
+    ('bio_xbx3', '生物', '选择性必修3《生物技术与工程》', 'bio-xbx2-later', 1),
 )
 
 SEED_EDGES = (
@@ -263,4 +284,16 @@ SEED_EDGES = (
     ('kp_other_hormones', 'kp_growth_regulators', '同章衔接'),
     ('kp_growth_regulators', 'kp_environment_plant', '同章衔接'),
     ('kp_auxin_discovery', 'kp_environment_plant', '常考组合'),
+    ('kp_community_structure', 'kp_community_types', '同章衔接'),
+    ('kp_community_types', 'kp_ecological_succession', '同章衔接'),
+    ('kp_ecosystem_structure', 'kp_energy_flow', '同章衔接'),
+    ('kp_energy_flow', 'kp_material_cycle', '同章衔接'),
+    ('kp_material_cycle', 'kp_information_transfer', '同章衔接'),
+    ('kp_information_transfer', 'kp_ecosystem_stability', '同章衔接'),
+    ('kp_energy_flow', 'kp_photosynthesis_principle', '常考组合'),
+    ('kp_ecosystem_stability', 'kp_homeostasis', '常考组合'),
+    ('kp_population_features', 'kp_population_change', '同章衔接'),
+    ('kp_population_change', 'kp_population_factors', '同章衔接'),
+    ('kp_human_impact', 'kp_biodiversity_protection', '同章衔接'),
+    ('kp_biodiversity_protection', 'kp_coevolution_biodiversity', '常考组合'),
 )
