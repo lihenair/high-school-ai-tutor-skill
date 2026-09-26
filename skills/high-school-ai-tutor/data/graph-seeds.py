@@ -1,0 +1,44 @@
+"""章节图种子。由知识库流水线整体重生成，不要手改。"""
+
+OWNED_LATER = {
+}
+
+SEED_NODES = (
+    ('kp_mixture', '化学', '纯净物 / 混合物', 'chem-bx1-ch1', 0),
+    ('kp_compound', '化学', '单质 / 化合物', 'chem-bx1-ch1', 0),
+    ('kp_cross', '化学', '交叉分类法', 'chem-bx1-ch1', 0),
+    ('kp_dispersion', '化学', '分散系', 'chem-bx1-ch1', 0),
+    ('kp_tyndall', '化学', '丁达尔效应', 'chem-bx1-ch1', 0),
+    ('kp_transform', '化学', '物质的转化', 'chem-bx1-ch1', 0),
+    ('kp_electrolyte', '化学', '电解质与电离', 'chem-bx1-ch1', 0),
+    ('kp_ion_eq', '化学', '离子方程式', 'chem-bx1-ch1', 0),
+    ('kp_ion_cond', '化学', '离子反应发生的条件', 'chem-bx1-ch1', 0),
+    ('kp_ion', '化学', '离子反应', 'chem-bx1-ch1', 0),
+    ('kp_valence', '化学', '化合价升降与电子转移', 'chem-bx1-ch1', 0),
+    ('kp_agent', '化学', '氧化剂 / 还原剂', 'chem-bx1-ch1', 0),
+    ('kp_basic4', '化学', '四种基本反应类型与氧化还原的关系', 'chem-bx1-ch1', 0),
+    ('kp_redox', '化学', '氧化还原反应', 'chem-bx1-ch1', 0),
+    ('ch2_na', '化学', '第二章 钠和氯', 'chem-bx1-later', 1),
+    ('ch2_amount', '化学', '第二章 物质的量', 'chem-bx1-later', 1),
+    ('ch3_fe', '化学', '第三章 铁', 'chem-bx1-later', 1),
+)
+
+SEED_EDGES = (
+    ('kp_compound', 'kp_transform', '同章衔接'),
+    ('kp_dispersion', 'kp_tyndall', '同章衔接'),
+    ('kp_compound', 'kp_electrolyte', '同章衔接'),
+    ('kp_electrolyte', 'kp_ion_eq', '直接前置'),
+    ('kp_ion_eq', 'kp_ion_cond', '直接前置'),
+    ('kp_valence', 'kp_agent', '直接前置'),
+    ('kp_agent', 'kp_basic4', '同章衔接'),
+    ('kp_ion_eq', 'kp_valence', '常考组合'),
+    ('kp_ion_eq', 'ch2_na', '常考组合'),
+    ('kp_valence', 'ch2_na', '常考组合'),
+    ('kp_valence', 'ch3_fe', '常考组合'),
+    ('kp_ion_eq', 'ch2_amount', '常考组合'),
+    ('kp_mixture', 'kp_compound', '同章衔接'),
+    ('kp_compound', 'kp_cross', '同章衔接'),
+    ('kp_compound', 'kp_dispersion', '同章衔接'),
+    ('kp_electrolyte', 'kp_ion', '同章衔接'),
+    ('kp_valence', 'kp_redox', '同章衔接'),
+)
