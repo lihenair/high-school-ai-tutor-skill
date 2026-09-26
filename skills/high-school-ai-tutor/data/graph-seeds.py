@@ -8,6 +8,7 @@ OWNED_LATER = {
     'bio-bx2-ch2': ('bx2_ch3',),
     'bio-bx1-ch1': ('bx1_ch2', 'bx1_ch3'),
     'bio-bx2-ch1': ('bx2_ch2',),
+    'bio-bx2-ch3': ('bx2_ch4',),
 }
 
 SEED_NODES = (
@@ -86,6 +87,11 @@ SEED_NODES = (
     ('kp_free_combination', '生物', '自由组合定律', 'bio-bx2-ch1', 0),
     ('kp_mendel_methods', '生物', '孟德尔实验方法的启示', 'bio-bx2-ch1', 0),
     ('bx2_ch2', '生物', '第二章 基因和染色体的关系', 'bio-bx2-later', 1),
+    ('kp_dna_genetic_material', '生物', 'DNA 是主要的遗传物质', 'bio-bx2-ch3', 0),
+    ('kp_dna_structure', '生物', 'DNA 的结构', 'bio-bx2-ch3', 0),
+    ('kp_dna_replication', '生物', 'DNA 的复制', 'bio-bx2-ch3', 0),
+    ('kp_gene_dna_fragment', '生物', '基因通常是有遗传效应的 DNA 片段', 'bio-bx2-ch3', 0),
+    ('bx2_ch4', '生物', '第四章 基因的表达', 'bio-bx2-later', 1),
 )
 
 SEED_EDGES = (
@@ -166,4 +172,9 @@ SEED_EDGES = (
     ('kp_free_combination', 'kp_mendel_methods', '同章衔接'),
     ('kp_segregation_law', 'kp_meiosis', '常考组合'),
     ('kp_free_combination', 'kp_meiosis', '常考组合'),
+    ('kp_dna_genetic_material', 'kp_dna_structure', '同章衔接'),
+    ('kp_dna_structure', 'kp_dna_replication', '同章衔接'),
+    ('kp_dna_replication', 'kp_gene_dna_fragment', '同章衔接'),
+    ('kp_dna_structure', 'kp_nucleic_acids', '常考组合'),
+    ('kp_dna_replication', 'kp_mitosis', '常考组合'),
 )
