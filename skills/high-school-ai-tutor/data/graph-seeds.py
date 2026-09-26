@@ -14,6 +14,9 @@ OWNED_LATER = {
     'bio-bx2-ch6': ('bio_xbx1',),
     'xbx1-ch1': ('xbx1_ch2',),
     'xbx1-ch2': ('xbx1_ch3',),
+    'xbx1-ch3': ('xbx1_ch4',),
+    'xbx1-ch4': ('xbx1_ch5',),
+    'xbx1-ch5': ('bio_xbx2',),
 }
 
 SEED_NODES = (
@@ -124,6 +127,20 @@ SEED_NODES = (
     ('kp_hierarchical_regulation', '生物', '神经系统的分级调节', 'xbx1-ch2', 0),
     ('kp_brain_functions', '生物', '人脑的高级功能', 'xbx1-ch2', 0),
     ('xbx1_ch3', '生物', '第三章 体液调节', 'bio-xbx1-later', 1),
+    ('kp_hormones_endocrine', '生物', '激素与内分泌系统', 'xbx1-ch3', 0),
+    ('kp_hormone_process', '生物', '激素调节的过程', 'xbx1-ch3', 0),
+    ('kp_humoral_nervous', '生物', '体液调节与神经调节的关系', 'xbx1-ch3', 0),
+    ('xbx1_ch4', '生物', '第四章 免疫调节', 'bio-xbx1-later', 1),
+    ('kp_immune_system', '生物', '免疫系统的组成和功能', 'xbx1-ch4', 0),
+    ('kp_specific_immunity', '生物', '特异性免疫', 'xbx1-ch4', 0),
+    ('kp_immune_disorder', '生物', '免疫失调', 'xbx1-ch4', 0),
+    ('kp_immune_application', '生物', '免疫学的应用', 'xbx1-ch4', 0),
+    ('xbx1_ch5', '生物', '第五章 植物生命活动的调节', 'bio-xbx1-later', 1),
+    ('kp_auxin_discovery', '生物', '植物生长素', 'xbx1-ch5', 0),
+    ('kp_other_hormones', '生物', '其他植物激素', 'xbx1-ch5', 0),
+    ('kp_growth_regulators', '生物', '植物生长调节剂的应用', 'xbx1-ch5', 0),
+    ('kp_environment_plant', '生物', '环境因素参与调节植物的生命活动', 'xbx1-ch5', 0),
+    ('bio_xbx2', '生物', '选择性必修2《生物与环境》', 'bio-xbx1-later', 1),
 )
 
 SEED_EDGES = (
@@ -235,4 +252,15 @@ SEED_EDGES = (
     ('kp_hierarchical_regulation', 'kp_brain_functions', '同章衔接'),
     ('kp_reflex_arc', 'kp_hierarchical_regulation', '常考组合'),
     ('kp_brain_functions', 'kp_homeostasis', '常考组合'),
+    ('kp_hormones_endocrine', 'kp_hormone_process', '同章衔接'),
+    ('kp_hormone_process', 'kp_humoral_nervous', '同章衔接'),
+    ('kp_hormone_process', 'kp_internal_env_properties', '常考组合'),
+    ('kp_immune_system', 'kp_specific_immunity', '同章衔接'),
+    ('kp_specific_immunity', 'kp_immune_disorder', '同章衔接'),
+    ('kp_immune_disorder', 'kp_immune_application', '同章衔接'),
+    ('kp_specific_immunity', 'kp_hormone_process', '常考组合'),
+    ('kp_auxin_discovery', 'kp_other_hormones', '同章衔接'),
+    ('kp_other_hormones', 'kp_growth_regulators', '同章衔接'),
+    ('kp_growth_regulators', 'kp_environment_plant', '同章衔接'),
+    ('kp_auxin_discovery', 'kp_environment_plant', '常考组合'),
 )
