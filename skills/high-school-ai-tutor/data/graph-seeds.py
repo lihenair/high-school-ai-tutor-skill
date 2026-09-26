@@ -3,6 +3,7 @@
 OWNED_LATER = {
     'bio-bx1-ch1': ('bx1_ch2', 'bx1_ch3'),
     'bio-bx1-ch2': ('bx1_ch4',),
+    'bio-bx1-ch3': ('bx1_ch5',),
 }
 
 SEED_NODES = (
@@ -39,6 +40,15 @@ SEED_NODES = (
     ('kp_proteins', '生物', '蛋白质', 'bio-bx1-ch2', 0),
     ('kp_nucleic_acids', '生物', '核酸', 'bio-bx1-ch2', 0),
     ('bx1_ch4', '生物', '第四章 细胞的物质输入和输出', 'bio-bx1-later', 1),
+    ('kp_cell_membrane_functions', '生物', '细胞膜的功能', 'bio-bx1-ch3', 0),
+    ('kp_fluid_mosaic', '生物', '流动镶嵌模型', 'bio-bx1-ch3', 0),
+    ('kp_differential_centrifugation', '生物', '差速离心法', 'bio-bx1-ch3', 0),
+    ('kp_cell_wall', '生物', '细胞壁', 'bio-bx1-ch3', 0),
+    ('kp_organelles', '生物', '细胞器的结构和功能', 'bio-bx1-ch3', 0),
+    ('kp_secretory_protein', '生物', '分泌蛋白的合成和运输', 'bio-bx1-ch3', 0),
+    ('kp_biomembrane_system', '生物', '生物膜系统', 'bio-bx1-ch3', 0),
+    ('kp_nucleus', '生物', '细胞核', 'bio-bx1-ch3', 0),
+    ('bx1_ch5', '生物', '第五章 细胞的能量供应和利用', 'bio-bx1-later', 1),
 )
 
 SEED_EDGES = (
@@ -73,4 +83,14 @@ SEED_EDGES = (
     ('kp_proteins', 'kp_nucleic_acids', '同章衔接'),
     ('kp_biomass_detection', 'kp_proteins', '常考组合'),
     ('kp_nucleic_acids', 'bx1_ch3', '常考组合'),
+    ('kp_cell_membrane_functions', 'kp_fluid_mosaic', '同章衔接'),
+    ('kp_fluid_mosaic', 'kp_differential_centrifugation', '同章衔接'),
+    ('kp_differential_centrifugation', 'kp_cell_wall', '同章衔接'),
+    ('kp_cell_wall', 'kp_organelles', '同章衔接'),
+    ('kp_organelles', 'kp_secretory_protein', '同章衔接'),
+    ('kp_secretory_protein', 'kp_biomembrane_system', '同章衔接'),
+    ('kp_biomembrane_system', 'kp_nucleus', '同章衔接'),
+    ('kp_fluid_mosaic', 'bx1_ch4', '常考组合'),
+    ('kp_organelles', 'kp_proteins', '常考组合'),
+    ('kp_nucleus', 'kp_nucleic_acids', '常考组合'),
 )
