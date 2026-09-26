@@ -95,7 +95,16 @@ def main():
     map_text = map_path.read_text(encoding="utf-8")
     if guard.PEP_CHEM_BX1_CH1_MARKER not in map_text:
         fail("整章图文件应含人教版化学必修第一册（2019）第一章的标记")
+    bio_map_path = SKILL_DIR / "references" / "pep-bio-bx1-ch1.md"
+    if "references/pep-bio-bx1-ch1.md" not in text:
+        fail("SKILL.md 应指向人教版生物学必修1（2019）第一章的整章图文件")
+    if not bio_map_path.exists():
+        fail("缺少 references/pep-bio-bx1-ch1.md")
+    bio_map_text = bio_map_path.read_text(encoding="utf-8")
+    if "整章图：人教版《生物学 必修1 分子与细胞》（2019）第一章" not in bio_map_text:
+        fail("整章图文件应含人教版生物学必修1（2019）第一章的标记")
     chapter_problems = guard.check_pep_chem_chapter(map_text) + guard.check_mermaid_edges(map_text)
+    chapter_problems += guard.check_mermaid_edges(bio_map_text)
     chapter_problems += guard.check_mermaid_edges(text)
     if chapter_problems:
         fail("图谱未通过守卫：" + "；".join(chapter_problems))
