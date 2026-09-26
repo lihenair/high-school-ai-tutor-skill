@@ -5,6 +5,7 @@ OWNED_LATER = {
     'bio-bx1-ch2': ('bx1_ch4',),
     'bio-bx1-ch3': ('bx1_ch5',),
     'bio-bx1-ch4': ('bx1_ch6',),
+    'bio-bx1-ch6': ('bio_bx2',),
 }
 
 SEED_NODES = (
@@ -65,6 +66,13 @@ SEED_NODES = (
     ('kp_pigment_separation', '生物', '绿叶中色素的提取和分离', 'bio-bx1-ch5', 0),
     ('kp_photosynthesis_principle', '生物', '光合作用的原理', 'bio-bx1-ch5', 0),
     ('kp_photosynthesis_factors', '生物', '影响光合作用强度的因素', 'bio-bx1-ch5', 0),
+    ('kp_cell_cycle', '生物', '细胞周期', 'bio-bx1-ch6', 0),
+    ('kp_mitosis', '生物', '有丝分裂', 'bio-bx1-ch6', 0),
+    ('kp_cell_differentiation', '生物', '细胞的分化', 'bio-bx1-ch6', 0),
+    ('kp_totipotency', '生物', '细胞的全能性', 'bio-bx1-ch6', 0),
+    ('kp_cell_aging', '生物', '细胞的衰老', 'bio-bx1-ch6', 0),
+    ('kp_cell_death', '生物', '细胞凋亡', 'bio-bx1-ch6', 0),
+    ('bio_bx2', '生物', '必修2《遗传与进化》', 'bio-bx1-later', 1),
 )
 
 SEED_EDGES = (
@@ -127,4 +135,11 @@ SEED_EDGES = (
     ('kp_photosynthesis_principle', 'kp_photosynthesis_factors', '同章衔接'),
     ('kp_atp', 'kp_aerobic_respiration', '常考组合'),
     ('kp_enzyme_properties', 'kp_photosynthesis_factors', '常考组合'),
+    ('kp_cell_cycle', 'kp_mitosis', '同章衔接'),
+    ('kp_mitosis', 'kp_cell_differentiation', '同章衔接'),
+    ('kp_cell_differentiation', 'kp_totipotency', '同章衔接'),
+    ('kp_totipotency', 'kp_cell_aging', '同章衔接'),
+    ('kp_cell_aging', 'kp_cell_death', '同章衔接'),
+    ('kp_mitosis', 'kp_nucleic_acids', '常考组合'),
+    ('kp_totipotency', 'kp_nucleus', '常考组合'),
 )
