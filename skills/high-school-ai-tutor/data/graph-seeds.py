@@ -9,6 +9,7 @@ OWNED_LATER = {
     'bio-bx1-ch1': ('bx1_ch2', 'bx1_ch3'),
     'bio-bx2-ch1': ('bx2_ch2',),
     'bio-bx2-ch3': ('bx2_ch4',),
+    'bio-bx2-ch4': ('bx2_ch5',),
 }
 
 SEED_NODES = (
@@ -92,6 +93,11 @@ SEED_NODES = (
     ('kp_dna_replication', '生物', 'DNA 的复制', 'bio-bx2-ch3', 0),
     ('kp_gene_dna_fragment', '生物', '基因通常是有遗传效应的 DNA 片段', 'bio-bx2-ch3', 0),
     ('bx2_ch4', '生物', '第四章 基因的表达', 'bio-bx2-later', 1),
+    ('kp_transcription_translation', '生物', '基因指导蛋白质的合成', 'bio-bx2-ch4', 0),
+    ('kp_central_dogma', '生物', '中心法则', 'bio-bx2-ch4', 0),
+    ('kp_gene_expression_trait', '生物', '基因表达与性状的关系', 'bio-bx2-ch4', 0),
+    ('kp_epigenetics', '生物', '表观遗传', 'bio-bx2-ch4', 0),
+    ('bx2_ch5', '生物', '第五章 基因突变及其他变异', 'bio-bx2-later', 1),
 )
 
 SEED_EDGES = (
@@ -177,4 +183,9 @@ SEED_EDGES = (
     ('kp_dna_replication', 'kp_gene_dna_fragment', '同章衔接'),
     ('kp_dna_structure', 'kp_nucleic_acids', '常考组合'),
     ('kp_dna_replication', 'kp_mitosis', '常考组合'),
+    ('kp_transcription_translation', 'kp_central_dogma', '同章衔接'),
+    ('kp_central_dogma', 'kp_gene_expression_trait', '同章衔接'),
+    ('kp_gene_expression_trait', 'kp_epigenetics', '同章衔接'),
+    ('kp_transcription_translation', 'kp_proteins', '常考组合'),
+    ('kp_gene_expression_trait', 'kp_cell_differentiation', '常考组合'),
 )
