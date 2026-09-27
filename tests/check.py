@@ -44,8 +44,8 @@ def main():
             f"marketplace 插件={entry.get('version')} "
             f"marketplace={market.get('version')}"
         )
-    if plugin.get("version") != "1.7.0":
-        fail(f"plugin.json 版本应为 1.7.0，当前是 {plugin.get('version')}")
+    if plugin.get("version") != "1.8.0":
+        fail(f"plugin.json 版本应为 1.8.0，当前是 {plugin.get('version')}")
     if not (SKILL_DIR / "SKILL.md").exists():
         fail(f"缺少 {SKILL_DIR.relative_to(ROOT)}/SKILL.md")
     if not (SKILL_DIR / "modes" / "self-study.md").exists():

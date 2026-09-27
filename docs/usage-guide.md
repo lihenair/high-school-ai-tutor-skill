@@ -2,9 +2,11 @@
 
 ## 安装与调用
 
-把仓库里的 `skills/high-school-ai-tutor/` 整个目录拷到 Agent 的 skills 路径（Claude Code 用 `~/.claude/skills/`；Codex、Cursor、Gemini CLI 等共用 `~/.agents/skills/`），或用 Claude Code 插件市场安装：`/plugin marketplace add lihenair/high-school-ai-tutor-skill` 后 `/plugin install high-school-ai-tutor@lihenair`。启用后再调用。测科目时先点名这个 skill 再发题。可以直接发照片：先核对题干和手写作答，看不清就问，不拿猜的数字往下算。
+把仓库里的 `skills/high-school-ai-tutor/` 整个目录拷到 Agent 的 skills 路径（Claude Code 用 `~/.claude/skills/`；Codex、Cursor、Gemini CLI 等共用 `~/.agents/skills/`），或用 Claude Code 插件市场安装：`/plugin marketplace add lihenair/high-school-ai-tutor-skill` 后 `/plugin install high-school-ai-tutor@lihenair`。启用后再调用。测科目时先点名这个 skill 再发题。可以直接发照片：先读 `modes/photo.md`，核对题干和手写作答，看不清就问，不拿猜的数字往下算。
 
-数学、物理、化学、生物会加载 `references/` 里对应文件。语文、英语、历史、政治、地理读 `references/humanities.md`。人教版化学必修第一册（2019）第一章的整章图在 `references/pep-chem-bx1-ch1.md`，人教版生物学必修1（2019）第一章的整章图在 `references/pep-bio-bx1-ch1.md`。
+每轮先读 `SKILL.md`。按触发再读 `modes/`：自学读 `modes/self-study.md`，整章图读 `modes/chapter-map.md`，完整讲解或总结读 `modes/full.md`，判题记录和错题本读 `modes/records.md`，数学机验读 `modes/math-verify.md`，可保存的导图文件读 `modes/markmap.md`。自学与解题的触发词表在 `scripts/routing.py`（`STUDY_TRIGGERS`、`SOLVE_TRIGGERS`），`SKILL.md` 只指向这份表。
+
+数学、物理、化学、生物会加载 `references/` 里对应文件。语文、英语、历史、政治、地理读 `references/humanities.md`。已有原文的整章图从 `modes/chapter-map.md` 指向的 `references/pep-<章号>.md` 原样输出，例如 `references/pep-chem-bx1-ch1.md`、`references/pep-bio-bx1-ch1.md`。
 
 工具如果不会读取 `references/`，把入口和该科目那一份一并提供：
 
@@ -30,7 +32,7 @@
 当前只用两种。不填就是苏格拉底。只把题目贴过去，也不会改成直接给答案。
 
 - 「苏格拉底」 → 只引导，不给答案
-- 「直接讲解」「直接给解析」「讲一下」「给我答案」 → 完整解法。第 9 节附本题 mermaid 切片，不附整章图
+- 命中 `scripts/routing.py` 的 `SOLVE_TRIGGERS` → 完整解法，按 `modes/full.md` 输出。第 9 节附本题 mermaid 切片，不附整章图
 
 费曼、范例学习、脚手架、对比教学、探究式先不用。
 
@@ -38,13 +40,13 @@
 
 学生说「过」「跳过」「下一个」时，只告诉他这一小步的结果，然后问下一步，不要顺手把整题讲完。同一题后面几轮，难度和主题没变就不要再报一遍。
 
-学生问「某一章的知识图谱是什么」，或说「知识图谱」「思维导图」「这一章的知识」时，本轮直接用 mermaid 流程图画出当前这一章，不要先问要不要图。边标签用直接前置、同章衔接、常考组合。蓝是概念，绿是技能，橙是实验，灰是后续章节。跨章只写对方章名，不展开那一章。不要改用纯文本箭头列表。选完一个节点后回到苏格拉底。人教版《化学 必修 第一册》（2019）第一章读 `references/pep-chem-bx1-ch1.md`，从整章图那一行起原样输出；电石题只作为本题切片，不写进这张整章图。人教版《生物学 必修1 分子与细胞》（2019）第一章读 `references/pep-bio-bx1-ch1.md`，同样从整章图那一行起原样输出。
+命中 `scripts/routing.py` 的 `STUDY_TRIGGERS` 时，本轮进入自学章览，读 `modes/self-study.md` 和 `modes/chapter-map.md`，直接用 mermaid 流程图画出当前这一章，不要先问要不要图。边标签用直接前置、同章衔接、常考组合。蓝是概念，绿是技能，橙是实验，灰是后续章节。跨章只写对方章名，不展开那一章。画法和已有原文的章（人教版化学必修第一册第一章、生物学必修1第一章等）以 `modes/chapter-map.md` 为准，从「整章图」那一行起原样输出。电石题只作为本题切片，不写进化学第一章整章图。选完一个节点后回到苏格拉底。
 
 做题时不要把整张图谱贴出来。先看题干落在哪个节点：缺直接前置只补那一个；同章衔接先确认前一节；虚线两端同时出现就按拼盘题拆开，变式仍锁原来的核心考点。角标、系数、单位不必先翻图。贴题默认苏格拉底或直接讲解，不自动出图。
 
 ## 判完记一条，下次问薄弱点
 
-一题判完才记，不记引导时的每一小步。独立做对记「做对」；没做对而给出完整讲解记「做错」；换题时这题还没有对错记「跳过」。同一小步说「过」不记。
+细则在 `modes/records.md`。一题判完才记，不记引导时的每一小步。独立做对记「做对」；没做对而给出完整讲解记「做错」；换题时这题还没有对错记「跳过」。同一小步说「过」不记。
 
 ```bash
 python3 <skill目录>/scripts/records.py add --subject 化学 --node "氧化还原反应" --stem "电石除杂" --outcome 做错 --error 概念
@@ -79,16 +81,16 @@ A：回复「这道题的知识我没学过。不要再拆原题，只点一个�
 A：语文、英语、历史、政治、地理的思维链只写材料依据、要点和表达。开放题不要编唯一结论。
 
 **Q：想先看一章再自学？**
-A：回复「先把这一章的知识图谱发出来」。用 mermaid 只画当前章，并标出和后面哪一章常拼在一起考。做题时不要再整张贴出来。
+A：说「先把这一章的知识图谱发出来」（这句在 `scripts/routing.py` 的 `STUDY_TRIGGERS` 里）。用 mermaid 只画当前章，并标出和后面哪一章常拼在一起考。做题时不要再整张贴出来。
 
 **Q：图谱对答题有什么用？**
 A：贴题后用图定位考点和切口，不要先出图。缺前置只补一个；虚线两端同时出现按拼盘题拆，不要当成换考点。
 
 **Q：总结里有图谱吗？**
-A：有。完整讲解和做完后的总结，第 9 节用 mermaid 只画本题考点、一个直接前置，以及本题用到的组合。整章图仍要你点名才给。
+A：有。完整讲解和做完后的总结按 `modes/full.md`，第 9 节用 mermaid 只画本题考点、一个直接前置，以及本题用到的组合。整章图仍要你点名才给。
 
 **Q：说了「直接给解析」还在提问？**
-A：「直接给解析」「讲一下」「给我答案」都要进入直接讲解，并按 9 段输出。
+A：「直接给解析」「讲一下」「给我答案」都在 `scripts/routing.py` 的 `SOLVE_TRIGGERS` 里，要进入直接讲解，并按 `modes/full.md` 的 9 段输出。
 
 **Q：技能开着但不按规则讲题？**
 A：先用该工具的 skill 调用方式点名 `high-school-ai-tutor`，再发题。
