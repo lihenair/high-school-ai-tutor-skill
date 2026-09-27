@@ -27,8 +27,8 @@ flowchart TD
   kp_natural_selection_adaptation -->|同章衔接| kp_population_gene_frequency
   kp_population_gene_frequency -->|同章衔接| kp_speciation
   kp_speciation -->|同章衔接| kp_coevolution_biodiversity
-  kp_natural_selection_adaptation -.->|常考组合| kp_gene_mutation
-  kp_population_gene_frequency -.->|常考组合| kp_mendel_methods
+  kp_natural_selection_adaptation -.->|常考组合| kp_gene_mutation["基因突变"]:::later
+  kp_population_gene_frequency -.->|常考组合| kp_mendel_methods["孟德尔实验方法的启示"]:::later
   kp_gene_mutation -.->|常考组合| kp_natural_selection_adaptation
 ```
 

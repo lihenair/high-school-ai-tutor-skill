@@ -21,8 +21,8 @@ flowchart TD
   kp_transcription_translation -->|同章衔接| kp_central_dogma
   kp_central_dogma -->|同章衔接| kp_gene_expression_trait
   kp_gene_expression_trait -->|同章衔接| kp_epigenetics
-  kp_transcription_translation -.->|常考组合| kp_proteins
-  kp_gene_expression_trait -.->|常考组合| kp_cell_differentiation
+  kp_transcription_translation -.->|常考组合| kp_proteins["蛋白质"]:::later
+  kp_gene_expression_trait -.->|常考组合| kp_cell_differentiation["细胞的分化"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

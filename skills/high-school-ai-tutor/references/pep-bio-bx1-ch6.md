@@ -27,8 +27,8 @@ flowchart TD
   kp_cell_differentiation -->|同章衔接| kp_totipotency
   kp_totipotency -->|同章衔接| kp_cell_aging
   kp_cell_aging -->|同章衔接| kp_cell_death
-  kp_mitosis -.->|常考组合| kp_nucleic_acids
-  kp_totipotency -.->|常考组合| kp_nucleus
+  kp_mitosis -.->|常考组合| kp_nucleic_acids["核酸"]:::later
+  kp_totipotency -.->|常考组合| kp_nucleus["细胞核"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

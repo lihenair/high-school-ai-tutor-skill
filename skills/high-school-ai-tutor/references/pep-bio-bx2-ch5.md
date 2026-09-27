@@ -23,8 +23,8 @@ flowchart TD
   kp_gene_mutation -->|同章衔接| kp_gene_recombination
   kp_gene_recombination -->|同章衔接| kp_chromosome_variation
   kp_chromosome_variation -->|同章衔接| kp_human_genetic_disease
-  kp_gene_mutation -.->|常考组合| kp_dna_replication
-  kp_gene_recombination -.->|常考组合| kp_meiosis
+  kp_gene_mutation -.->|常考组合| kp_dna_replication["DNA 的复制"]:::later
+  kp_gene_recombination -.->|常考组合| kp_meiosis["减数分裂"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

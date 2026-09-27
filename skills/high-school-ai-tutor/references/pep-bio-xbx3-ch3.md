@@ -25,8 +25,8 @@ flowchart TD
   kp_recombinant_dna_tools -->|同章衔接| kp_gene_engineering_procedure
   kp_gene_engineering_procedure -->|同章衔接| kp_gene_engineering_applications
   kp_gene_engineering_applications -->|同章衔接| kp_protein_engineering
-  kp_recombinant_dna_tools -.->|常考组合| kp_dna_structure
-  kp_gene_engineering_procedure -.->|常考组合| kp_secretory_protein
+  kp_recombinant_dna_tools -.->|常考组合| kp_dna_structure["DNA 的结构"]:::later
+  kp_gene_engineering_procedure -.->|常考组合| kp_secretory_protein["分泌蛋白的合成和运输"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

@@ -21,7 +21,7 @@ flowchart TD
   end
   kp_gmo_safety -->|同章衔接| kp_cloning_ethics
   kp_cloning_ethics -->|同章衔接| kp_biological_weapons
-  kp_gmo_safety -.->|常考组合| kp_gene_engineering_applications
+  kp_gmo_safety -.->|常考组合| kp_gene_engineering_applications["基因工程的应用"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

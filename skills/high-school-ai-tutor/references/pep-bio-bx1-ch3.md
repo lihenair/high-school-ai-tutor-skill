@@ -31,9 +31,9 @@ flowchart TD
   kp_organelles -->|同章衔接| kp_secretory_protein
   kp_secretory_protein -->|同章衔接| kp_biomembrane_system
   kp_biomembrane_system -->|同章衔接| kp_nucleus
-  kp_fluid_mosaic -.->|常考组合| kp_active_transport
-  kp_organelles -.->|常考组合| kp_proteins
-  kp_nucleus -.->|常考组合| kp_nucleic_acids
+  kp_fluid_mosaic -.->|常考组合| kp_active_transport["主动运输"]:::later
+  kp_organelles -.->|常考组合| kp_proteins["蛋白质"]:::later
+  kp_nucleus -.->|常考组合| kp_nucleic_acids["核酸"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

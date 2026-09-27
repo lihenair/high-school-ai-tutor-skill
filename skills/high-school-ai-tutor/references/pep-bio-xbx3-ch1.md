@@ -25,7 +25,7 @@ flowchart TD
   kp_traditional_fermentation -->|同章衔接| kp_microbe_culture
   kp_microbe_culture -->|同章衔接| kp_microbe_isolation
   kp_microbe_isolation -->|同章衔接| kp_fermentation_engineering
-  kp_traditional_fermentation -.->|常考组合| kp_anaerobic_respiration
+  kp_traditional_fermentation -.->|常考组合| kp_anaerobic_respiration["无氧呼吸"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

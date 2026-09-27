@@ -23,9 +23,9 @@ flowchart TD
   kp_meiosis -->|同章衔接| kp_fertilization
   kp_fertilization -->|同章衔接| kp_gene_on_chromosome
   kp_gene_on_chromosome -->|同章衔接| kp_sex_linked
-  kp_meiosis -.->|常考组合| kp_segregation_law
-  kp_meiosis -.->|常考组合| kp_free_combination
-  kp_meiosis -.->|常考组合| kp_dna_replication
+  kp_meiosis -.->|常考组合| kp_segregation_law["分离定律"]:::later
+  kp_meiosis -.->|常考组合| kp_free_combination["自由组合定律"]:::later
+  kp_meiosis -.->|常考组合| kp_dna_replication["DNA 的复制"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

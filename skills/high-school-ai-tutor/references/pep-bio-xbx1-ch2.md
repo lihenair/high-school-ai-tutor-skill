@@ -32,7 +32,7 @@ flowchart TD
   kp_synapse -->|同章衔接| kp_hierarchical_regulation
   kp_hierarchical_regulation -->|同章衔接| kp_brain_functions
   kp_reflex_arc -.->|常考组合| kp_hierarchical_regulation
-  kp_brain_functions -.->|常考组合| kp_homeostasis
+  kp_brain_functions -.->|常考组合| kp_homeostasis["内环境的稳态"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

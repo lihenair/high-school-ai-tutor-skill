@@ -23,8 +23,8 @@ flowchart TD
   kp_segregation_law -->|同章衔接| kp_hypothesis_deduction
   kp_hypothesis_deduction -->|同章衔接| kp_free_combination
   kp_free_combination -->|同章衔接| kp_mendel_methods
-  kp_segregation_law -.->|常考组合| kp_meiosis
-  kp_free_combination -.->|常考组合| kp_meiosis
+  kp_segregation_law -.->|常考组合| kp_meiosis["减数分裂"]:::later
+  kp_free_combination -.->|常考组合| kp_meiosis["减数分裂"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

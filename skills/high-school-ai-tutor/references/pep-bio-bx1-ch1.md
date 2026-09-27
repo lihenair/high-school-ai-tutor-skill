@@ -23,7 +23,7 @@ flowchart TD
   kp_microscope_use -->|同章衔接| kp_cell_diversity_unity
   kp_prokaryote_eukaryote -->|直接前置| kp_cell_diversity_unity
   kp_cell_theory -.->|常考组合| kp_prokaryote_eukaryote
-  kp_prokaryote_eukaryote -.->|常考组合| kp_nucleus
+  kp_prokaryote_eukaryote -.->|常考组合| kp_nucleus["细胞核"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

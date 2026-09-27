@@ -19,7 +19,7 @@ flowchart TD
   end
   kp_internal_environment -->|同章衔接| kp_internal_env_properties
   kp_internal_env_properties -->|同章衔接| kp_homeostasis
-  kp_internal_env_properties -.->|常考组合| kp_osmosis
+  kp_internal_env_properties -.->|常考组合| kp_osmosis["渗透作用"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

@@ -25,7 +25,7 @@ flowchart TD
   kp_plant_cell_engineering -->|同章衔接| kp_animal_cell_engineering
   kp_animal_cell_engineering -->|同章衔接| kp_stem_cell_application
   kp_stem_cell_application -->|同章衔接| kp_embryo_engineering
-  kp_plant_cell_engineering -.->|常考组合| kp_totipotency
+  kp_plant_cell_engineering -.->|常考组合| kp_totipotency["细胞的全能性"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

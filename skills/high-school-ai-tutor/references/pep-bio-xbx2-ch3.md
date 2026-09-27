@@ -29,9 +29,9 @@ flowchart TD
   kp_energy_flow -->|同章衔接| kp_material_cycle
   kp_material_cycle -->|同章衔接| kp_information_transfer
   kp_information_transfer -->|同章衔接| kp_ecosystem_stability
-  kp_energy_flow -.->|常考组合| kp_photosynthesis_principle
-  kp_ecosystem_stability -.->|常考组合| kp_homeostasis
-  kp_energy_flow -.->|常考组合| kp_aerobic_respiration
+  kp_energy_flow -.->|常考组合| kp_photosynthesis_principle["光合作用的原理"]:::later
+  kp_ecosystem_stability -.->|常考组合| kp_homeostasis["内环境的稳态"]:::later
+  kp_energy_flow -.->|常考组合| kp_aerobic_respiration["有氧呼吸"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

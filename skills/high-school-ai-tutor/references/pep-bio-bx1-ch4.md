@@ -25,7 +25,7 @@ flowchart TD
   kp_active_transport -->|同章衔接| kp_endocytosis_exocytosis
   kp_cell_membrane_functions -.->|常考组合| kp_passive_transport
   kp_fluid_mosaic -.->|常考组合| kp_endocytosis_exocytosis
-  kp_active_transport -.->|常考组合| kp_aerobic_respiration
+  kp_active_transport -.->|常考组合| kp_aerobic_respiration["有氧呼吸"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

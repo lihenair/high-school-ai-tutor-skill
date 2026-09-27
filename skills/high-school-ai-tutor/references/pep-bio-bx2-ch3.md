@@ -25,8 +25,8 @@ flowchart TD
   kp_dna_genetic_material -->|同章衔接| kp_dna_structure
   kp_dna_structure -->|同章衔接| kp_dna_replication
   kp_dna_replication -->|同章衔接| kp_gene_dna_fragment
-  kp_dna_structure -.->|常考组合| kp_nucleic_acids
-  kp_dna_replication -.->|常考组合| kp_mitosis
+  kp_dna_structure -.->|常考组合| kp_nucleic_acids["核酸"]:::later
+  kp_dna_replication -.->|常考组合| kp_mitosis["有丝分裂"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

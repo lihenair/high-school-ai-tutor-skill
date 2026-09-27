@@ -25,9 +25,9 @@ flowchart TD
   kp_immune_system -->|同章衔接| kp_specific_immunity
   kp_specific_immunity -->|同章衔接| kp_immune_disorder
   kp_immune_disorder -->|同章衔接| kp_immune_application
-  kp_specific_immunity -.->|常考组合| kp_hormone_process
-  kp_specific_immunity -.->|常考组合| kp_proteins
-  kp_immune_system -.->|常考组合| kp_homeostasis
+  kp_specific_immunity -.->|常考组合| kp_hormone_process["激素调节的过程"]:::later
+  kp_specific_immunity -.->|常考组合| kp_proteins["蛋白质"]:::later
+  kp_immune_system -.->|常考组合| kp_homeostasis["内环境的稳态"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

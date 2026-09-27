@@ -17,7 +17,7 @@ flowchart TD
     end
   end
   kp_human_impact -->|同章衔接| kp_biodiversity_protection
-  kp_biodiversity_protection -.->|常考组合| kp_coevolution_biodiversity
+  kp_biodiversity_protection -.->|常考组合| kp_coevolution_biodiversity["协同进化与生物多样性的形成"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。

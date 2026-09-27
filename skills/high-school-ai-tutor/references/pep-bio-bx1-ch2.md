@@ -36,7 +36,7 @@ flowchart TD
   kp_lipids -->|同章衔接| kp_proteins
   kp_proteins -->|同章衔接| kp_nucleic_acids
   kp_biomass_detection -.->|常考组合| kp_proteins
-  kp_nucleic_acids -.->|常考组合| kp_nucleus
+  kp_nucleic_acids -.->|常考组合| kp_nucleus["细胞核"]:::later
 ```
 
 图例：蓝=概念，绿=技能，橙=实验，灰=后续章节。实线=直接前置或同章衔接，虚线=常考组合。
