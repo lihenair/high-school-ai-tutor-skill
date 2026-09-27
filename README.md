@@ -107,7 +107,7 @@ Claude Code：
 | `references/pep-bio-bx1-ch1.md` | 生物必修1第一章整章图 |
 | `data/graph-seeds.py` | 章节图种子。非灰节点以 `references/nodes/` 为准，`scripts/canon_sync.py` 对账 |
 | `data/graph.db` | 已收录章的学习顺序、直接前置和章末预告 |
-| `scripts/` | 正典、画像、记录、错题本、守卫、机验、兴趣日志、章节图 |
+| `scripts/` | 正典、画像、记录、错题本、守卫、机验、兴趣日志、章节图。自学与解题触发词在 `routing.py` |
 | `templates/` | 错题本条目示例、CSV 和 Excel 导出 |
 | `docs/` | 使用指南、测试标准、效果验证 |
 | `tests/` | 守卫用例和脚本测试 |
