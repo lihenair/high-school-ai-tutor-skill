@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 错题本.xlsx
 .venv/
+
+# 导图文件整目录不入库（教材截图与图例文案，版权风险）
+graphs/
+.DS_Store
