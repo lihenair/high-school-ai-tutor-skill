@@ -1,6 +1,6 @@
 # 自学模式
 
-只在全局模式已经判为自学之后读取。解题三态、九段式、苏格拉底漏答案红线仍以 `SKILL.md` 为准，不要把那些标题搬进自学轮。
+只在全局模式已经判为自学之后读取。引导、卡住和苏格拉底漏答案红线以 `SKILL.md` 为准。九段式在 `modes/full.md`，不要把那些标题搬进自学轮。
 
 一轮一态。自学轮第一行写状态标签，解题轮不写。
 
@@ -16,7 +16,7 @@
 
 只在学生点名要看这一章时给。这是唯一允许整章 mermaid 的自学状态。输出：
 
-1. 整章 mermaid（配色和三种边与 `SKILL.md`「自学知识图谱」相同；人教版化学必修第一册第一章从 `references/pep-chem-bx1-ch1.md` 原样输出，人教版生物学必修1第一章从 `references/pep-bio-bx1-ch1.md` 原样输出）。
+1. 整章 mermaid。配色、三种边和原样输出的文件在 `modes/chapter-map.md`。
 2. 拓扑学习顺序：按直接前置排的节点名单。
 3. 考点分层表：每个节点一行，写出 L1 课标会什么、L2 高考考什么、L3 延伸是什么。正典还没写到的格子写「待补录」，不要编页码或考频。
 4. 诊断入口：请学生开始本章快诊。不在这一轮出题。
@@ -118,6 +118,12 @@ Step 7
 ## 换教材
 
 学生要改 `textbook_version` 时走 `profile.py validate-textbook`，不重走三问。脚本列出掌握度和进度里对不上正典的节点，以及章节名可能错位的条目。确认前 `pending_textbook` 还在，就不要自学相关章。确认之后才写入新版本。
+
+## 画像脚本
+
+`python3 <skill目录>/scripts/profile.py show --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py onboard --grade 高一 --exam 高考 --textbook 人教版 --skip-grade --skip-exam --skip-textbook --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py progress --chapter chem-bx1-ch1 --node kp_electrolyte --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py mastery --node kp_redox --event 自测首次答对 --source 自测 --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py validate-textbook --version 苏教版 --file ~/.high-school-ai-tutor/student_profile.json`。
+
+`explore_log.jsonl` 只记兴趣原问，不进掌握度、薄弱点、变式或复习。`python3 <skill目录>/scripts/explore_log.py add --subject 化学 --node 氧化还原反应 --category 大学基础 --question "电极电势是什么" --date 2026-09-26 --file ~/.high-school-ai-tutor/explore_log.jsonl`。
 
 ## 暂不实现
 

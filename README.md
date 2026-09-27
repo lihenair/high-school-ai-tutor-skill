@@ -4,7 +4,7 @@
 
 面向中国初高中的讲题 skill，版本 1.8.0。默认苏格拉底提问；学生要求直接讲解时给完整解法。显式说自学某一章时进入自学模式。两个模式共用考点正典、错题本和回复守卫。
 
-规则正文在 `skills/high-school-ai-tutor/SKILL.md`。使用说明、测试标准和效果记录在 `docs/`。
+每轮规则在 `skills/high-school-ai-tutor/SKILL.md`。出图、完整讲解、错题本和机验按触发再读 `modes/`。使用说明、测试标准和效果记录在 `docs/`。
 
 ## 两种模式
 
@@ -92,8 +92,13 @@ Claude Code：
 
 | 路径 | 作用 |
 |---|---|
-| `SKILL.md` | 入口：模式判定、解题规则、错题本和守卫用法 |
-| `modes/self-study.md` | 自学四子状态、七槽、诊断两轮、超纲四类、掌握度迁移 |
+| `SKILL.md` | 入口：每轮的模式判定、苏格拉底、做题时怎么用图谱、守卫 |
+| `modes/self-study.md` | 判为自学后再读：四子状态、七槽、掌握度 |
+| `modes/chapter-map.md` | 点名整章图时再读 |
+| `modes/full.md` | 进入完整模式或总结后再读 |
+| `modes/records.md` | 有最终对错、换题、问薄弱点或写错题本时再读 |
+| `modes/math-verify.md` | 数学完整模式写第 2 节之前再读 |
+| `modes/photo.md` | 用户发图片时再读 |
 | `modes/markmap.md` | 学生点名要可保存的导图文件时再读 |
 | `references/` | 分科验算与难度。文科难度在 `humanities.md` |
 | `references/nodes/` | 九科正典。六列：显示名、别名、章节、L1、L2、L3。没有依据写「待补录」 |

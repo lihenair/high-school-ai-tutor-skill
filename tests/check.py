@@ -52,6 +52,9 @@ def main():
         fail("缺少 modes/self-study.md")
     if not (SKILL_DIR / "modes" / "markmap.md").exists():
         fail("缺少 modes/markmap.md")
+    for mode_name in ("photo.md", "chapter-map.md", "full.md", "records.md", "math-verify.md"):
+        if not (SKILL_DIR / "modes" / mode_name).exists():
+            fail(f"缺少 modes/{mode_name}")
     print("OK 清单交叉一致，技能目录存在")
 
     # 3. SKILL.md frontmatter：name 与目录名一致、description 非空
@@ -112,20 +115,25 @@ def main():
         fail("图谱未通过守卫：" + "；".join(chapter_problems))
     print("OK SKILL.md 含知识图谱规则")
 
-    # 6. 判完一题落一条记录，下次按脚本回答薄弱点
+    # 6. 判完一题落一条记录。触发句留在入口，命令和原文口径在 modes/records.md
+    modes_dir = SKILL_DIR / "modes"
+    records_text = (modes_dir / "records.md").read_text(encoding="utf-8")
+    math_text = (modes_dir / "math-verify.md").read_text(encoding="utf-8")
+    if "modes/records.md" not in text:
+        fail("SKILL.md 应指向 modes/records.md")
     record_bits = ("scripts/records.py", "还没有判过的题。", "目前没有薄弱点。", "--outcome 做错", "--outcome 跳过")
-    missing_bits = [w for w in record_bits if w not in text]
+    missing_bits = [w for w in record_bits if w not in records_text]
     if missing_bits:
-        fail(f"SKILL.md 缺少判题记录规则：{'、'.join(missing_bits)}")
+        fail(f"modes/records.md 缺少判题记录规则：{'、'.join(missing_bits)}")
     if not (SKILL_DIR / "scripts" / "records.py").exists():
         fail("缺少 scripts/records.py")
-    print("OK SKILL.md 含判题记录与薄弱点规则")
+    print("OK 判题记录与薄弱点规则在 modes/records.md")
 
-    if "tutor.db" not in text or "SM-2" not in text or "notebook.py review" not in text:
-        fail("SKILL.md 应写明错题本数据库、SM-2 和复习命令")
+    if "tutor.db" not in records_text or "SM-2" not in records_text or "notebook.py review" not in records_text:
+        fail("modes/records.md 应写明错题本数据库、SM-2 和复习命令")
     if not (SKILL_DIR / "scripts" / "notebook.py").exists():
         fail("缺少 scripts/notebook.py")
-    print("OK SKILL.md 含 SM-2 错题本")
+    print("OK modes/records.md 含 SM-2 错题本")
     if "已记入错题本" not in text or "漏跑这条" not in text:
         fail("SKILL.md 应写明判题记录与错题本各自的写入时机和失败条件")
     print("OK SKILL.md 写明两个库的写入时机")
@@ -138,22 +146,25 @@ def main():
     if '--expr' not in verify_src or '__main__' not in verify_src:
         fail("verify.py 应提供命令行入口（--expr 与 __main__）")
 
-    # 非词表锚点：兜住删除类漂移（词表本身由下面两个正典遍历钉）
+    # 非词表锚点：机验细则住在 modes/math-verify.md，入口只负责在写第 2 节之前点过去。
+    if "modes/math-verify.md" not in text:
+        fail("SKILL.md 应指向 modes/math-verify.md")
     for bit in ("check_math", "verify.py --expr", "退出码"):
-        if bit not in text:
-            fail(f"SKILL.md 缺少数学机验用语：{bit}")
-    # 标记句正典住在 guard.py，逐句钉进 SKILL.md（含「未机验：未安装 SymPy」）
+        if bit not in math_text:
+            fail(f"modes/math-verify.md 缺少数学机验用语：{bit}")
     for marker in guard.VERIFY_MARKERS:
-        if marker not in text:
-            fail(f"SKILL.md 缺少机验标记：{marker}")
-    # 状态词正典住在 verify.py，逐词钉进 SKILL.md（verify 改名即红）
+        if marker not in math_text:
+            fail(f"modes/math-verify.md 缺少机验标记：{marker}")
     for status in verify.STATUSES:
-        if status not in text:
-            fail(f"SKILL.md 缺少机验状态词：{status}")
-    print("OK SKILL.md 含数学机验")
+        if status not in math_text:
+            fail(f"modes/math-verify.md 缺少机验状态词：{status}")
+    print("OK modes/math-verify.md 含数学机验")
 
-    # 每个脚本的命令行 flag 都要出现在 SKILL.md 里含该脚本文件名的行上。
+    # 命令行 flag 跟用法走：守卫在入口，其余脚本在读到的 mode 里。
     # 按文件名切开，避免 records.py 与 guard.py 共用 --subject 时互相放水。
+    loaded = text + "\n" + "\n".join(
+        path.read_text(encoding="utf-8") for path in sorted(modes_dir.glob("*.md"))
+    )
     flag_re = re.compile(r'add_argument\(\s*["\'](--[a-z0-9-]+)["\']')
     saw_flags = False
     for script in sorted((SKILL_DIR / "scripts").glob("*.py")):
@@ -161,10 +172,10 @@ def main():
         if not flags:
             continue
         saw_flags = True
-        doc = "\n".join(line for line in text.splitlines() if script.name in line)
+        doc = "\n".join(line for line in loaded.splitlines() if script.name in line)
         missing_flags = [flag for flag in flags if flag not in doc]
         if missing_flags:
-            fail(f"SKILL.md 的 {script.name} 用法未覆盖参数：{'、'.join(missing_flags)}")
+            fail(f"{script.name} 用法未覆盖参数：{'、'.join(missing_flags)}")
     if not saw_flags:
         fail("scripts/ 下没有命令行参数可钉")
     print("OK SKILL.md 覆盖全部脚本的命令行参数")
@@ -174,6 +185,9 @@ def main():
         fail("SKILL.md 应指向 modes/self-study.md")
     if "modes/markmap.md" not in text:
         fail("SKILL.md 应指向 modes/markmap.md，导图文件细则不常驻入口")
+    for mode_name in ("photo.md", "chapter-map.md", "full.md", "records.md", "math-verify.md"):
+        if f"modes/{mode_name}" not in text:
+            fail(f"SKILL.md 应指向 modes/{mode_name}")
     for bit in ("补状态标签重发", "节点讲解请单独发一次", "此章正典待补录"):
         if bit not in text and bit not in (SKILL_DIR / "modes" / "self-study.md").read_text(encoding="utf-8"):
             fail(f"自学规则缺少用语：{bit}")
@@ -196,13 +210,13 @@ def main():
     canon_problems = nodes.check_nodes()
     if canon_problems:
         fail("节点正典未通过：" + "；".join(canon_problems))
-    examples = re.findall(r'--subject\s+(\S+)\s+--node\s+"([^"]+)"', text)
+    examples = re.findall(r'--subject\s+(\S+)\s+--node\s+"([^"]+)"', loaded)
     for subject, node in examples:
         _canon_subject, _canon_node, _raw, hit = nodes.normalize(subject, node)
         if not hit:
-            fail(f"SKILL.md 示例节点不在正典：{subject} · {node}")
+            fail(f"示例节点不在正典：{subject} · {node}")
     if not examples:
-        fail("SKILL.md 应有一条带 --subject 与 --node 的判题记录示例")
+        fail("判题记录示例应有一条带 --subject 与 --node 的命令")
     print("OK 节点正典，SKILL.md 示例节点落在正典内")
 
     print("全部通过。")
