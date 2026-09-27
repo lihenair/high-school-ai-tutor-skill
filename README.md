@@ -93,13 +93,14 @@ Claude Code：
 | 路径 | 作用 |
 |---|---|
 | `SKILL.md` | 入口：模式判定、解题规则、错题本和守卫用法 |
-| `modes/self-study.md` | 自学四子状态、七槽、诊断两轮、超纲四类 |
+| `modes/self-study.md` | 自学四子状态、七槽、诊断两轮、超纲四类、掌握度迁移 |
+| `modes/markmap.md` | 学生点名要可保存的导图文件时再读 |
 | `references/` | 分科验算与难度。文科难度在 `humanities.md` |
 | `references/nodes/` | 九科正典。六列：显示名、别名、章节、L1、L2、L3。没有依据写「待补录」 |
-| `references/study-pages/` | 节点页。化学必修一第一章、生物必修1第一章已有，其余章按七槽现场生成 |
+| `references/study-pages/` | 节点页。目录名是 `<学科>-<册>-<章>`，选必也带学科前缀，例如 `bio-xbx1-ch3` |
 | `references/pep-chem-bx1-ch1.md` | 化学必修一第一章整章图 |
 | `references/pep-bio-bx1-ch1.md` | 生物必修1第一章整章图 |
-| `data/graph-seeds.py` | 章节图种子。加章改这里 |
+| `data/graph-seeds.py` | 章节图种子。非灰节点以 `references/nodes/` 为准，`scripts/canon_sync.py` 对账 |
 | `data/graph.db` | 已收录章的学习顺序、直接前置和章末预告 |
 | `scripts/` | 正典、画像、记录、错题本、守卫、机验、兴趣日志、章节图 |
 | `templates/` | 错题本条目示例、CSV 和 Excel 导出 |
