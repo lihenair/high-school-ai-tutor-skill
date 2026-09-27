@@ -36,6 +36,11 @@ jobs:
       - name: 章节图
         run: python3 tests/test_graph.py
 
+      - name: 正典生成种子与整章图骨架
+        run: |
+          python3 skills/high-school-ai-tutor/scripts/canon_sync.py
+          python3 tests/test_canon_sync.py
+
       - name: 错题本 SM-2
         run: python3 tests/test_notebook.py
 

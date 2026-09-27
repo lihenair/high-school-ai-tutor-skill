@@ -20,6 +20,7 @@ sys.path.insert(0, str(SCRIPTS))
 import guard  # noqa: E402
 
 SKILL_REL = Path("skills") / "high-school-ai-tutor" / "SKILL.md"
+MATH_REL = Path("skills") / "high-school-ai-tutor" / "modes" / "math-verify.md"
 VERIFY_REL = Path("skills") / "high-school-ai-tutor" / "scripts" / "verify.py"
 # 与 tests/check.py 同一条正则，flag 名从 guard.py 源头读，不在测试里另抄一份清单。
 FLAG_RE = re.compile(r'add_argument\(\s*["\'](--[a-z0-9-]+)["\']')
@@ -82,10 +83,10 @@ class CheckBiteTests(unittest.TestCase):
 
     def test_deleted_last_marker_fails_on_that_sentence(self):
         marker = guard.VERIFY_MARKERS[-1]
-        skill = self.copy / SKILL_REL
-        text = skill.read_text(encoding="utf-8")
+        math_doc = self.copy / MATH_REL
+        text = math_doc.read_text(encoding="utf-8")
         self.assertIn(marker, text)
-        skill.write_text(text.replace(marker, ""), encoding="utf-8")
+        math_doc.write_text(text.replace(marker, ""), encoding="utf-8")
 
         result = self.run_check()
         self.assertNotEqual(result.returncode, 0, result.stdout)
