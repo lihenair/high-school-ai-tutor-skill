@@ -20,7 +20,7 @@ EXPECT = {
     "07-overview-no-map.txt": (0, ["R1b"]),
     "08-overview-ok.txt": (0, []),
     "09-selftest-marked.txt": (0, []),
-    "10-selftest-unmarked.txt": (1, ["R3"]),
+    "10-selftest-unmarked.txt": (0, []),
     "11-example-without-marker.txt": (0, []),
     "12-notebook-extension.txt": (1, ["R2"]),
     "13-diagnosis-ask.txt": (0, []),

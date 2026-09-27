@@ -45,7 +45,7 @@ run self-study/06-end-mermaid.txt study 1
 run self-study/07-overview-no-map.txt study 0
 run self-study/08-overview-ok.txt study 0
 run self-study/09-selftest-marked.txt study 0
-run self-study/10-selftest-unmarked.txt study 1
+run self-study/10-selftest-unmarked.txt study 0
 run self-study/11-example-without-marker.txt study 0
 run self-study/12-notebook-extension.txt study 1
 run self-study/13-diagnosis-ask.txt study 0

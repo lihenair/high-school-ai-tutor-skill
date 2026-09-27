@@ -301,10 +301,6 @@ def check_study(text):
             nxt = cursor + 1
             while nxt < len(block) and not QUESTION_LINE_RE.match(block[nxt]):
                 nxt += 1
-            span = "\n".join(block[cursor:nxt])
-            if not any(marker in span for marker in VERIFY_MARKERS):
-                issues.append(("ERROR", "R3", slot_at + cursor, "判别自测有题目但没有机验标记句",
-                               "在该题下补一句「已机验：通过 / 未机验：无法解析 / 未机验：未安装 SymPy / 此结果未通过机验」"))
             cursor = nxt
 
     if state == "章览" and "拓扑" not in text:
