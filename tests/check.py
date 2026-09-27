@@ -50,6 +50,8 @@ def main():
         fail(f"缺少 {SKILL_DIR.relative_to(ROOT)}/SKILL.md")
     if not (SKILL_DIR / "modes" / "self-study.md").exists():
         fail("缺少 modes/self-study.md")
+    if not (SKILL_DIR / "modes" / "markmap.md").exists():
+        fail("缺少 modes/markmap.md")
     print("OK 清单交叉一致，技能目录存在")
 
     # 3. SKILL.md frontmatter：name 与目录名一致、description 非空
@@ -170,6 +172,8 @@ def main():
     import nodes
     if "modes/self-study.md" not in text:
         fail("SKILL.md 应指向 modes/self-study.md")
+    if "modes/markmap.md" not in text:
+        fail("SKILL.md 应指向 modes/markmap.md，导图文件细则不常驻入口")
     for bit in ("补状态标签重发", "节点讲解请单独发一次", "此章正典待补录"):
         if bit not in text and bit not in (SKILL_DIR / "modes" / "self-study.md").read_text(encoding="utf-8"):
             fail(f"自学规则缺少用语：{bit}")

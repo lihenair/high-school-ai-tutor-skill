@@ -9,7 +9,7 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 
 后文与「每轮输出总则」冲突时，以总则为准。
 
-本文件是 skill 入口，只放每轮都要用的规则。数学、物理、化学、生物判定科目后再读对应 `references/`，不要一次读完。语文、英语、历史、政治、地理读 `references/humanities.md`。人教版化学必修第一册（2019）第一章的整章图在 `references/pep-chem-bx1-ch1.md`，人教版生物学必修1（2019）第一章的整章图在 `references/pep-bio-bx1-ch1.md`，第二章的整章图在 `references/pep-bio-bx1-ch2.md`，第三章的整章图在 `references/pep-bio-bx1-ch3.md`，第四章的整章图在 `references/pep-bio-bx1-ch4.md`，第五章的整章图在 `references/pep-bio-bx1-ch5.md`，第六章的整章图在 `references/pep-bio-bx1-ch6.md`，人教版生物学必修2（2019）第一章的整章图在 `references/pep-bio-bx2-ch1.md`，第二章的整章图在 `references/pep-bio-bx2-ch2.md`，第三章的整章图在 `references/pep-bio-bx2-ch3.md`，第四章的整章图在 `references/pep-bio-bx2-ch4.md`，第五章的整章图在 `references/pep-bio-bx2-ch5.md`，第六章的整章图在 `references/pep-bio-bx2-ch6.md`，人教版生物学选择性必修1（2019）第一章的整章图在 `references/pep-bio-xbx1-ch1.md`、第二章的整章图在 `references/pep-bio-xbx1-ch2.md`、第三章的整章图在 `references/pep-bio-xbx1-ch3.md`、第四章的整章图在 `references/pep-bio-xbx1-ch4.md`、第五章的整章图在 `references/pep-bio-xbx1-ch5.md`，人教版生物学选择性必修2（2019）第一章的整章图在 `references/pep-bio-xbx2-ch1.md`、第二章的整章图在 `references/pep-bio-xbx2-ch2.md`、第三章的整章图在 `references/pep-bio-xbx2-ch3.md`、第四章的整章图在 `references/pep-bio-xbx2-ch4.md`，人教版生物学选择性必修3（2019）第一章的整章图在 `references/pep-bio-xbx3-ch1.md`、第二章的整章图在 `references/pep-bio-xbx3-ch2.md`、第三章的整章图在 `references/pep-bio-xbx3-ch3.md`、第四章的整章图在 `references/pep-bio-xbx3-ch4.md`，点名要对应章时再读，原样输出。学生问到知识点之间的跨章、跨册联系（如“减数分裂和分离定律什么关系”“光合作用和能量流动什么关系”）时：读 `references/bio-cross-book-links.md`，按其中的联系主题作答，并注明出处（册·章）。学生问“高考怎么考这章”“这类题北京卷考过吗”“考向是什么”时：读 `references/bio-exam-trends.md`，按其中的年份·题号与易错点作答，注明来源为真题点评的转述分析。自学模式的四子状态、七槽、超纲四类和补步声明在 `modes/self-study.md`，判为自学后再读。解题三态的规则仍只在本文件，不迁出。
+本文件是 skill 入口，只放每轮都要用的规则。数学、物理、化学、生物判定科目后再读对应 `references/`，不要一次读完。语文、英语、历史、政治、地理读 `references/humanities.md`。点名要某一章的整章图时，再读 `references/pep-<章号>.md`（例如 `references/pep-chem-bx1-ch1.md`、`references/pep-bio-bx1-ch1.md`），从该文件的「整章图」行起原样输出；册章与文件的对应写在下面「自学知识图谱」。学生问到知识点之间的跨章、跨册联系（如“减数分裂和分离定律什么关系”“光合作用和能量流动什么关系”）时：读 `references/bio-cross-book-links.md`，按其中的联系主题作答，并注明出处（册·章）。学生问“高考怎么考这章”“这类题北京卷考过吗”“考向是什么”时：读 `references/bio-exam-trends.md`，按其中的年份·题号与易错点作答，注明来源为真题点评的转述分析；情境只写到解题所需的最小集，细节指向私有侧原文。自学模式的四子状态、七槽、超纲四类和补步声明在 `modes/self-study.md`，判为自学后再读。解题三态的规则仍只在本文件，不迁出。
 
 ## 科目分流
 
@@ -211,24 +211,7 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 4. **常考组合**：题干同时落到虚线两端，按拼盘题拆开，先做会的一端。这不是换考点，变式仍锁原来那一个核心考点。
 5. 学生直接贴题：仍走苏格拉底或直接讲解，不自动输出 mermaid。只有点名要图谱才画图。
 
-### 导图文件（markmap，学生点名要文件时）
-
-学生明确要「可保存的导图文件」「带教材图例的思维导图」「导图发我一份」时走这里。对话里看图仍用 mermaid，上面的输出顺序、模式判定和守卫机检一律不变；本节只管产出文件。
-
-目录与固定件（示例见 `graphs/bio-xbx1-ch3/`）：
-
-1. 每章一个目录 `graphs/<学科>-<册>-<章>/`，含 `mindmap.md`（内容源）、`build.py`（构建脚本）、`markmap-autoloader.js`（本地加载器）。整个 `graphs/` 目录已 gitignore：教材截图是版权材料，图例文案紧贴教材，全部留在本机，不提交。
-2. `mindmap.md`：根节点=册·章，二级=节（用正典节名，与 `references` 整章图一致）。分类标记 🟦概念、🟩技能、🟧实验/科学史、⬜跨章常考组合，对应 mermaid 图例的蓝、绿、橙、灰。不写英文代号。
-3. 图例卡三件套，挂在对应知识点下：`📖 教材图x-x：图名`、`🔑 图内要点`（结构/箭头/过程，一到两句）、`⚠️ 常考易错`。图号以教材为准，不确定就只写图名，不要编号。
-4. 只挂知识型图例，每章 5–8 张；检测报告单、情境照片、纯解剖背景图不挂。宁少勿滥，导图不能变画廊。
-5. 截图按 `build.py` 顶部 FIGS 表的文件名放进 `figs/`，用目录内 `.venv` 跑 `build.py`：自动裁白边、缩到宽 600px 以内（Retina 屏 1:1 清晰）、生成单页 HTML；缺图先出占位图，不报错。
-6. 整目录本地留存：图例卡文案留在本机 `mindmap.md` 里，`graphs/` 下任何文件都不提交进仓库。
-
-禁止：
-
-- 学生没点名要文件时，不主动产出或推销导图文件，按原 mermaid 流程走。
-- 不把 HTML 内容贴进对话，只给文件路径。
-- 导图文件的知识点展开可以比对话正典细，但节名、分类、跨章组合不得与 `references` 正典冲突；冲突时以正典为准，回来改 `mindmap.md`。
+学生点名要可保存的导图文件时再读 `modes/markmap.md`；没点名不产出文件，对话里看图仍用 mermaid。
 
 ### 完整模式与总结阶段的输出
 
@@ -429,41 +412,13 @@ python3 <skill目录>/scripts/notebook.py export -o 错题本.xlsx
 
 ## 学生画像与掌握度
 
-用户数据只放家目录，不进仓库：`records.jsonl`、`tutor.db`、`student_profile.json`、`explore_log.jsonl` 都在 `~/.high-school-ai-tutor/`。仓库里随技能分发的数据文件只有 `data/graph.db`（在本技能目录下）。
+用户数据只在 `~/.high-school-ai-tutor/`（`student_profile.json`、`records.jsonl`、`tutor.db`、`explore_log.jsonl`），不进仓库。掌握度迁移、题型流向、三问和换教材以 `modes/self-study.md` 为准。`node_id` 存 `kp_*`，给学生看的用正典显示名。薄弱点只走 `records.py weak`，不与掌握度合成一份名单。`explore_log.jsonl` 只记兴趣原问，不进掌握度、薄弱点、变式或复习。
 
-画像用 `scripts/profile.py`。节点在画像、掌握度和记录的 `node_id` 里存 `kp_*`；给学生看的名字用正典显示名。`confirmed` 缺字段时当作已确认。没有 `weak_nodes` 字段，薄弱点只走 `records.py weak`。
+`python3 <skill目录>/scripts/profile.py show --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py onboard --grade 高一 --exam 高考 --textbook 人教版 --skip-grade --skip-exam --skip-textbook --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py progress --chapter chem-bx1-ch1 --node kp_electrolyte --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py mastery --node kp_redox --event 自测首次答对 --source 自测 --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py validate-textbook --version 苏教版 --file ~/.high-school-ai-tutor/student_profile.json`。
 
-```bash
-python3 <skill目录>/scripts/profile.py show --file ~/.high-school-ai-tutor/student_profile.json
-python3 <skill目录>/scripts/profile.py onboard --grade 高一 --exam 高考 --textbook 人教版 --skip-grade --skip-exam --skip-textbook --file ~/.high-school-ai-tutor/student_profile.json
-python3 <skill目录>/scripts/profile.py progress --chapter chem-bx1-ch1 --node kp_electrolyte --file ~/.high-school-ai-tutor/student_profile.json
-python3 <skill目录>/scripts/profile.py mastery --node kp_redox --event 自测首次答对 --source 自测 --file ~/.high-school-ai-tutor/student_profile.json
-python3 <skill目录>/scripts/profile.py validate-textbook --version 苏教版 --file ~/.high-school-ai-tutor/student_profile.json
-```
+`python3 <skill目录>/scripts/explore_log.py add --subject 化学 --node 氧化还原反应 --category 大学基础 --question "电极电势是什么" --date 2026-09-26 --file ~/.high-school-ai-tutor/explore_log.jsonl`。
 
-掌握度只和自学画像放在一起读。`weak()` 是解题侧的薄弱点。两边并列展示，各写来源，不合成一份名单。
-
-创建和迁移：只有自测能新建掌握度条目。解题错题只改已经存在的条目，不为没学过的节点新建「未掌握」。诊断题不新建也不迁移。解题错题的降档是：已掌握→模糊，模糊→未掌握，未掌握不变。自测第一次答对：未掌握→模糊。自测连续两次答对（中间答错则计数清零）：模糊→已掌握。自测答错：已掌握或模糊→未掌握。
-
-题型流向：节点内例题不进记录、不进错题本、不改掌握度。诊断题写入记录且 `context=自学诊断`，不进 SM-2，不改掌握度。自测题写入记录、错题进 `notebook.py` 的 SM-2，并触发掌握度迁移。诊断错题不得出现在错题本。
-
-`explore_log.jsonl` 只留给以后的兴趣画像。不得拿它算掌握度、汇总薄弱点、出变式或排复习。写入用 `scripts/explore_log.py`，不要在掌握度或错题本脚本里读它。
-
-```bash
-python3 <skill目录>/scripts/explore_log.py add --subject 化学 --node 氧化还原反应 --category 大学基础 --question "电极电势是什么" --date 2026-09-26 --file ~/.high-school-ai-tutor/explore_log.jsonl
-```
-
-章节顺序和前置用 `scripts/graph.py`。章末预告读它的文本列表，不画小图。
-
-```bash
-python3 <skill目录>/scripts/graph.py init --db <skill目录>/data/graph.db
-python3 <skill目录>/scripts/graph.py topo --chapter chem-bx1-ch1 --db <skill目录>/data/graph.db
-python3 <skill目录>/scripts/graph.py prereq --node kp_ion_eq --db <skill目录>/data/graph.db
-python3 <skill目录>/scripts/graph.py grey --chapter chem-bx1-ch1 --db <skill目录>/data/graph.db
-python3 <skill目录>/scripts/migrate_canon_columns.py --check --write
-```
-
-换教材版本时跑 `validate-textbook`。它只列出正典里命名可能错位或已经对不上的节点，确认前不要自学相关章。首次三问不重复用来换版本。
+`python3 <skill目录>/scripts/graph.py init --db <skill目录>/data/graph.db`；`python3 <skill目录>/scripts/graph.py topo --chapter chem-bx1-ch1 --db <skill目录>/data/graph.db`；`python3 <skill目录>/scripts/graph.py prereq --node kp_ion_eq --db <skill目录>/data/graph.db`；`python3 <skill目录>/scripts/graph.py grey --chapter chem-bx1-ch1 --db <skill目录>/data/graph.db`。章末预告读 `graph.py grey` 的文本列表，不画小图。`python3 <skill目录>/scripts/migrate_canon_columns.py --check --write`。
 
 ## 回复守卫（发送前必跑）
 
