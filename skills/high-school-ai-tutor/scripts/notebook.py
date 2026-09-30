@@ -25,6 +25,7 @@ import nodes
 ERROR_CATEGORIES = ("审题", "概念", "计算", "方法", "表达", "心态")
 MASTERY_STATES = ("未掌握", "模糊", "已掌握")
 QUALITY = {"未掌握": 2, "模糊": 3, "已掌握": 5}
+SCHEMA_VERSION = 1
 
 ENTRY_COLUMNS = {
     "年级": "grade",
@@ -274,12 +275,43 @@ def _connect(path):
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS meta (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+        """
+    )
     columns = {row[1] for row in conn.execute("PRAGMA table_info(cards)")}
-    if "raw_node" not in columns:
-        conn.execute("ALTER TABLE cards ADD COLUMN raw_node TEXT DEFAULT ''")
-    if "verify_status" not in columns:
-        conn.execute("ALTER TABLE cards ADD COLUMN verify_status TEXT DEFAULT ''")
+    version = _schema_version(conn)
+    if version < 1:
+        if "raw_node" not in columns:
+            conn.execute("ALTER TABLE cards ADD COLUMN raw_node TEXT DEFAULT ''")
+        if "verify_status" not in columns:
+            conn.execute("ALTER TABLE cards ADD COLUMN verify_status TEXT DEFAULT ''")
+        version = 1
+    _set_schema_version(conn, version)
+    conn.commit()
     return conn
+
+
+def _schema_version(conn):
+    row = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()
+    if row is None:
+        return 0
+    try:
+        return int(row[0])
+    except (TypeError, ValueError):
+        return 0
+
+
+def _set_schema_version(conn, version):
+    conn.execute(
+        "INSERT INTO meta(key, value) VALUES ('schema_version', ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (str(version),),
+    )
 
 
 def main(argv=None):

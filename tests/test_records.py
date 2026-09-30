@@ -154,6 +154,55 @@ class RecordTests(unittest.TestCase):
         )
         self.assertEqual(records.format_unmatched(records.unmatched_rows(Path(self.tmp.name) / "empty.jsonl")), "没有未命中的考点。")
 
+    def test_ids_are_max_plus_one_not_row_count(self):
+        records.add_record(
+            self.path, subject="化学", node="氧化还原反应", stem="电石除杂",
+            outcome="做错", error="概念", when="2026-09-23",
+        )
+        lines = self.path.read_text(encoding="utf-8").splitlines()
+        first = json.loads(lines[0])
+        first["id"] = 7
+        self.path.write_text(json.dumps(first, ensure_ascii=False) + "\n", encoding="utf-8")
+        second = records.add_record(
+            self.path, subject="化学", node="离子反应", stem="离子方程式",
+            outcome="做对", when="2026-09-23",
+        )
+        self.assertEqual(second["id"], 8)
+
+    def test_bad_json_line_does_not_crash_weak(self):
+        records.add_record(
+            self.path, subject="化学", node="氧化还原反应", stem="电石除杂",
+            outcome="做错", error="概念", when="2026-09-23",
+        )
+        with self.path.open("a", encoding="utf-8") as fh:
+            fh.write("{not json\n")
+        weak = records.weak_points(self.path)
+        self.assertEqual(weak[0]["node"], "氧化还原反应")
+
+    def test_concurrent_writes_get_distinct_ids(self):
+        import threading
+        errors = []
+
+        def worker(stem):
+            try:
+                records.add_record(
+                    self.path, subject="化学", node="氧化还原反应", stem=stem,
+                    outcome="做错", error="概念", when="2026-09-23",
+                )
+            except Exception as exc:
+                errors.append(exc)
+
+        threads = [threading.Thread(target=worker, args=(f"题{i}",)) for i in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(errors, [])
+        rows = [json.loads(line) for line in self.path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        ids = [row["id"] for row in rows]
+        self.assertEqual(len(ids), 8)
+        self.assertEqual(sorted(ids), list(range(1, 9)))
+
 
 if __name__ == "__main__":
     unittest.main()

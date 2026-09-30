@@ -6,10 +6,12 @@
     python3 profile.py progress --chapter chem-bx1-ch1 --node kp_electrolyte --file ~/.high-school-ai-tutor/student_profile.json
     python3 profile.py mastery --node kp_redox --event 自测首次答对 --source 自测 --file ~/.high-school-ai-tutor/student_profile.json
     python3 profile.py validate-textbook --version 苏教版 --file ~/.high-school-ai-tutor/student_profile.json
+    python3 profile.py confirm-textbook --file ~/.high-school-ai-tutor/student_profile.json
 """
 
 import argparse
 import json
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -56,7 +58,10 @@ def load(path=None):
 def save(profile, path=None):
     path = Path(path) if path else default_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(profile, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    payload = json.dumps(profile, ensure_ascii=False, indent=2) + "\n"
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(payload, encoding="utf-8")
+    os.replace(tmp, path)
     return path
 
 
@@ -87,6 +92,17 @@ def _answer_field(raw, default, note=None):
     if note and skipped:
         field["note"] = note
     return field
+
+
+def _merge_onboard(existing, answers, when=None):
+    created = create_from_answers(answers, when)
+    if not existing:
+        return created
+    for key in DEFAULTS:
+        existing[key] = created[key]
+    existing.setdefault("self_study_progress", created["self_study_progress"])
+    existing.setdefault("mastery", {})
+    return existing
 
 
 def create_from_answers(answers, when=None):
@@ -320,6 +336,7 @@ def main(argv=None):
 
     textbook = sub.add_parser("validate-textbook", parents=[shared])
     textbook.add_argument("--version", required=True)
+    sub.add_parser("confirm-textbook", parents=[shared])
 
     args = parser.parse_args(argv)
     path = args.file or default_path()
@@ -337,7 +354,7 @@ def main(argv=None):
                 "exam_type": "" if _skip_flag(args, "skip_exam") else args.exam,
                 "textbook_version": "" if _skip_flag(args, "skip_textbook") else args.textbook,
             }
-            profile = create_from_answers(answers)
+            profile = _merge_onboard(load(path), answers)
             save(profile, path)
             print(f"已写入画像：{path}")
             return 0
@@ -355,6 +372,11 @@ def main(argv=None):
                 save(profile, path)
             state = mastery_get(profile, args.node)
             print(state or "无")
+            return 0
+        if args.cmd == "confirm-textbook":
+            confirm_textbook_change(profile)
+            save(profile, path)
+            print(f"已确认教材版本：{profile['textbook_version']['value']}")
             return 0
         lines = validate_textbook_change(profile, args.version)
         save(profile, path)

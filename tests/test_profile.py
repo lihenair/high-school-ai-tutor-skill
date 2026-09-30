@@ -145,6 +145,28 @@ class ProfileTests(unittest.TestCase):
         loaded = student_profile.load(self.path)
         self.assertEqual(loaded["grade"]["value"], "高一")
 
+    def test_onboard_does_not_wipe_existing_mastery(self):
+        profile = student_profile.create_from_answers({"grade": "高一", "exam_type": "高考", "textbook_version": "人教版"})
+        student_profile.mastery_apply(profile, "kp_redox", "自测答错", "自测", "2026-09-26")
+        student_profile.set_progress(profile, "chem-bx1-ch1", "kp_electrolyte")
+        student_profile.save(profile, self.path)
+        code = student_profile.main(["onboard", "--grade", "高二", "--exam", "高考", "--textbook", "人教版", "--file", str(self.path)])
+        self.assertEqual(code, 0)
+        loaded = student_profile.load(self.path)
+        self.assertEqual(loaded["grade"]["value"], "高二")
+        self.assertEqual(student_profile.mastery_get(loaded, "kp_redox"), "未掌握")
+        self.assertEqual(loaded["self_study_progress"]["current_node"], "kp_electrolyte")
+
+    def test_confirm_textbook_cli_clears_pending(self):
+        profile = student_profile.create_from_answers({"textbook_version": "人教版"})
+        student_profile.validate_textbook_change(profile, "苏教版")
+        student_profile.save(profile, self.path)
+        code = student_profile.main(["confirm-textbook", "--file", str(self.path)])
+        self.assertEqual(code, 0)
+        loaded = student_profile.load(self.path)
+        self.assertEqual(loaded["textbook_version"]["value"], "苏教版")
+        self.assertNotIn("pending_textbook", loaded)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -117,11 +117,11 @@ Step 7
 
 ## 换教材
 
-学生要改 `textbook_version` 时走 `profile.py validate-textbook`，不重走三问。脚本列出掌握度和进度里对不上正典的节点，以及章节名可能错位的条目。确认前 `pending_textbook` 还在，就不要自学相关章。确认之后才写入新版本。
+学生要改 `textbook_version` 时走 `profile.py validate-textbook`，不重走三问。脚本列出掌握度和进度里对不上正典的节点，以及章节名可能错位的条目。确认前 `pending_textbook` 还在，就不要自学相关章。确认用 `profile.py confirm-textbook`，之后才写入新版本。
 
 ## 画像脚本
 
-`python3 <skill目录>/scripts/profile.py show --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py onboard --grade 高一 --exam 高考 --textbook 人教版 --skip-grade --skip-exam --skip-textbook --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py progress --chapter chem-bx1-ch1 --node kp_electrolyte --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py mastery --node kp_redox --event 自测首次答对 --source 自测 --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py validate-textbook --version 苏教版 --file ~/.high-school-ai-tutor/student_profile.json`。
+`python3 <skill目录>/scripts/profile.py show --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py onboard --grade 高一 --exam 高考 --textbook 人教版 --skip-grade --skip-exam --skip-textbook --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py progress --chapter chem-bx1-ch1 --node kp_electrolyte --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py mastery --node kp_redox --event 自测首次答对 --source 自测 --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py validate-textbook --version 苏教版 --file ~/.high-school-ai-tutor/student_profile.json`；`python3 <skill目录>/scripts/profile.py confirm-textbook --file ~/.high-school-ai-tutor/student_profile.json`。
 
 `explore_log.jsonl` 只记兴趣原问，不进掌握度、薄弱点、变式或复习。`python3 <skill目录>/scripts/explore_log.py add --subject 化学 --node 氧化还原反应 --category 大学基础 --question "电极电势是什么" --date 2026-09-26 --file ~/.high-school-ai-tutor/explore_log.jsonl`。
 

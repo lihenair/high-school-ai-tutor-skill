@@ -10,7 +10,9 @@
 """
 
 import argparse
+import fcntl
 import json
+import os
 import sys
 from datetime import date
 from pathlib import Path
@@ -73,9 +75,7 @@ def add_record(path, subject, node, stem, outcome, error="", when=None, context=
     else:
         stored_subject, stored_node = subject, node
         nodes.warn_miss(stored_subject, raw_node)
-    existing = _read(path)
     row = {
-        "id": len(existing) + 1,
         "date": when,
         "subject": stored_subject,
         "node": stored_node,
@@ -90,8 +90,16 @@ def add_record(path, subject, node, stem, outcome, error="", when=None, context=
     if node_id:
         row["node_id"] = node_id
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as fh:
+    with path.open("a+", encoding="utf-8") as fh:
+        fcntl.flock(fh, fcntl.LOCK_EX)
+        fh.seek(0)
+        existing = _read_lines(fh)
+        ids = [int(item["id"]) for item in existing if str(item.get("id", "")).isdigit()]
+        row["id"] = (max(ids) + 1) if ids else 1
+        fh.seek(0, os.SEEK_END)
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
     return row
 
 
@@ -164,11 +172,20 @@ def _read(path):
     path = Path(path)
     if not path.exists():
         return []
+    with path.open(encoding="utf-8") as fh:
+        return _read_lines(fh)
+
+
+def _read_lines(fh):
     rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in fh:
         line = line.strip()
-        if line:
+        if not line:
+            continue
+        try:
             rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            print("WARN 跳过无法解析的记录行", file=sys.stderr)
     return rows
 
 
