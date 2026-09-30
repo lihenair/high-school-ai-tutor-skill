@@ -200,6 +200,25 @@ class NotebookTests(unittest.TestCase):
         conn.close()
         self.assertEqual(int(version), notebook.SCHEMA_VERSION)
 
+    def test_add_missing_file_exits_two_without_traceback(self):
+        missing = Path(self.tmp.name) / "no-such.json"
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = notebook.main(["add", str(missing), "--db", str(self.db)])
+        self.assertEqual(code, 2)
+        self.assertIn("找不到", err.getvalue())
+        self.assertNotIn("Traceback", err.getvalue())
+
+    def test_add_bad_json_exits_two_without_traceback(self):
+        bad = Path(self.tmp.name) / "bad.json"
+        bad.write_text("{not json", encoding="utf-8")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = notebook.main(["add", str(bad), "--db", str(self.db)])
+        self.assertEqual(code, 2)
+        self.assertIn("JSON", err.getvalue())
+        self.assertNotIn("Traceback", err.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
