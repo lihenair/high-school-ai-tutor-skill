@@ -30,6 +30,10 @@ class LeakAndDifficultyTests(unittest.TestCase):
         issues = socratic_issues("难度：基础，只需简单代入。开口朝哪边？")
         self.assertFalse(any(item[1] in ("E5", "E7") for item in issues), issues)
 
+    def test_restating_student_choice_is_not_a_leak(self):
+        issues = socratic_issues("难度：中等。你选 B。说说依据？")
+        self.assertFalse(any(item[1] == "E1" for item in issues), issues)
+
 
 class MermaidTests(unittest.TestCase):
     def test_space_after_fence_still_checks_edges_and_style(self):
@@ -71,6 +75,19 @@ flowchart TD
 
     def test_canonical_chapter_map_still_passes(self):
         self.assertEqual(guard.check_pep_chem_chapter(CHAPTER_OK), [])
+
+    def test_circular_nodes_count_as_present(self):
+        lines = [
+            "整章图：人教版《化学 必修 第一册》（2019）第一章",
+            "```mermaid",
+            "flowchart TD",
+            "  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A",
+            "  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A",
+        ]
+        for index, name in enumerate(guard.PEP_CHEM_BX1_CH1_REQUIRED):
+            lines.append(f'  n{index}(("{name}（概念）")):::concept')
+        lines.append("```")
+        self.assertEqual(guard.check_pep_chem_chapter("\n".join(lines)), [])
 
     def test_hint_points_at_existing_chapter_map(self):
         issues = guard.check("socratic", CHAPTER_OK.replace("-->|直接前置|", "-->|相关|"), False)
