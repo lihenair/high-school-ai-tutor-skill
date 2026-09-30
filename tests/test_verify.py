@@ -70,6 +70,46 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(verify.check_math("a <= 0", "在 [0,3] 单调递增").status, "无法解析")
         self.assertEqual(verify.check_math("x + 1").status, "无法解析")
 
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_decimal_identities_are_not_false_contradictions(self):
+        self.assertEqual(verify.check_math("1.2*3 == 3.6").status, "通过")
+        self.assertEqual(verify.check_math("0.1+0.2 == 0.3").status, "通过")
+        self.assertEqual(verify.check_math("1.2*3 == 3.7").status, "矛盾")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_chained_inequality_keeps_every_bound(self):
+        sympy = verify._import_sympy()
+        parsed = verify._parse(sympy, "0 < a < 1")
+        self.assertIsNotNone(parsed)
+        self.assertNotEqual(str(parsed), "0 < a")
+        self.assertEqual(verify.check_math("0 < a < 1", "0 < a").status, "矛盾")
+        self.assertEqual(verify.check_math("0 < a < 1", "0 < a < 1").status, "通过")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_false_identity_is_contradiction(self):
+        self.assertEqual(verify.check_math("(a+b)**2 == a**2+b**2").status, "矛盾")
+        self.assertEqual(verify.check_math("(a+b)**2 == a**2 + 2*a*b + b**2").status, "通过")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_conflicting_assignments_are_contradiction(self):
+        self.assertEqual(verify.check_math("a == 1", "a=1; a=2").status, "矛盾")
+        self.assertEqual(verify.check_math("a == a", "a=1; a=2").status, "矛盾")
+        self.assertEqual(verify.check_math("a == 1", "a=1; a=1").status, "通过")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_attribute_access_is_not_evaluated(self):
+        self.assertEqual(verify.check_math("(1).__class__").status, "无法解析")
+        self.assertEqual(verify.check_math("().__class__.__name__").status, "无法解析")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_huge_power_does_not_hang(self):
+        import time
+        start = time.monotonic()
+        result = verify.check_math("9**9**9 == 0")
+        elapsed = time.monotonic() - start
+        self.assertLess(elapsed, 2.5)
+        self.assertIn(result.status, ("无法解析", "矛盾"))
+
 
 class CliTests(unittest.TestCase):
     """命令行入口：四态退出码 通过0/矛盾1/无法解析3/未安装4，用法错误交给 argparse 的 2。"""
