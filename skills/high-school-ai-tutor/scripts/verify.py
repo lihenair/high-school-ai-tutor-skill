@@ -30,6 +30,7 @@ import sys
 import threading
 import tokenize
 from dataclasses import dataclass
+from decimal import Decimal
 from pathlib import Path
 
 
@@ -40,18 +41,30 @@ class VerifyResult:
 
 
 VERIFY_TIMEOUT_SEC = 1.5
+VERIFY_RETRY_TIMEOUT_SEC = 12.0
 _MAX_INT_DIGITS = 12
+_APPROX_ABS = 1e-12
+_APPROX_REL = 1e-3
 _FORMULA = re.compile(r"^[0-9A-Za-z+\-*/^=<>!().,\s_]+$")
-_DECIMAL = re.compile(r"(?<![A-Za-z0-9_])(\d+\.\d+)")
+_NUMBER_LIT = re.compile(
+    r"(?<![A-Za-z0-9_])(\d+\.\d+(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)"
+)
 _ATTR_DOT = re.compile(r"(?<!\d)\.|\.(?!\d)")
+_ASSIGN_LHS = re.compile(r"^([A-Za-z][A-Za-z0-9_]*)\s*=")
 _FUNCTIONS = {
     "sqrt": "sqrt",
     "sin": "sin",
     "cos": "cos",
     "tan": "tan",
     "log": "log",
+    "ln": "log",
+    "lg": "log",
     "exp": "exp",
+    "abs": "Abs",
     "Abs": "Abs",
+    "max": "Max",
+    "min": "Min",
+    "expand": "expand",
 }
 _CALLABLE_NAMES = frozenset({"Eq", "Rational", *_FUNCTIONS})
 _KEEP_IDENTIFIERS = _CALLABLE_NAMES | {"pi", "e"}
@@ -75,6 +88,13 @@ def _import_sympy():
 def check_math(expr, where=""):
     if _import_sympy() is None:
         return VerifyResult("未安装", "未安装 SymPy")
+    result = _ask_worker(expr, where, VERIFY_TIMEOUT_SEC)
+    if result.status == "超时":
+        result = _ask_worker(expr, where, VERIFY_RETRY_TIMEOUT_SEC)
+    return result
+
+
+def _ask_worker(expr, where, seconds):
     with _worker_lock:
         try:
             proc = _ensure_worker()
@@ -87,7 +107,7 @@ def check_math(expr, where=""):
         except Exception:
             _shutdown_worker()
             return VerifyResult("无法解析", "计算失败")
-        line = _readline_timeout(proc, VERIFY_TIMEOUT_SEC)
+        line = _readline_timeout(proc, seconds)
         if line is None:
             _shutdown_worker()
             return VerifyResult("超时", "计算超时")
@@ -186,15 +206,26 @@ def _run_worker():
     return 0
 
 
+def _bound_names(where):
+    names = set()
+    for part in _split_where(where or ""):
+        raw = part.replace("＝", "=").replace("≤", "<=").replace("≥", ">=")
+        match = _ASSIGN_LHS.match(raw)
+        if match:
+            names.add(match.group(1))
+    return names
+
+
 def _check_math(sympy, expr, where):
-    claim = _parse(sympy, expr)
+    bound = _bound_names(where)
+    claim = _parse(sympy, expr, bound)
     if claim is None:
         return VerifyResult("无法解析", "最终式无法解析")
     condition = str(where or "").strip()
     if not condition:
         return _closed(sympy, claim)
     parts = _split_where(condition)
-    parsed = [_parse(sympy, part) for part in parts]
+    parsed = [_parse(sympy, part, bound) for part in parts]
     if any(item is None for item in parsed):
         return VerifyResult("无法解析", "条件无法解析")
     if all(_is_assignment(sympy, item) for item in parsed):
@@ -209,7 +240,7 @@ def _check_math(sympy, expr, where):
     return VerifyResult("无法解析", "这组式子无法比对")
 
 
-def _parse(sympy, text):
+def _parse(sympy, text, bound=()):
     raw = str(text or "").strip()
     if not raw:
         return None
@@ -222,20 +253,20 @@ def _parse(sympy, text):
     )
     if "__" in raw or not _FORMULA.fullmatch(raw):
         return None
-    if _ATTR_DOT.search(_DECIMAL.sub("", raw)):
+    if _ATTR_DOT.search(_NUMBER_LIT.sub("", raw)):
         return None
     raw = raw.replace("^", "**")
     if _bare_equals(raw):
         left, right = raw.split("=", 1)
         raw = f"Eq({left.strip()}, {right.strip()})"
-    raw = _DECIMAL.sub(lambda match: f'Rational("{match.group(1)}")', raw)
+    raw = _NUMBER_LIT.sub(lambda match: f'Rational("{match.group(1)}")', raw)
     raw = _insert_implicit_mul(raw)
     try:
         tree = ast.parse(raw, mode="eval")
     except SyntaxError:
         return None
     try:
-        return _from_ast(sympy, tree)
+        return _from_ast(sympy, tree, bound)
     except (ValueError, TypeError, OverflowError, SyntaxError):
         return None
 
@@ -294,9 +325,16 @@ def _bare_equals(text):
     return text.count("=") == 1
 
 
-def _from_ast(sympy, node):
+def _rational_literal(sympy, text):
+    number = Decimal(str(text))
+    numerator, denominator = number.as_integer_ratio()
+    return sympy.Rational(numerator, denominator)
+
+
+def _from_ast(sympy, node, bound=()):
+    bound = set(bound or ())
     if isinstance(node, ast.Expression):
-        return _from_ast(sympy, node.body)
+        return _from_ast(sympy, node.body, bound)
     if isinstance(node, ast.Constant):
         if isinstance(node.value, bool) or node.value is None:
             raise ValueError("bad constant")
@@ -305,24 +343,26 @@ def _from_ast(sympy, node):
                 raise ValueError("integer too large")
             return sympy.Integer(node.value)
         if isinstance(node.value, float):
-            return sympy.Rational(str(node.value))
+            return _rational_literal(sympy, node.value)
         if isinstance(node.value, str):
             return node.value
         raise ValueError("bad constant")
     if isinstance(node, ast.Name):
         if node.id.startswith("_") or node.id in _CALLABLE_NAMES:
             raise ValueError("bad name")
+        if node.id in bound:
+            return sympy.Symbol(node.id)
         if node.id == "pi":
             return sympy.pi
         if node.id == "e":
             return sympy.E
         return sympy.Symbol(node.id)
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
-        value = _from_ast(sympy, node.operand)
+        value = _from_ast(sympy, node.operand, bound)
         return value if isinstance(node.op, ast.UAdd) else -value
     if isinstance(node, ast.BinOp):
-        left = _from_ast(sympy, node.left)
-        right = _from_ast(sympy, node.right)
+        left = _from_ast(sympy, node.left, bound)
+        right = _from_ast(sympy, node.right, bound)
         if isinstance(node.op, ast.BitAnd):
             return sympy.And(left, right)
         if isinstance(node.op, ast.Pow):
@@ -339,11 +379,11 @@ def _from_ast(sympy, node):
             raise ValueError("bad operator")
         return fn(left, right)
     if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
-        args = [_from_ast(sympy, value) for value in node.values]
+        args = [_from_ast(sympy, value, bound) for value in node.values]
         return sympy.And(*args)
     if isinstance(node, ast.Compare):
-        terms = [_from_ast(sympy, node.left)]
-        terms.extend(_from_ast(sympy, comparator) for comparator in node.comparators)
+        terms = [_from_ast(sympy, node.left, bound)]
+        terms.extend(_from_ast(sympy, comparator, bound) for comparator in node.comparators)
         rels = []
         for left, op, right in zip(terms, node.ops, terms[1:]):
             rels.append(_compare(sympy, op, left, right))
@@ -351,11 +391,13 @@ def _from_ast(sympy, node):
     if isinstance(node, ast.Call):
         if not isinstance(node.func, ast.Name) or node.keywords:
             raise ValueError("bad call")
-        args = [_from_ast(sympy, arg) for arg in node.args]
+        args = [_from_ast(sympy, arg, bound) for arg in node.args]
         if node.func.id == "Eq" and len(args) == 2:
             return sympy.Eq(args[0], args[1], evaluate=False)
         if node.func.id == "Rational" and len(args) == 1 and isinstance(args[0], str):
-            return sympy.Rational(args[0])
+            return _rational_literal(sympy, args[0])
+        if node.func.id == "lg" and len(args) == 1:
+            return sympy.log(args[0], 10)
         fn_name = _FUNCTIONS.get(node.func.id)
         if fn_name is None or not args:
             raise ValueError("bad call")
@@ -424,15 +466,38 @@ def _truth(sympy, value):
     return None
 
 
+def _numeric_pass(sympy, claim):
+    if not isinstance(claim, sympy.Equality) or claim.free_symbols:
+        return None
+    try:
+        left = complex(claim.lhs.evalf(20))
+        right = complex(claim.rhs.evalf(20))
+    except Exception:
+        return None
+    if not all(math.isfinite(part) for part in (left.real, left.imag, right.real, right.imag)):
+        return None
+    diff = abs(left - right)
+    scale = abs(left) if abs(left) >= abs(right) else abs(right)
+    if diff <= _APPROX_REL * scale or (scale == 0 and diff <= _APPROX_ABS):
+        return VerifyResult("通过", "数值近似" if diff > _APPROX_ABS else "")
+    return None
+
+
 def _closed(sympy, claim):
     if isinstance(claim, sympy.Equality):
         status = _truth(sympy, sympy.simplify(claim))
         if status == "通过":
             return VerifyResult("通过")
         if status == "矛盾":
+            approx = _numeric_pass(sympy, claim)
+            if approx is not None:
+                return approx
             return VerifyResult("矛盾", f"化简为 {_relation_text(sympy, claim)}")
         if claim.lhs.free_symbols and claim.rhs.free_symbols:
             return _expressions_equal(sympy, claim.lhs, claim.rhs)
+        approx = _numeric_pass(sympy, claim)
+        if approx is not None:
+            return approx
         return VerifyResult("无法解析", "这个式子不是恒真或恒假")
     if not _is_relational(sympy, claim):
         return VerifyResult("无法解析", "没有条件时只能判断恒真或恒假的式子")
@@ -462,8 +527,16 @@ def _substitute(sympy, claim, assignments):
     if status == "通过":
         return VerifyResult("通过")
     if status == "矛盾":
+        approx = _numeric_pass(sympy, replaced)
+        if approx is not None:
+            return approx
         values = "，".join(f"{item.lhs} = {item.rhs}" for item in assignments)
         return VerifyResult("矛盾", f"代入 {values} 后为 {_relation_text(sympy, claim, assignments)}")
+    approx = _numeric_pass(sympy, replaced)
+    if approx is not None:
+        return approx
+    if replaced.free_symbols:
+        return VerifyResult("通过")
     return VerifyResult("无法解析", "代入后仍无法判断")
 
 

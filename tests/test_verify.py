@@ -166,6 +166,66 @@ class VerifyTests(unittest.TestCase):
         self.assertNotIn("超时", holder)
         self.assertNotIn("无法解析", holder)
 
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_scientific_notation_parses_and_checks(self):
+        self.assertEqual(verify.check_math("1.6e-19*2 == 3.2e-19").status, "通过")
+        self.assertEqual(verify.check_math("3.0e8 == 300000000").status, "通过")
+        self.assertEqual(verify.check_math("2.5e3 == 2500").status, "通过")
+        self.assertEqual(verify.check_math("2*6.02e23 == 1.204e24").status, "通过")
+        self.assertEqual(verify.check_math("1.6e-19*2 == 3.2e-18").status, "矛盾")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_short_function_names_are_not_split_into_products(self):
+        self.assertEqual(verify.check_math("abs(-3) == 3").status, "通过")
+        self.assertEqual(verify.check_math("ln(e) == 1").status, "通过")
+        self.assertEqual(verify.check_math("lg(100) == 2").status, "通过")
+        self.assertEqual(verify.check_math("max(1, 3) == 3").status, "通过")
+        self.assertEqual(verify.check_math("abs(-3) == 4").status, "矛盾")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_heavy_expand_identity_does_not_timeout(self):
+        result = verify.check_math("(x+1)**200 == expand((x+1)**200)")
+        self.assertEqual(result.status, "通过", result)
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_assigned_e_is_elementary_charge_not_euler(self):
+        result = verify.check_math("q == n*e", "n=2; e=1.6")
+        self.assertEqual(result.status, "通过", result)
+        self.assertEqual(verify.check_math("q == n*e", "n=2; e=1.6; q=3").status, "矛盾")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_field_strength_E_substitutes_as_variable(self):
+        self.assertEqual(verify.check_math("E == F/q", "F=6; q=2").status, "通过")
+        self.assertEqual(verify.check_math("E == F/q", "F=6; q=2; E=4").status, "矛盾")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_numeric_approximations_are_not_contradictions(self):
+        third = verify.check_math("1/3 == 0.3333333333333333")
+        self.assertEqual(third.status, "通过", third)
+        pi_approx = verify.check_math("pi == 3.14")
+        self.assertEqual(pi_approx.status, "通过", pi_approx)
+        e_approx = verify.check_math("e == 2.718")
+        self.assertEqual(e_approx.status, "通过", e_approx)
+        self.assertEqual(verify.check_math("pi == 3").status, "矛盾")
+        self.assertEqual(verify.check_math("1.2*3 == 3.7").status, "矛盾")
+        self.assertEqual(verify.check_math("2 + 2 == 5").status, "矛盾")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_concurrent_contradictions_stay_safe_under_64_workers(self):
+        holder = []
+
+        def worker():
+            holder.append(verify.check_math("2 + 2 == 5").status)
+
+        threads = [threading.Thread(target=worker) for _ in range(64)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(holder.count("矛盾"), 64, holder)
+        self.assertNotIn("超时", holder)
+        self.assertNotIn("无法解析", holder)
+
 
 class CliTests(unittest.TestCase):
     """命令行入口：五态退出码 通过0/矛盾1/超时1/无法解析3/未安装4，用法错误交给 argparse 的 2。"""
