@@ -195,6 +195,10 @@ class NotebookTests(unittest.TestCase):
         })
         self.assertEqual(card["verify_status"], "")
         self.assertEqual(card["raw_node"], "函数单调性")
+        conn = sqlite3.connect(self.db)
+        version = conn.execute("SELECT value FROM meta WHERE key = 'schema_version'").fetchone()[0]
+        conn.close()
+        self.assertEqual(int(version), notebook.SCHEMA_VERSION)
 
 
 if __name__ == "__main__":

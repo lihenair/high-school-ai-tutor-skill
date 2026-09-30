@@ -19,7 +19,10 @@ status 为 通过、矛盾、无法解析、未安装（正典见 STATUSES），
 物理里已经抽成式子的计算调用同一个函数。化学守恒和生物概念不在这里。
 """
 
+import ast
+import math
 import re
+import signal
 from dataclasses import dataclass
 
 
@@ -29,25 +32,26 @@ class VerifyResult:
     detail: str = ""
 
 
+VERIFY_TIMEOUT_SEC = 1.5
+_MAX_INT_DIGITS = 12
+_MAX_POW_EXP = 16
+_FORMULA = re.compile(r"^[0-9A-Za-z+\-*/^=<>!().,\s_]+$")
+_DECIMAL = re.compile(r"(?<![A-Za-z0-9_])(\d+\.\d+)")
+_ATTR_DOT = re.compile(r"(?<!\d)\.|\.(?!\d)")
+
+
+class _VerifyTimeout(Exception):
+    pass
+
+
 def _import_sympy():
     try:
         import sympy
-        from sympy.parsing.sympy_parser import (
-            convert_xor,
-            implicit_multiplication_application,
-            parse_expr,
-            standard_transformations,
-        )
+        from sympy.core.relational import Relational
     except ImportError:
         return None
-    from sympy.core.relational import Relational
 
-    sympy.parse_expr = parse_expr
     sympy.Relational = Relational
-    sympy._verify_transformations = standard_transformations + (
-        implicit_multiplication_application,
-        convert_xor,
-    )
     return sympy
 
 
@@ -55,6 +59,26 @@ def check_math(expr, where=""):
     sympy = _import_sympy()
     if sympy is None:
         return VerifyResult("未安装", "未安装 SymPy")
+    try:
+        return _run_timed(lambda: _check_math(sympy, expr, where), VERIFY_TIMEOUT_SEC)
+    except _VerifyTimeout:
+        return VerifyResult("无法解析", "计算超时")
+
+
+def _run_timed(fn, seconds):
+    def _handler(_signum, _frame):
+        raise _VerifyTimeout()
+
+    old = signal.signal(signal.SIGALRM, _handler)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        return fn()
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, old)
+
+
+def _check_math(sympy, expr, where):
     claim = _parse(sympy, expr)
     if claim is None:
         return VerifyResult("无法解析", "最终式无法解析")
@@ -66,15 +90,15 @@ def check_math(expr, where=""):
     if any(item is None for item in parsed):
         return VerifyResult("无法解析", "条件无法解析")
     if all(_is_assignment(sympy, item) for item in parsed):
+        conflict = _assignment_conflict(sympy, parsed)
+        if conflict is not None:
+            return conflict
         return _substitute(sympy, claim, parsed)
     if len(parsed) == 1 and _is_expr(sympy, claim) and _is_expr(sympy, parsed[0]):
         return _expressions_equal(sympy, claim, parsed[0])
-    if len(parsed) == 1 and _is_relational(sympy, claim) and _is_relational(sympy, parsed[0]):
+    if len(parsed) == 1 and _is_constraint(sympy, claim) and _is_constraint(sympy, parsed[0]):
         return _relations_equal(sympy, claim, parsed[0])
     return VerifyResult("无法解析", "这组式子无法比对")
-
-
-_FORMULA = re.compile(r"^[0-9A-Za-z+\-*/^=<>!().,\[\]{}\s_]+$")
 
 
 def _parse(sympy, text):
@@ -88,18 +112,22 @@ def _parse(sympy, text):
         .replace("−", "-")
         .replace("＝", "=")
     )
-    if not _FORMULA.fullmatch(raw):
+    if "__" in raw or not _FORMULA.fullmatch(raw):
         return None
+    if _ATTR_DOT.search(_DECIMAL.sub("", raw)):
+        return None
+    raw = raw.replace("^", "**")
     if _bare_equals(raw):
         left, right = raw.split("=", 1)
         raw = f"Eq({left.strip()}, {right.strip()})"
+    raw = _DECIMAL.sub(lambda match: f'Rational("{match.group(1)}")', raw)
     try:
-        return sympy.parse_expr(
-            raw,
-            transformations=sympy._verify_transformations,
-            evaluate=False,
-        )
-    except Exception:
+        tree = ast.parse(raw, mode="eval")
+    except SyntaxError:
+        return None
+    try:
+        return _from_ast(sympy, tree)
+    except (ValueError, TypeError, OverflowError, SyntaxError):
         return None
 
 
@@ -107,6 +135,95 @@ def _bare_equals(text):
     if any(token in text for token in ("==", "<=", ">=", "!=", "Eq(")):
         return False
     return text.count("=") == 1
+
+
+def _from_ast(sympy, node):
+    if isinstance(node, ast.Expression):
+        return _from_ast(sympy, node.body)
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, bool) or node.value is None:
+            raise ValueError("bad constant")
+        if isinstance(node.value, int):
+            if abs(node.value) >= 10 ** _MAX_INT_DIGITS:
+                raise ValueError("integer too large")
+            return sympy.Integer(node.value)
+        if isinstance(node.value, float):
+            return sympy.Rational(str(node.value))
+        if isinstance(node.value, str):
+            return node.value
+        raise ValueError("bad constant")
+    if isinstance(node, ast.Name):
+        if node.id in {"Eq", "Rational"} or node.id.startswith("_"):
+            raise ValueError("bad name")
+        return sympy.Symbol(node.id)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        value = _from_ast(sympy, node.operand)
+        return value if isinstance(node.op, ast.UAdd) else -value
+    if isinstance(node, ast.BinOp):
+        left = _from_ast(sympy, node.left)
+        right = _from_ast(sympy, node.right)
+        if isinstance(node.op, ast.BitAnd):
+            return sympy.And(left, right)
+        if isinstance(node.op, ast.Pow):
+            _reject_huge_pow(left, right)
+        ops = {
+            ast.Add: lambda a, b: a + b,
+            ast.Sub: lambda a, b: a - b,
+            ast.Mult: lambda a, b: a * b,
+            ast.Div: lambda a, b: a / b,
+            ast.Pow: lambda a, b: a ** b,
+        }
+        fn = ops.get(type(node.op))
+        if fn is None:
+            raise ValueError("bad operator")
+        return fn(left, right)
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.And):
+        args = [_from_ast(sympy, value) for value in node.values]
+        return sympy.And(*args)
+    if isinstance(node, ast.Compare):
+        terms = [_from_ast(sympy, node.left)]
+        terms.extend(_from_ast(sympy, comparator) for comparator in node.comparators)
+        rels = []
+        for left, op, right in zip(terms, node.ops, terms[1:]):
+            rels.append(_compare(sympy, op, left, right))
+        return rels[0] if len(rels) == 1 else sympy.And(*rels)
+    if isinstance(node, ast.Call):
+        if not isinstance(node.func, ast.Name) or node.keywords:
+            raise ValueError("bad call")
+        args = [_from_ast(sympy, arg) for arg in node.args]
+        if node.func.id == "Eq" and len(args) == 2:
+            return sympy.Eq(args[0], args[1], evaluate=False)
+        if node.func.id == "Rational" and len(args) == 1 and isinstance(args[0], str):
+            return sympy.Rational(args[0])
+        raise ValueError("bad call")
+    raise ValueError("bad ast")
+
+
+def _compare(sympy, op, left, right):
+    mapping = {
+        ast.Eq: lambda a, b: sympy.Eq(a, b, evaluate=False),
+        ast.NotEq: sympy.Ne,
+        ast.Lt: sympy.Lt,
+        ast.LtE: sympy.Le,
+        ast.Gt: sympy.Gt,
+        ast.GtE: sympy.Ge,
+    }
+    fn = mapping.get(type(op))
+    if fn is None:
+        raise ValueError("bad compare")
+    return fn(left, right)
+
+
+def _reject_huge_pow(base, exp):
+    if not getattr(exp, "is_Integer", False):
+        return
+    exponent = int(exp)
+    if exponent > _MAX_POW_EXP:
+        raise ValueError("exponent too large")
+    if getattr(base, "is_Integer", False):
+        magnitude = abs(int(base))
+        if magnitude > 1 and exponent * math.log10(magnitude) > _MAX_INT_DIGITS:
+            raise ValueError("power too large")
 
 
 def _split_where(text):
@@ -123,8 +240,16 @@ def _is_relational(sympy, expr):
     return isinstance(expr, sympy.Relational)
 
 
+def _is_constraint(sympy, expr):
+    if _is_relational(sympy, expr):
+        return True
+    if isinstance(expr, sympy.And):
+        return all(_is_constraint(sympy, arg) for arg in expr.args)
+    return False
+
+
 def _is_expr(sympy, expr):
-    return isinstance(expr, sympy.Expr) and not _is_relational(sympy, expr)
+    return isinstance(expr, sympy.Expr) and not _is_relational(sympy, expr) and not isinstance(expr, sympy.And)
 
 
 def _truth(sympy, value):
@@ -136,6 +261,15 @@ def _truth(sympy, value):
 
 
 def _closed(sympy, claim):
+    if isinstance(claim, sympy.Equality):
+        status = _truth(sympy, sympy.simplify(claim))
+        if status == "通过":
+            return VerifyResult("通过")
+        if status == "矛盾":
+            return VerifyResult("矛盾", f"化简为 {_relation_text(sympy, claim)}")
+        if claim.lhs.free_symbols and claim.rhs.free_symbols:
+            return _expressions_equal(sympy, claim.lhs, claim.rhs)
+        return VerifyResult("无法解析", "这个式子不是恒真或恒假")
     if not _is_relational(sympy, claim):
         return VerifyResult("无法解析", "没有条件时只能判断恒真或恒假的式子")
     status = _truth(sympy, sympy.simplify(claim))
@@ -144,6 +278,16 @@ def _closed(sympy, claim):
     if status == "矛盾":
         return VerifyResult("矛盾", f"化简为 {_relation_text(sympy, claim)}")
     return VerifyResult("无法解析", "这个式子不是恒真或恒假")
+
+
+def _assignment_conflict(sympy, assignments):
+    seen = {}
+    for item in assignments:
+        previous = seen.get(item.lhs)
+        if previous is not None and sympy.simplify(previous - item.rhs) != 0:
+            return VerifyResult("矛盾", f"条件自相矛盾：{item.lhs} 不能同时为 {previous} 与 {item.rhs}")
+        seen[item.lhs] = item.rhs
+    return None
 
 
 def _substitute(sympy, claim, assignments):
@@ -174,19 +318,34 @@ def _expressions_equal(sympy, left, right):
     return VerifyResult("无法解析", "两个式子无法判断是否相同")
 
 
+def _solution_set(sympy, expr, symbol, domain):
+    if isinstance(expr, sympy.And):
+        result = domain
+        for arg in expr.args:
+            piece = _solution_set(sympy, arg, symbol, domain)
+            if piece is None:
+                return None
+            result = result.intersect(piece)
+        return result
+    try:
+        found = sympy.solveset(expr, symbol, domain)
+    except Exception:
+        return None
+    if isinstance(found, sympy.ConditionSet):
+        return None
+    return found
+
+
 def _relations_equal(sympy, claim, reference):
     symbols = list(claim.free_symbols | reference.free_symbols)
     if len(symbols) != 1:
         return VerifyResult("无法解析", "解集比对只处理一个未知数")
     symbol = symbols[0]
     domain = sympy.S.Reals
-    try:
-        got = sympy.solveset(claim, symbol, domain)
-        expected = sympy.solveset(reference, symbol, domain)
-    except Exception:
+    got = _solution_set(sympy, claim, symbol, domain)
+    expected = _solution_set(sympy, reference, symbol, domain)
+    if got is None or expected is None:
         return VerifyResult("无法解析", "解集无法求出")
-    if isinstance(got, sympy.ConditionSet) or isinstance(expected, sympy.ConditionSet):
-        return VerifyResult("无法解析", "解集无法比较")
     if got == expected:
         return VerifyResult("通过")
     return VerifyResult("矛盾", f"解集 {got} 与 {expected}")
