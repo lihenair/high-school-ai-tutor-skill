@@ -5,6 +5,7 @@ import contextlib
 import io
 import subprocess
 import sys
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -109,6 +110,38 @@ class VerifyTests(unittest.TestCase):
         elapsed = time.monotonic() - start
         self.assertLess(elapsed, 2.5)
         self.assertIn(result.status, ("无法解析", "矛盾"))
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_whitelist_functions_and_constants(self):
+        self.assertEqual(verify.check_math("sqrt(2)**2 == 2").status, "通过")
+        self.assertEqual(verify.check_math("sin(pi/6) == 1/2").status, "通过")
+        self.assertEqual(verify.check_math("cos(0) == 1").status, "通过")
+        self.assertEqual(verify.check_math("tan(0) == 0").status, "通过")
+        self.assertEqual(verify.check_math("log(E) == 1").status, "通过")
+        self.assertEqual(verify.check_math("exp(0) == 1").status, "通过")
+        self.assertEqual(verify.check_math("Abs(-3) == 3").status, "通过")
+        self.assertEqual(verify.check_math("sqrt(2)**2 == 3").status, "矛盾")
+        self.assertEqual(verify.check_math("sin(pi/6) == 1").status, "矛盾")
+        self.assertEqual(verify.check_math("foo(1) == 1").status, "无法解析")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_implicit_multiplication_and_moderate_powers(self):
+        self.assertEqual(verify.check_math("2x+3x == 5x").status, "通过")
+        self.assertEqual(verify.check_math("2x+3x == 6x").status, "矛盾")
+        self.assertEqual(verify.check_math("2**20 == 1048576").status, "通过")
+        self.assertEqual(verify.check_math("2**20 == 1").status, "矛盾")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_check_math_from_worker_thread(self):
+        holder = {}
+
+        def worker():
+            holder["status"] = verify.check_math("2 + 2 == 4").status
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join()
+        self.assertEqual(holder.get("status"), "通过")
 
 
 class CliTests(unittest.TestCase):

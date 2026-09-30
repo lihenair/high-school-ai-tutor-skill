@@ -167,6 +167,19 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(loaded["textbook_version"]["value"], "苏教版")
         self.assertNotIn("pending_textbook", loaded)
 
+    def test_onboard_grade_only_keeps_confirmed_textbook(self):
+        profile = student_profile.create_from_answers(
+            {"grade": "高一", "exam_type": "高考", "textbook_version": "苏教版"},
+        )
+        student_profile.save(profile, self.path)
+        code = student_profile.main(["onboard", "--grade", "高二", "--file", str(self.path)])
+        self.assertEqual(code, 0)
+        loaded = student_profile.load(self.path)
+        self.assertEqual(loaded["grade"]["value"], "高二")
+        self.assertTrue(loaded["grade"]["confirmed"])
+        self.assertEqual(loaded["textbook_version"], {"value": "苏教版", "confirmed": True})
+        self.assertEqual(loaded["exam_type"], {"value": "高考", "confirmed": True})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -43,7 +43,7 @@ ANSWER_LEAK_PATTERNS = [
     (r"(?:所以|因此|综上|故|∴)[^。！？\n]{0,40}[=≤≥<>]\s*[-+]?[\d.]", "推到具体数值/不等式"),
     (r"(?:取值范围|解集|值域)[是为：:]\s*[{\[（(]?[-+]?[\d.]", "给出范围/解集"),
     (r"答案?是\s*[A-D]\b", "直接报选择题选项"),
-    (r"(?:选|故选)\s*[A-D](?:[选项]|[.。、]|$)", "直接报选择题选项"),
+    (r"(?<![你他她谁咱我刚学生])(?:故选|选)\s*[A-D](?:[选项]|[.。、]|$)", "直接报选择题选项"),
 ]
 # 引导模式不该先说破的关键公式（常见形状）
 FORMULA_PATTERNS = [
@@ -61,7 +61,11 @@ MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
 ARROW_TOKEN = r"(?:-\.->|-.-|-->|---|==>|===)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
-NODE_LABEL_RE = re.compile(r'\[(?:["\']([^"\']+)["\']|([^\]]+))\]')
+NODE_LABEL_RE = re.compile(
+    r'\(\((?:["\']([^"\']+)["\']|([^)]+))\)\)'
+    r'|'
+    r'\[(?:["\']([^"\']+)["\']|([^\]]+))\]'
+)
 MAX_REQUIRED_NAMES_PER_NODE = 6
 EDGE_LABELS = {"直接前置", "同章衔接", "常考组合"}
 SOLID_LABELS = {"直接前置", "同章衔接"}
@@ -186,8 +190,10 @@ def check_mermaid_style(text):
 
 def mermaid_node_labels(block):
     labels = []
-    for quoted, bare in NODE_LABEL_RE.findall(block):
-        labels.append((quoted or bare).strip())
+    for groups in NODE_LABEL_RE.findall(block):
+        label = next((part for part in groups if part), "").strip()
+        if label:
+            labels.append(label)
     return labels
 
 

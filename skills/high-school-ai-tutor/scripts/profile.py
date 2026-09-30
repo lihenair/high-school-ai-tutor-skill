@@ -94,11 +94,15 @@ def _answer_field(raw, default, note=None):
     return field
 
 
-def _merge_onboard(existing, answers, when=None):
+def _merge_onboard(existing, answers, when=None, skipped=()):
     created = create_from_answers(answers, when)
     if not existing:
         return created
+    skipped = set(skipped or ())
     for key in DEFAULTS:
+        raw = (answers or {}).get(key)
+        if key not in skipped and str(raw or "").strip() in ("", "跳过", "不知道", "先不说"):
+            continue
         existing[key] = created[key]
     existing.setdefault("self_study_progress", created["self_study_progress"])
     existing.setdefault("mastery", {})
@@ -349,12 +353,19 @@ def main(argv=None):
             print(json.dumps(profile, ensure_ascii=False, indent=2))
             return 0
         if args.cmd == "onboard":
+            skipped = set()
+            if _skip_flag(args, "skip_grade"):
+                skipped.add("grade")
+            if _skip_flag(args, "skip_exam"):
+                skipped.add("exam_type")
+            if _skip_flag(args, "skip_textbook"):
+                skipped.add("textbook_version")
             answers = {
-                "grade": "" if _skip_flag(args, "skip_grade") else args.grade,
-                "exam_type": "" if _skip_flag(args, "skip_exam") else args.exam,
-                "textbook_version": "" if _skip_flag(args, "skip_textbook") else args.textbook,
+                "grade": "" if "grade" in skipped else args.grade,
+                "exam_type": "" if "exam_type" in skipped else args.exam,
+                "textbook_version": "" if "textbook_version" in skipped else args.textbook,
             }
-            profile = _merge_onboard(load(path), answers)
+            profile = _merge_onboard(load(path), answers, skipped=skipped)
             save(profile, path)
             print(f"已写入画像：{path}")
             return 0
