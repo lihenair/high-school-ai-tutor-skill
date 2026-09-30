@@ -7,7 +7,14 @@
 输出顺序：
 
 1. 范围：教材版本、册、章名。节名不确定就写主题，并写「具体节名请以你教材目录为准」，不要编节号。
-2. 本章导图：用 **mermaid `flowchart TD`** 画，不要用 `A → B` 纯文本箭头列表。只展开**当前这一章**。章用外层 subgraph，节用内层 subgraph；节点写到节下面的关键概念、技能或实验即可，不要把例题、物质例子铺成节点。数理化生每个节点标「概念 / 技能 / 实验」之一。节点 ID 用英文，标签用中文并加引号。每张图都写配色：`classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A`，`classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A`，有实验再写 `classDef experiment fill:#FFF4E5,stroke:#C47B17,color:#1A1A1A`，有后续章节再写 `classDef later fill:#F4F4F5,stroke:#71717A,color:#1A1A1A`。节点分别标 `:::concept`、`:::skill`、`:::experiment`、`:::later`。概念和技能两条 classDef 始终保留。
+2. 本章导图：用 **mermaid `flowchart TD`** 画，不要用 `A → B` 纯文本箭头列表。只展开**当前这一章**。章用外层 subgraph，节用内层 subgraph；节点写到节下面的关键概念、技能或实验即可，不要把例题、物质例子铺成节点。数理化生每个节点标「概念 / 技能 / 实验」之一。节点 ID 用英文，标签用中文并加引号。
+
+## 节点配色
+
+每张图都写配色：`classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A`，`classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A`，有实验再写 `classDef experiment fill:#FFF4E5,stroke:#C47B17,color:#1A1A1A`，有后续章节再写 `classDef later fill:#F4F4F5,stroke:#71717A,color:#1A1A1A`。节点分别标 `:::concept`、`:::skill`、`:::experiment`、`:::later`。概念和技能两条 classDef 始终保留。
+
+## 边类型
+
 3. 关联画在同一张 mermaid 里，不要另列箭头清单。类型只用下面三种，并写在边的标签上：
    - **直接前置**：`A -->|直接前置| B`。学 B 必须先会 A。一条边只连一个直接前置，不写整条闭包。
    - **同章衔接**：`A -->|同章衔接| B`。同一章里后一节接着用前一节的对象或结论。
