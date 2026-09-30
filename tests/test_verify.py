@@ -117,7 +117,7 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(verify.check_math("sin(pi/6) == 1/2").status, "通过")
         self.assertEqual(verify.check_math("cos(0) == 1").status, "通过")
         self.assertEqual(verify.check_math("tan(0) == 0").status, "通过")
-        self.assertEqual(verify.check_math("log(E) == 1").status, "通过")
+        self.assertEqual(verify.check_math("log(e) == 1").status, "通过")
         self.assertEqual(verify.check_math("exp(0) == 1").status, "通过")
         self.assertEqual(verify.check_math("Abs(-3) == 3").status, "通过")
         self.assertEqual(verify.check_math("sqrt(2)**2 == 3").status, "矛盾")
@@ -130,6 +130,8 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(verify.check_math("2x+3x == 6x").status, "矛盾")
         self.assertEqual(verify.check_math("2**20 == 1048576").status, "通过")
         self.assertEqual(verify.check_math("2**20 == 1").status, "矛盾")
+        self.assertEqual(verify.check_math("2ab == 2*a*b").status, "通过")
+        self.assertEqual(verify.check_math("2ab == 2*a").status, "矛盾")
 
     @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
     def test_check_math_from_worker_thread(self):
@@ -143,9 +145,30 @@ class VerifyTests(unittest.TestCase):
         thread.join()
         self.assertEqual(holder.get("status"), "通过")
 
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_physics_E_is_not_euler_number(self):
+        result = verify.check_math("E == F/q", "F=6; q=2")
+        self.assertNotEqual(result.status, "矛盾", result)
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_concurrent_contradictions_are_not_timeouts(self):
+        holder = []
+
+        def worker():
+            holder.append(verify.check_math("2 + 2 == 5").status)
+
+        threads = [threading.Thread(target=worker) for _ in range(32)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        self.assertEqual(holder.count("矛盾"), 32, holder)
+        self.assertNotIn("超时", holder)
+        self.assertNotIn("无法解析", holder)
+
 
 class CliTests(unittest.TestCase):
-    """命令行入口：四态退出码 通过0/矛盾1/无法解析3/未安装4，用法错误交给 argparse 的 2。"""
+    """命令行入口：五态退出码 通过0/矛盾1/超时1/无法解析3/未安装4，用法错误交给 argparse 的 2。"""
 
     def _run_main(self, argv):
         out = io.StringIO()
@@ -155,12 +178,12 @@ class CliTests(unittest.TestCase):
 
     def test_exit_code_table(self):
         self.assertEqual(verify.EXIT_CODES,
-                         {"通过": 0, "矛盾": 1, "无法解析": 3, "未安装": 4})
+                         {"通过": 0, "矛盾": 1, "超时": 1, "无法解析": 3, "未安装": 4})
 
     def test_statuses_are_the_exit_code_keys(self):
         # 单一事实源：STATUSES 由退出码表派生，check.py 遍历它比对 SKILL.md。
         self.assertEqual(verify.STATUSES, tuple(verify.EXIT_CODES))
-        self.assertEqual(verify.STATUSES, ("通过", "矛盾", "无法解析", "未安装"))
+        self.assertEqual(verify.STATUSES, ("通过", "矛盾", "超时", "无法解析", "未安装"))
 
     def test_missing_sympy_returns_four(self):
         with patch.object(verify, "_import_sympy", return_value=None):

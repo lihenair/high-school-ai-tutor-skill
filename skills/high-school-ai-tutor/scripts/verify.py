@@ -11,21 +11,23 @@ Python 接口：
     python3 verify.py --expr "a <= 0" --where "2*a <= 0"
     python3 verify.py --expr "2 + 2 == 4"
 
-status 为 通过、矛盾、无法解析、未安装（正典见 STATUSES），四态分别对应退出码
-0、1、3、4（2 留给命令行用法错误）。命令行 stdout 第一行必为状态词，有 detail 时
+status 为 通过、矛盾、超时、无法解析、未安装（正典见 STATUSES），五态分别对应退出码
+0、1、1、3、4（2 留给命令行用法错误）。命令行 stdout 第一行必为状态词，有 detail 时
 第二行以 `detail:` 前缀另起一行；权威信号只看第一行。
-只有「矛盾」（退出码 1）拦住发送；无法解析、未安装都不拦。
+「矛盾」和「超时」（退出码 1）拦住发送；无法解析、未安装都不拦。
 
 物理里已经抽成式子的计算调用同一个函数。化学守恒和生物概念不在这里。
 """
 
 import ast
+import atexit
 import io
+import json
 import math
-import os
 import re
 import subprocess
 import sys
+import threading
 import tokenize
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,7 +41,6 @@ class VerifyResult:
 
 VERIFY_TIMEOUT_SEC = 1.5
 _MAX_INT_DIGITS = 12
-_INNER_ENV = "HIGH_SCHOOL_TUTOR_VERIFY_INNER"
 _FORMULA = re.compile(r"^[0-9A-Za-z+\-*/^=<>!().,\s_]+$")
 _DECIMAL = re.compile(r"(?<![A-Za-z0-9_])(\d+\.\d+)")
 _ATTR_DOT = re.compile(r"(?<!\d)\.|\.(?!\d)")
@@ -53,6 +54,11 @@ _FUNCTIONS = {
     "Abs": "Abs",
 }
 _CALLABLE_NAMES = frozenset({"Eq", "Rational", *_FUNCTIONS})
+_KEEP_IDENTIFIERS = _CALLABLE_NAMES | {"pi", "e"}
+_LETTER_JUXTAPOSE = re.compile(r"^[a-z]{2,3}$")
+
+_worker_lock = threading.Lock()
+_worker_proc = None
 
 
 def _import_sympy():
@@ -67,36 +73,117 @@ def _import_sympy():
 
 
 def check_math(expr, where=""):
-    sympy = _import_sympy()
-    if sympy is None:
+    if _import_sympy() is None:
         return VerifyResult("未安装", "未安装 SymPy")
-    if os.environ.get(_INNER_ENV) == "1":
-        return _check_math(sympy, expr, where)
-    return _run_in_subprocess(expr, where)
+    with _worker_lock:
+        try:
+            proc = _ensure_worker()
+        except Exception:
+            return VerifyResult("无法解析", "计算失败")
+        try:
+            payload = json.dumps({"expr": expr, "where": where}, ensure_ascii=False)
+            proc.stdin.write(payload + "\n")
+            proc.stdin.flush()
+        except Exception:
+            _shutdown_worker()
+            return VerifyResult("无法解析", "计算失败")
+        line = _readline_timeout(proc, VERIFY_TIMEOUT_SEC)
+        if line is None:
+            _shutdown_worker()
+            return VerifyResult("超时", "计算超时")
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            _shutdown_worker()
+            return VerifyResult("无法解析", "计算失败")
+        status = data.get("status")
+        if status not in EXIT_CODES:
+            return VerifyResult("无法解析", "计算失败")
+        return VerifyResult(status, data.get("detail") or "")
 
 
-def _run_in_subprocess(expr, where):
-    env = os.environ.copy()
-    env[_INNER_ENV] = "1"
-    cmd = [sys.executable, str(Path(__file__).resolve()), "--expr", str(expr)]
-    if str(where or ""):
-        cmd.extend(["--where", str(where)])
+def _ensure_worker():
+    global _worker_proc
+    if _worker_proc is not None and _worker_proc.poll() is None:
+        return _worker_proc
+    _shutdown_worker()
+    _worker_proc = subprocess.Popen(
+        [sys.executable, str(Path(__file__).resolve()), "--worker"],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        bufsize=1,
+    )
+    ready = _worker_proc.stdout.readline()
+    if ready.strip() != "ready":
+        _shutdown_worker()
+        raise RuntimeError("verify worker failed to start")
+    return _worker_proc
+
+
+def _readline_timeout(proc, seconds):
+    bucket = []
+
+    def reader():
+        try:
+            bucket.append(proc.stdout.readline())
+        except Exception:
+            bucket.append("")
+
+    thread = threading.Thread(target=reader)
+    thread.daemon = True
+    thread.start()
+    thread.join(seconds)
+    if thread.is_alive():
+        return None
+    if not bucket:
+        return ""
+    return bucket[0]
+
+
+def _shutdown_worker():
+    global _worker_proc
+    proc = _worker_proc
+    _worker_proc = None
+    if proc is None:
+        return
     try:
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=VERIFY_TIMEOUT_SEC, env=env,
-        )
-    except subprocess.TimeoutExpired:
-        return VerifyResult("无法解析", "计算超时")
-    lines = (proc.stdout or "").splitlines()
-    if not lines:
-        return VerifyResult("无法解析", "计算失败")
-    status = lines[0]
-    detail = ""
-    if len(lines) >= 2 and lines[1].startswith("detail:"):
-        detail = lines[1][len("detail:"):].strip()
-    if status not in EXIT_CODES:
-        return VerifyResult("无法解析", "计算失败")
-    return VerifyResult(status, detail)
+        if proc.poll() is None:
+            proc.kill()
+        proc.stdin.close()
+        proc.stdout.close()
+        proc.wait(timeout=1)
+    except Exception:
+        pass
+
+
+atexit.register(_shutdown_worker)
+
+
+def _run_worker():
+    sympy = _import_sympy()
+    print("ready", flush=True)
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            job = json.loads(line)
+        except json.JSONDecodeError:
+            print(json.dumps({"status": "无法解析", "detail": "计算失败"}, ensure_ascii=False), flush=True)
+            continue
+        if job.get("stop"):
+            break
+        if sympy is None:
+            result = VerifyResult("未安装", "未安装 SymPy")
+        else:
+            try:
+                result = _check_math(sympy, job.get("expr", ""), job.get("where", ""))
+            except Exception:
+                result = VerifyResult("无法解析", "计算失败")
+        print(json.dumps({"status": result.status, "detail": result.detail}, ensure_ascii=False), flush=True)
+    return 0
 
 
 def _check_math(sympy, expr, where):
@@ -165,11 +252,30 @@ def _insert_implicit_mul(text):
             continue
         if tok.type in (tokenize.NL, tokenize.NEWLINE, tokenize.COMMENT):
             continue
+        if tok.type == tokenize.NAME:
+            parts = _expand_identifier(tok.string)
+            for index, part in enumerate(parts):
+                fake = tokenize.TokenInfo(tokenize.NAME, part, tok.start, tok.end, tok.line)
+                if index == 0 and prev is not None and _needs_mul(prev, tok):
+                    pieces.append("*")
+                elif index > 0:
+                    pieces.append("*")
+                pieces.append(part)
+                prev = fake
+            continue
         if prev is not None and _needs_mul(prev, tok):
             pieces.append("*")
         pieces.append(tok.string)
         prev = tok
     return "".join(pieces)
+
+
+def _expand_identifier(name):
+    if name in _KEEP_IDENTIFIERS:
+        return [name]
+    if _LETTER_JUXTAPOSE.fullmatch(name):
+        return list(name)
+    return [name]
 
 
 def _needs_mul(prev, curr):
@@ -208,7 +314,7 @@ def _from_ast(sympy, node):
             raise ValueError("bad name")
         if node.id == "pi":
             return sympy.pi
-        if node.id == "E":
+        if node.id == "e":
             return sympy.E
         return sympy.Symbol(node.id)
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
@@ -422,17 +528,20 @@ def _relation_text(sympy, expr, assignments=()):
     return f"{sympy.simplify(lhs)} {expr.rel_op} {sympy.simplify(rhs)}"
 
 
-# 四态退出码；2 留给 argparse 的用法错误。
-EXIT_CODES = {"通过": 0, "矛盾": 1, "无法解析": 3, "未安装": 4}
+# 五态退出码；2 留给 argparse 的用法错误。
+EXIT_CODES = {"通过": 0, "矛盾": 1, "超时": 1, "无法解析": 3, "未安装": 4}
 # 状态词正典：check.py 遍历它比对 SKILL.md，避免 verify 单方面改名后文档漂移。
 STATUSES = tuple(EXIT_CODES)
 
 
 def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["--worker"]:
+        return _run_worker()
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="数学机验：只判定抽好的式子。返回四态并按 通过0/矛盾1/无法解析3/未安装4 退出。",
+        description="数学机验：只判定抽好的式子。返回五态并按 通过0/矛盾1/超时1/无法解析3/未安装4 退出。",
     )
     parser.add_argument("--expr", required=True, help="抽好的最终式，例如 'a <= 0' 或 '2 + 2 == 4'")
     parser.add_argument("--where", default="", help="条件或参照式，例如 '2*a <= 0'、'a = 1'、'x**2 + 2*x + 1'")

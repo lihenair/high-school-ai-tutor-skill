@@ -189,6 +189,14 @@ class RecordTests(unittest.TestCase):
         self.assertEqual(saved["id"], 1)
         self.assertEqual(saved["outcome"], "做错")
 
+    def test_add_record_does_not_leave_lock_file(self):
+        records.add_record(
+            self.path, subject="化学", node="氧化还原反应", stem="电石除杂",
+            outcome="做错", error="概念", when="2026-09-23",
+        )
+        self.assertTrue(self.path.exists())
+        self.assertFalse(self.path.with_name(self.path.name + ".lock").exists())
+
     def test_concurrent_writes_get_distinct_ids(self):
         import threading
         errors = []

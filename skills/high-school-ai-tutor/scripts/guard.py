@@ -32,18 +32,19 @@ RULE_SUMMARY_FMT = "SKILL.md「题目完成后的总结格式」"
 RULE_DIFFICULTY = "SKILL.md「难度总则」"
 RULE_NOTEBOOK = "SKILL.md「错题本何时生成」「核心规则 6」"
 RULE_VERIFY = "SKILL.md「数学机验」"
-# 数学完整模式第 2 节末尾只能用这四句机验标记之一，方便家长和老师按固定规则筛。
-VERIFY_MARKERS = ("已机验：通过", "未机验：无法解析", "未机验：未安装 SymPy", "此结果未通过机验")
-# 出现「机验」二字但不是上面四句之一，视为句式漂移。
+# 数学完整模式第 2 节末尾只能用这五句机验标记之一，方便家长和老师按固定规则筛。
+VERIFY_MARKERS = ("已机验：通过", "未机验：无法解析", "未机验：超时", "未机验：未安装 SymPy", "此结果未通过机验")
+VERIFY_MARKER_HINT = " / ".join(VERIFY_MARKERS)
+# 出现「机验」二字但不是上面五句之一，视为句式漂移。
 VERIFY_LOOSE_RE = re.compile(r"机验")
 
 # 引导模式疑似给出最终结果的写法
 ANSWER_LEAK_PATTERNS = [
     (r"答案[是为：:]\s*\S", "直接给出「答案为…」"),
-    (r"(?:所以|因此|综上|故|∴)[^。！？\n]{0,40}[=≤≥<>]\s*[-+]?[\d.]", "推到具体数值/不等式"),
+    (r"(?:所以|因此|综上|故|∴)[^。！？\n]{0,40}(?:[=≤≥<>]|等于)\s*[-+]?[\d.]", "推到具体数值/不等式"),
     (r"(?:取值范围|解集|值域)[是为：:]\s*[{\[（(]?[-+]?[\d.]", "给出范围/解集"),
     (r"答案?是\s*[A-D]\b", "直接报选择题选项"),
-    (r"(?<![你他她谁咱我刚学生])(?:故选|选)\s*[A-D](?:[选项]|[.。、]|$)", "直接报选择题选项"),
+    (r"(?<![你他她谁咱刚学生])(?:故选|选)\s*[A-D](?:[选项]|[.。、]|$)", "直接报选择题选项"),
 ]
 # 引导模式不该先说破的关键公式（常见形状）
 FORMULA_PATTERNS = [
@@ -58,15 +59,20 @@ HEADING_RE = re.compile(r"^#{2,3}\s*([0-9０-９])\s*[\.、．]\s*(\S+)")
 SCORES_RE = re.compile(r"([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*分")
 WEIGHTED_EXPANSION_RE = re.compile(r"0\.30\s*[×x*]")
 MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
-ARROW_TOKEN = r"(?:-\.->|-.-|-->|---|==>|===)"
+ARROW_TOKEN = r"(?:-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
 NODE_LABEL_RE = re.compile(
     r'\(\((?:["\']([^"\']+)["\']|([^)]+))\)\)'
     r'|'
+    r'\((?:["\']([^"\']+)["\']|([^)]+))\)'
+    r'|'
     r'\[(?:["\']([^"\']+)["\']|([^\]]+))\]'
+    r'|'
+    r'\{(?:["\']([^"\']+)["\']|([^}]+))\}'
 )
 MAX_REQUIRED_NAMES_PER_NODE = 6
+MIN_REQUIRED_NODE_LABELS = 10
 EDGE_LABELS = {"直接前置", "同章衔接", "常考组合"}
 SOLID_LABELS = {"直接前置", "同章衔接"}
 # 只核这一册这一章的整章图。本题切片不要写这一行。
@@ -128,9 +134,21 @@ def check_weighted(lines):
             nums = re.findall(r"[=＝为是：:]\s*([0-9]+\.[0-9]{2}|[0-9]+)", line)
             if nums:
                 claimed = float(nums[-1])  # 展开式取最后一个等号后的总数
-    if scores is None or claimed is None:
+    if scores is None:
         return None
-    return scores, claimed, round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)
+    expect = round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)
+    if claimed is None:
+        return scores, None, expect
+    return scores, claimed, expect
+
+
+def weighted_error(scores, claimed, expect):
+    """五项分已抽出时，缺加权或加权算错都要报。"""
+    if claimed is None:
+        return f"报了五项分 {scores} 但没有写出加权分，应得 {expect:.2f}"
+    if abs(claimed - expect) > 0.005:
+        return f"加权与五项分不一致：{scores} 应得 {expect:.2f}，写的是 {claimed:.2f}"
+    return None
 
 
 def mermaid_blocks(text):
@@ -215,6 +233,9 @@ def check_pep_chem_chapter(text):
     ]
     if stuffed:
         problems.append("整章图把过多必需节点塞进了同一个节点")
+    covering = [label for label in labels if any(name in label for name in PEP_CHEM_BX1_CH1_REQUIRED)]
+    if covering and len(covering) < MIN_REQUIRED_NODE_LABELS:
+        problems.append("整章图把必需节点收进了过少的节点")
     present = [name for name in PEP_CHEM_BX1_CH1_FORBIDDEN if any(name in label for label in labels)]
     if present:
         problems.append("这一章整章图写入了题目物质：" + "、".join(present))
@@ -252,9 +273,8 @@ def looks_like_solving(text):
     """解题轮免标。七槽或判别自测出现时不再当成解题轮。"""
     if "判别自测" in text or "一句话定义" in text:
         return False
-    if "难度：" in text or "难度:" in text:
-        return True
-    return False
+    first = next((line.strip() for line in text.splitlines() if line.strip()), "")
+    return first.startswith("难度：") or first.startswith("难度:")
 
 
 def question_lines(lines):
@@ -266,6 +286,7 @@ def question_lines(lines):
 
 def check_study(text):
     """自学红线。返回 (severity, code, lineno, message, hint)。"""
+    text = str(text or "").lstrip("\ufeff")
     issues = []
     lines = text.splitlines() or [""]
     first = lines[0].strip()
@@ -361,15 +382,15 @@ def check_study(text):
     weighted = check_weighted(lines)
     if weighted:
         scores, claimed, expect = weighted
-        if abs(claimed - expect) > 0.005:
-            issues.append(("ERROR", "E8", 1,
-                           f"加权与五项分不一致：{scores} 应得 {expect:.2f}，写的是 {claimed:.2f}",
-                           "按 0.30、0.25、0.20、0.15、0.10 重算"))
+        msg = weighted_error(scores, claimed, expect)
+        if msg:
+            issues.append(("ERROR", "E8", 1, msg, "按 0.30、0.25、0.20、0.15、0.10 重算"))
     return issues
 
 
 def check(mode, text, no_student_answer, subject=None):
     issues = []  # (severity, code, message, evidence lineno or None)
+    text = str(text or "").lstrip("\ufeff")
 
     lines = text.splitlines()
     has_level = any(lv in text for lv in DIFFICULTY_LEVELS)
@@ -392,7 +413,7 @@ def check(mode, text, no_student_answer, subject=None):
             issues.append(("ERROR", "E3", "引导模式输出了错题本条目，只能一句话提示「完成后可生成」", None))
         elif re.search(r"变式题", text) and re.search(r"变式答案", text):
             issues.append(("ERROR", "E3", "引导模式输出了变式题和变式答案", None))
-        if hits(r"加权|五项|评分", text) or WEIGHTED_EXPANSION_RE.search(text) or SCORES_RE.search(text):
+        if hits(r"加权|五项|评分(?!标准)", text) or WEIGHTED_EXPANSION_RE.search(text) or SCORES_RE.search(text):
             issues.append(("ERROR", "E4", "引导模式报了五项分数或加权分；默认只给等级和理由", None))
         n_questions = text.count("？") + text.count("?")
         if n_questions > 2:
@@ -411,10 +432,10 @@ def check(mode, text, no_student_answer, subject=None):
         w = check_weighted(lines)
         if w:
             scores, claimed, expect = w
-            if abs(claimed - expect) > 0.005:
-                issues.append(("ERROR", "E8",
-                               f"加权与五项分不一致：{scores} 应得 {expect:.2f}，写的是 {claimed:.2f}", None))
-        if "```mermaid" not in text:
+            msg = weighted_error(scores, claimed, expect)
+            if msg:
+                issues.append(("ERROR", "E8", msg, None))
+        if not mermaid_blocks(text):
             issues.append(("ERROR", "E10", "完整模式或总结阶段缺少本题 mermaid 图谱", None))
         if re.search(r"超纲|【大学知识下放", text) and not re.search(r"慎用|不给分", text):
             issues.append(("WARN", "W4", "出现超纲标注但未附「考试慎用，可能不给分」提醒", None))
@@ -425,10 +446,10 @@ def check(mode, text, no_student_answer, subject=None):
             if not has_marker:
                 if VERIFY_LOOSE_RE.search(text):
                     issues.append(("ERROR", "E14",
-                                   "机验标记句式不对；只能用「已机验：通过 / 未机验：无法解析 / 未机验：未安装 SymPy / 此结果未通过机验」之一", None))
+                                   f"机验标记句式不对；只能用「{VERIFY_MARKER_HINT}」之一", None))
                 else:
                     issues.append(("ERROR", "E14",
-                                   "数学完整模式缺少机验标记；第 2 节末尾必须写「已机验：通过 / 未机验：无法解析 / 未机验：未安装 SymPy / 此结果未通过机验」之一", None))
+                                   f"数学完整模式缺少机验标记；第 2 节末尾必须写「{VERIFY_MARKER_HINT}」之一", None))
 
     for problem in check_mermaid_edges(text):
         issues.append(("ERROR", "E11", problem, None))

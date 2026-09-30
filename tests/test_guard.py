@@ -34,6 +34,18 @@ class LeakAndDifficultyTests(unittest.TestCase):
         issues = socratic_issues("难度：中等。你选 B。说说依据？")
         self.assertFalse(any(item[1] == "E1" for item in issues), issues)
 
+    def test_teacher_stating_own_choice_is_a_leak(self):
+        issues = socratic_issues("难度：中等。我选 B。")
+        self.assertTrue(any(item[0] == "ERROR" and item[1] == "E1" for item in issues), issues)
+
+    def test_therefore_equals_in_chinese_is_a_leak(self):
+        issues = socratic_issues("难度：中等。所以 x 等于 3。开口朝哪边？")
+        self.assertTrue(any(item[1] == "E1" for item in issues), issues)
+
+    def test_scoring_standard_is_not_a_score_report(self):
+        issues = socratic_issues("难度：中等。先看评分标准里的采分点。开口朝哪边？")
+        self.assertFalse(any(item[1] == "E4" for item in issues), issues)
+
 
 class MermaidTests(unittest.TestCase):
     def test_space_after_fence_still_checks_edges_and_style(self):
@@ -89,11 +101,75 @@ flowchart TD
         lines.append("```")
         self.assertEqual(guard.check_pep_chem_chapter("\n".join(lines)), [])
 
+    def test_rounded_and_diamond_nodes_count_as_present(self):
+        lines = [
+            "整章图：人教版《化学 必修 第一册》（2019）第一章",
+            "```mermaid",
+            "flowchart TD",
+            "  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A",
+            "  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A",
+        ]
+        names = list(guard.PEP_CHEM_BX1_CH1_REQUIRED)
+        for index, name in enumerate(names):
+            if index % 2 == 0:
+                lines.append(f'  n{index}("{name}（概念）"):::concept')
+            else:
+                lines.append(f'  n{index}{{"{name}（概念）"}}:::concept')
+        lines.append("```")
+        self.assertEqual(guard.check_pep_chem_chapter("\n".join(lines)), [])
+
+    def test_circle_marker_edge_needs_a_label(self):
+        text = """```mermaid
+flowchart TD
+  a["A（概念）"]:::concept --o b["B（概念）"]:::concept
+```"""
+        self.assertTrue(any("未标注" in item for item in guard.check_mermaid_edges(text)))
+        crossed = text.replace("--o", "--x")
+        self.assertTrue(any("未标注" in item for item in guard.check_mermaid_edges(crossed)))
+
+    def test_required_names_cannot_hide_in_a_few_nodes(self):
+        names = list(guard.PEP_CHEM_BX1_CH1_REQUIRED)
+        chunks = ["".join(names[i:i + 5]) for i in range(0, len(names), 5)]
+        lines = [
+            "整章图：人教版《化学 必修 第一册》（2019）第一章",
+            "```mermaid",
+            "flowchart TD",
+            "  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A",
+            "  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A",
+        ]
+        for index, chunk in enumerate(chunks):
+            lines.append(f'  n{index}["{chunk}（概念）"]:::concept')
+        lines.append("```")
+        problems = guard.check_pep_chem_chapter("\n".join(lines))
+        self.assertTrue(problems, problems)
+
+    def test_full_mode_detects_spaced_mermaid_fence(self):
+        text = CHAPTER_OK.replace("```mermaid\n", "``` mermaid\n")
+        issues = guard.check("full", text, False)
+        self.assertFalse(any(item[1] == "E10" for item in issues), issues)
+
     def test_hint_points_at_existing_chapter_map(self):
         issues = guard.check("socratic", CHAPTER_OK.replace("-->|直接前置|", "-->|相关|"), False)
         rules = " ".join(item[3] for item in issues if item[1] == "E11")
         self.assertIn("chapter-map.md", rules)
         self.assertNotIn("自学知识图谱", rules)
+
+
+class StudyAndScoreTests(unittest.TestCase):
+    def test_bom_does_not_hide_study_label(self):
+        body = (ROOT / "tests" / "guard-cases" / "self-study" / "08-overview-ok.txt").read_text(encoding="utf-8")
+        issues = guard.check_study("\ufeff" + body)
+        self.assertFalse(any(item[0] == "ERROR" for item in issues), issues)
+
+    def test_difficulty_in_body_does_not_skip_study_label(self):
+        issues = guard.check_study("先看这章的难度：比上一章更综合。\n拓扑学习顺序：先分类。")
+        self.assertTrue(any(item[1] == "E17a" for item in issues), issues)
+
+    def test_scores_without_weighted_total_are_an_error(self):
+        text = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
+        text = text.replace("本题结论是 a≤1", "五项评分 4、3、2、2、3 分。本题结论是 a≤1")
+        issues = guard.check("full", text, False)
+        self.assertTrue(any(item[1] == "E8" for item in issues), issues)
 
 
 if __name__ == "__main__":

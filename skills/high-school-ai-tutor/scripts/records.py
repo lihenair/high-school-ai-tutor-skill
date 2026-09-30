@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import sys
+import threading
 from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
@@ -100,7 +101,7 @@ def add_record(path, subject, node, stem, outcome, error="", when=None, context=
     if node_id:
         row["node_id"] = node_id
     path.parent.mkdir(parents=True, exist_ok=True)
-    with _exclusive_lock(path), path.open("a+", encoding="utf-8") as fh:
+    with _exclusive_lock(path) as fh:
         fh.seek(0)
         existing = _read_lines(fh)
         ids = [int(item["id"]) for item in existing if str(item.get("id", "")).isdigit()]
@@ -198,32 +199,38 @@ def _read_lines(fh):
     return rows
 
 
+_THREAD_LOCK = threading.Lock()
+
+
 @contextmanager
 def _exclusive_lock(path):
+    """锁数据文件本身，不另建 sidecar .lock。同进程用线程锁，跨进程用 flock / msvcrt。"""
     path = Path(path)
-    lock_path = path.with_name(path.name + ".lock")
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    handle = lock_path.open("a+b")
-    try:
-        if fcntl is not None:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-        elif msvcrt is not None:
-            handle.seek(0, os.SEEK_END)
-            if handle.tell() == 0:
-                handle.write(b"\0")
-                handle.flush()
-            handle.seek(0)
-            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
-        yield
-    finally:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with _THREAD_LOCK:
+        handle = path.open("a+", encoding="utf-8")
+        win_locked = False
         try:
             if fcntl is not None:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
             elif msvcrt is not None:
+                handle.seek(0, os.SEEK_END)
+                if handle.tell() == 0:
+                    handle.write("\n")
+                    handle.flush()
                 handle.seek(0)
-                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+                win_locked = True
+            yield handle
         finally:
-            handle.close()
+            try:
+                if fcntl is not None:
+                    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+                elif win_locked:
+                    handle.seek(0)
+                    msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            finally:
+                handle.close()
 
 
 def main(argv=None):
