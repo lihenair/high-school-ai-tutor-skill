@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "skills" / "high-school-ai-tutor" / "scripts"))
@@ -178,6 +179,15 @@ class RecordTests(unittest.TestCase):
             fh.write("{not json\n")
         weak = records.weak_points(self.path)
         self.assertEqual(weak[0]["node"], "氧化还原反应")
+
+    def test_add_record_works_when_fcntl_is_missing(self):
+        with patch.object(records, "fcntl", None):
+            saved = records.add_record(
+                self.path, subject="化学", node="氧化还原反应", stem="电石除杂",
+                outcome="做错", error="概念", when="2026-09-23",
+            )
+        self.assertEqual(saved["id"], 1)
+        self.assertEqual(saved["outcome"], "做错")
 
     def test_concurrent_writes_get_distinct_ids(self):
         import threading

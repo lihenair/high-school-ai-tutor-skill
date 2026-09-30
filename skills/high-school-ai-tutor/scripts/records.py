@@ -10,12 +10,22 @@
 """
 
 import argparse
-import fcntl
 import json
 import os
 import sys
+from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
 
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
@@ -90,8 +100,7 @@ def add_record(path, subject, node, stem, outcome, error="", when=None, context=
     if node_id:
         row["node_id"] = node_id
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a+", encoding="utf-8") as fh:
-        fcntl.flock(fh, fcntl.LOCK_EX)
+    with _exclusive_lock(path), path.open("a+", encoding="utf-8") as fh:
         fh.seek(0)
         existing = _read_lines(fh)
         ids = [int(item["id"]) for item in existing if str(item.get("id", "")).isdigit()]
@@ -187,6 +196,34 @@ def _read_lines(fh):
         except json.JSONDecodeError:
             print("WARN 跳过无法解析的记录行", file=sys.stderr)
     return rows
+
+
+@contextmanager
+def _exclusive_lock(path):
+    path = Path(path)
+    lock_path = path.with_name(path.name + ".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    handle = lock_path.open("a+b")
+    try:
+        if fcntl is not None:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        elif msvcrt is not None:
+            handle.seek(0, os.SEEK_END)
+            if handle.tell() == 0:
+                handle.write(b"\0")
+                handle.flush()
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+        yield
+    finally:
+        try:
+            if fcntl is not None:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            elif msvcrt is not None:
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        finally:
+            handle.close()
 
 
 def main(argv=None):
