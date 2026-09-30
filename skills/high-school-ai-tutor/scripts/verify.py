@@ -20,10 +20,15 @@ status 为 通过、矛盾、无法解析、未安装（正典见 STATUSES），
 """
 
 import ast
+import io
 import math
+import os
 import re
-import signal
+import subprocess
+import sys
+import tokenize
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -34,14 +39,20 @@ class VerifyResult:
 
 VERIFY_TIMEOUT_SEC = 1.5
 _MAX_INT_DIGITS = 12
-_MAX_POW_EXP = 16
+_INNER_ENV = "HIGH_SCHOOL_TUTOR_VERIFY_INNER"
 _FORMULA = re.compile(r"^[0-9A-Za-z+\-*/^=<>!().,\s_]+$")
 _DECIMAL = re.compile(r"(?<![A-Za-z0-9_])(\d+\.\d+)")
 _ATTR_DOT = re.compile(r"(?<!\d)\.|\.(?!\d)")
-
-
-class _VerifyTimeout(Exception):
-    pass
+_FUNCTIONS = {
+    "sqrt": "sqrt",
+    "sin": "sin",
+    "cos": "cos",
+    "tan": "tan",
+    "log": "log",
+    "exp": "exp",
+    "Abs": "Abs",
+}
+_CALLABLE_NAMES = frozenset({"Eq", "Rational", *_FUNCTIONS})
 
 
 def _import_sympy():
@@ -59,23 +70,33 @@ def check_math(expr, where=""):
     sympy = _import_sympy()
     if sympy is None:
         return VerifyResult("未安装", "未安装 SymPy")
+    if os.environ.get(_INNER_ENV) == "1":
+        return _check_math(sympy, expr, where)
+    return _run_in_subprocess(expr, where)
+
+
+def _run_in_subprocess(expr, where):
+    env = os.environ.copy()
+    env[_INNER_ENV] = "1"
+    cmd = [sys.executable, str(Path(__file__).resolve()), "--expr", str(expr)]
+    if str(where or ""):
+        cmd.extend(["--where", str(where)])
     try:
-        return _run_timed(lambda: _check_math(sympy, expr, where), VERIFY_TIMEOUT_SEC)
-    except _VerifyTimeout:
+        proc = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=VERIFY_TIMEOUT_SEC, env=env,
+        )
+    except subprocess.TimeoutExpired:
         return VerifyResult("无法解析", "计算超时")
-
-
-def _run_timed(fn, seconds):
-    def _handler(_signum, _frame):
-        raise _VerifyTimeout()
-
-    old = signal.signal(signal.SIGALRM, _handler)
-    signal.setitimer(signal.ITIMER_REAL, seconds)
-    try:
-        return fn()
-    finally:
-        signal.setitimer(signal.ITIMER_REAL, 0)
-        signal.signal(signal.SIGALRM, old)
+    lines = (proc.stdout or "").splitlines()
+    if not lines:
+        return VerifyResult("无法解析", "计算失败")
+    status = lines[0]
+    detail = ""
+    if len(lines) >= 2 and lines[1].startswith("detail:"):
+        detail = lines[1][len("detail:"):].strip()
+    if status not in EXIT_CODES:
+        return VerifyResult("无法解析", "计算失败")
+    return VerifyResult(status, detail)
 
 
 def _check_math(sympy, expr, where):
@@ -121,6 +142,7 @@ def _parse(sympy, text):
         left, right = raw.split("=", 1)
         raw = f"Eq({left.strip()}, {right.strip()})"
     raw = _DECIMAL.sub(lambda match: f'Rational("{match.group(1)}")', raw)
+    raw = _insert_implicit_mul(raw)
     try:
         tree = ast.parse(raw, mode="eval")
     except SyntaxError:
@@ -129,6 +151,35 @@ def _parse(sympy, text):
         return _from_ast(sympy, tree)
     except (ValueError, TypeError, OverflowError, SyntaxError):
         return None
+
+
+def _insert_implicit_mul(text):
+    pieces = []
+    prev = None
+    try:
+        tokens = tokenize.generate_tokens(io.StringIO(text).readline)
+    except tokenize.TokenError:
+        return text
+    for tok in tokens:
+        if tok.type in (tokenize.ENCODING, tokenize.ENDMARKER):
+            continue
+        if tok.type in (tokenize.NL, tokenize.NEWLINE, tokenize.COMMENT):
+            continue
+        if prev is not None and _needs_mul(prev, tok):
+            pieces.append("*")
+        pieces.append(tok.string)
+        prev = tok
+    return "".join(pieces)
+
+
+def _needs_mul(prev, curr):
+    prev_value = prev.type == tokenize.NUMBER or prev.type == tokenize.NAME or prev.string == ")"
+    curr_value = curr.type == tokenize.NUMBER or curr.type == tokenize.NAME or curr.string == "("
+    if not prev_value or not curr_value:
+        return False
+    if prev.type == tokenize.NAME and prev.string in _CALLABLE_NAMES and curr.string == "(":
+        return False
+    return True
 
 
 def _bare_equals(text):
@@ -153,8 +204,12 @@ def _from_ast(sympy, node):
             return node.value
         raise ValueError("bad constant")
     if isinstance(node, ast.Name):
-        if node.id in {"Eq", "Rational"} or node.id.startswith("_"):
+        if node.id.startswith("_") or node.id in _CALLABLE_NAMES:
             raise ValueError("bad name")
+        if node.id == "pi":
+            return sympy.pi
+        if node.id == "E":
+            return sympy.E
         return sympy.Symbol(node.id)
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
         value = _from_ast(sympy, node.operand)
@@ -195,7 +250,10 @@ def _from_ast(sympy, node):
             return sympy.Eq(args[0], args[1], evaluate=False)
         if node.func.id == "Rational" and len(args) == 1 and isinstance(args[0], str):
             return sympy.Rational(args[0])
-        raise ValueError("bad call")
+        fn_name = _FUNCTIONS.get(node.func.id)
+        if fn_name is None or not args:
+            raise ValueError("bad call")
+        return getattr(sympy, fn_name)(*args)
     raise ValueError("bad ast")
 
 
@@ -218,7 +276,7 @@ def _reject_huge_pow(base, exp):
     if not getattr(exp, "is_Integer", False):
         return
     exponent = int(exp)
-    if exponent > _MAX_POW_EXP:
+    if exponent > 256:
         raise ValueError("exponent too large")
     if getattr(base, "is_Integer", False):
         magnitude = abs(int(base))
@@ -388,6 +446,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    import sys
-
     sys.exit(main())
