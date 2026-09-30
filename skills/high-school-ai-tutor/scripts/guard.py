@@ -40,9 +40,10 @@ VERIFY_LOOSE_RE = re.compile(r"机验")
 # 引导模式疑似给出最终结果的写法
 ANSWER_LEAK_PATTERNS = [
     (r"答案[是为：:]\s*\S", "直接给出「答案为…」"),
-    (r"(?:所以|因此|综上|故)[^。！？\n]{0,40}[=≤≥<>]\s*[-+]?[\d.]", "推到具体数值/不等式"),
+    (r"(?:所以|因此|综上|故|∴)[^。！？\n]{0,40}[=≤≥<>]\s*[-+]?[\d.]", "推到具体数值/不等式"),
     (r"(?:取值范围|解集|值域)[是为：:]\s*[{\[（(]?[-+]?[\d.]", "给出范围/解集"),
     (r"答案?是\s*[A-D]\b", "直接报选择题选项"),
+    (r"(?:选|故选)\s*[A-D](?:[选项]|[.。、]|$)", "直接报选择题选项"),
 ]
 # 引导模式不该先说破的关键公式（常见形状）
 FORMULA_PATTERNS = [
@@ -52,12 +53,16 @@ FORMULA_PATTERNS = [
     (r"v\s*=\s*v[₀0]\s*[+＋]", "匀变速速度公式"),
     (r"[sS]\s*=\s*v[₀0]\s*t\s*[+＋]", "匀变速位移公式"),
 ]
-BAD_DIFFICULTY_RE = re.compile(r"偏难|偏易|中等偏上|中等偏下|较难|较易|很难|太?简单|太?容易")
+BAD_DIFFICULTY_RE = re.compile(r"偏难|偏易|中等偏上|中等偏下|较难|较易|很难|太简单|太容易")
 HEADING_RE = re.compile(r"^#{2,3}\s*([0-9０-９])\s*[\.、．]\s*(\S+)")
 SCORES_RE = re.compile(r"([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*分")
 WEIGHTED_EXPANSION_RE = re.compile(r"0\.30\s*[×x*]")
-MERMAID_RE = re.compile(r"```mermaid\n(.*?)```", re.S)
-LABELED_EDGE_RE = re.compile(r"(-\.->|-->)\s*\|([^|\n]+)\|")
+MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
+ARROW_TOKEN = r"(?:-\.->|-.-|-->|---|==>|===)"
+LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
+UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
+NODE_LABEL_RE = re.compile(r'\[(?:["\']([^"\']+)["\']|([^\]]+))\]')
+MAX_REQUIRED_NAMES_PER_NODE = 6
 EDGE_LABELS = {"直接前置", "同章衔接", "常考组合"}
 SOLID_LABELS = {"直接前置", "同章衔接"}
 # 只核这一册这一章的整章图。本题切片不要写这一行。
@@ -142,7 +147,7 @@ def check_mermaid_edges(text):
             if label == "常考组合" and arrow != "-.->":
                 problems.append("「常考组合」要用虚线 -.->")
         leftover = LABELED_EDGE_RE.sub("", block)
-        if re.search(r"-\.->|-->", leftover):
+        if UNLABELED_EDGE_RE.search(leftover):
             problems.append("mermaid 里有未标注类型的边")
     return problems
 
@@ -179,6 +184,13 @@ def check_mermaid_style(text):
     return problems
 
 
+def mermaid_node_labels(block):
+    labels = []
+    for quoted, bare in NODE_LABEL_RE.findall(block):
+        labels.append((quoted or bare).strip())
+    return labels
+
+
 def check_pep_chem_chapter(text):
     """整章图标记出现时，核这一章的节点是否齐全，并拒绝电石题里的物质。"""
     block = chapter_mermaid(text)
@@ -187,10 +199,17 @@ def check_pep_chem_chapter(text):
     if block == "":
         return ["写了人教版化学必修第一册（2019）第一章的整章图标记，但后面没有 mermaid"]
     problems = []
-    missing = [name for name in PEP_CHEM_BX1_CH1_REQUIRED if name not in block]
+    labels = mermaid_node_labels(block)
+    missing = [name for name in PEP_CHEM_BX1_CH1_REQUIRED if not any(name in label for label in labels)]
     if missing:
         problems.append("这一章整章图缺少节点：" + "、".join(missing))
-    present = [name for name in PEP_CHEM_BX1_CH1_FORBIDDEN if name in block]
+    stuffed = [
+        label for label in labels
+        if sum(1 for name in PEP_CHEM_BX1_CH1_REQUIRED if name in label) > MAX_REQUIRED_NAMES_PER_NODE
+    ]
+    if stuffed:
+        problems.append("整章图把过多必需节点塞进了同一个节点")
+    present = [name for name in PEP_CHEM_BX1_CH1_FORBIDDEN if any(name in label for label in labels)]
     if present:
         problems.append("这一章整章图写入了题目物质：" + "、".join(present))
     return problems
@@ -420,9 +439,9 @@ def check(mode, text, no_student_answer, subject=None):
                "E4": RULE_GUIDED, "E5": RULE_DIFFICULTY, "E6": RULE_SUMMARY_FMT, "E7": RULE_DIFFICULTY,
                "E8": RULE_DIFFICULTY + " 计分规则", "E9": RULE_NOTEBOOK,
                "E10": RULE_SUMMARY_FMT + " 第 9 节本题图谱",
-               "E11": "SKILL.md「自学知识图谱」边标签",
-               "E13": "SKILL.md「自学知识图谱」节点配色",
-               "E12": "SKILL.md「自学知识图谱」人教版化学必修第一册（2019）第一章",
+               "E11": "modes/chapter-map.md「边类型」",
+               "E13": "modes/chapter-map.md「节点配色」",
+               "E12": "modes/chapter-map.md 人教版化学必修第一册（2019）第一章",
                "E14": RULE_VERIFY,
                "W1": RULE_GUIDED, "W2": "各科 reference「苏格拉底不要先说的内容」", "W3": RULE_GUIDED,
                "W4": "SKILL.md「核心规则 2」", "W5": "SKILL.md「错因与错题本」", "W6": RULE_DIFFICULTY}
