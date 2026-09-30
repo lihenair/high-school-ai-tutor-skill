@@ -171,6 +171,88 @@ class StudyAndScoreTests(unittest.TestCase):
         issues = guard.check("full", text, False)
         self.assertTrue(any(item[1] == "E8" for item in issues), issues)
 
+    def test_slash_scores_and_bare_weighted_total(self):
+        text = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
+        text = text.replace("本题结论是 a≤1", "五项评分 5/4/3/2/1 分。加权 1.00。本题结论是 a≤1")
+        issues = guard.check("full", text, False)
+        e8 = [item for item in issues if item[1] == "E8"]
+        self.assertTrue(e8, issues)
+        self.assertIn("加权与五项分不一致", e8[0][2])
+        self.assertNotIn("没有写出加权分", e8[0][2])
+
+    def test_difficulty_on_first_line_still_needs_study_label(self):
+        issues = guard.check_study("难度：中等。先看这章怎么学。\n拓扑学习顺序：先分类。")
+        self.assertTrue(any(item[1] == "E17a" for item in issues), issues)
+
+    def test_seven_slots_on_one_line_are_not_a_node_page(self):
+        slots = "一句话定义 为什么重要 最小例子 易错点 易混辨析 判别自测 拓展入口"
+        text = "【模式：自学 · 状态：节点 · 节点：氧化还原反应】\n" + slots
+        issues = guard.check_study(text)
+        self.assertTrue(any(item[1] == "E18" for item in issues), issues)
+
+
+class Issue33GuardReproTests(unittest.TestCase):
+    def test_eleven_covering_nodes_do_not_satisfy_required_names(self):
+        names = list(guard.PEP_CHEM_BX1_CH1_REQUIRED)
+        chunks = []
+        for i in range(11):
+            start = i * len(names) // 11
+            end = (i + 1) * len(names) // 11
+            chunks.append("".join(names[start:end] or names[i:i + 1]))
+        lines = [
+            "整章图：人教版《化学 必修 第一册》（2019）第一章",
+            "```mermaid",
+            "flowchart TD",
+            "  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A",
+            "  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A",
+        ]
+        for index, chunk in enumerate(chunks):
+            lines.append(f'  n{index}["{chunk}（概念）"]:::concept')
+        lines.append("```")
+        problems = guard.check_pep_chem_chapter("\n".join(lines))
+        self.assertTrue(problems, problems)
+
+    def test_labeled_bidirectional_edge_is_rejected(self):
+        text = """```mermaid
+flowchart TD
+  a["A（概念）"]:::concept <-->|直接前置| b["B（概念）"]:::concept
+```"""
+        problems = guard.check_mermaid_edges(text)
+        self.assertTrue(any("直接前置" in item or "实线" in item or "未标注" in item for item in problems), problems)
+
+    def test_asymmetric_quoted_nodes_count_as_present(self):
+        lines = [
+            "整章图：人教版《化学 必修 第一册》（2019）第一章",
+            "```mermaid",
+            "flowchart TD",
+            "  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A",
+            "  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A",
+        ]
+        for index, name in enumerate(guard.PEP_CHEM_BX1_CH1_REQUIRED):
+            lines.append(f'  n{index}>"{name}（概念）"]:::concept')
+        lines.append("```")
+        self.assertEqual(guard.check_pep_chem_chapter("\n".join(lines)), [])
+
+    def test_range_and_choice_leaks_are_caught(self):
+        rang = socratic_issues("难度：中等。范围应当是 a≤0")
+        self.assertTrue(any(item[1] == "E1" for item in rang), rang)
+        choice = socratic_issues("难度：中等。我选C，你呢")
+        self.assertTrue(any(item[1] == "E1" for item in choice), choice)
+
+    def test_quoted_stem_and_probe_question_are_not_leaks(self):
+        quoted = socratic_issues("难度：中等。题干写「因此 x>0」。开口朝哪边？")
+        self.assertFalse(any(item[1] == "E1" for item in quoted), quoted)
+        probe = socratic_issues("难度：中等。所以它等于 2 倍的什么？")
+        self.assertFalse(any(item[1] == "E1" for item in probe), probe)
+
+    def test_fix_hints_point_at_real_sections(self):
+        self.assertNotIn("SKILL.md「难度总则」", guard.RULE_DIFFICULTY)
+        self.assertIn("full.md", guard.RULE_DIFFICULTY)
+        self.assertIn("full.md", guard.RULE_SUMMARY_FMT)
+        issues = guard.check("socratic", CHAPTER_OK.replace("-->|直接前置|", "-->|相关|"), False)
+        rules = " ".join(item[3] for item in issues if item[1] == "E11")
+        self.assertIn("chapter-map.md「边类型」", rules)
+
 
 if __name__ == "__main__":
     unittest.main()

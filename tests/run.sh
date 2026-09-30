@@ -51,7 +51,7 @@ run self-study/12-notebook-extension.txt study 1
 run self-study/13-diagnosis-ask.txt study 0
 run self-study/14-diagnosis-judge.txt study 0
 run self-study/15-repair-step.txt study 0
-run self-study/16-solve-unlabeled.txt study 0
+run self-study/16-solve-unlabeled.txt study 1
 
 echo "通过 $pass / $((pass + fail))"
 [ "$fail" -eq 0 ]

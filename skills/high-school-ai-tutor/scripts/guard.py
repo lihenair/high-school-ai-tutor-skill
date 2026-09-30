@@ -27,11 +27,11 @@ SUMMARY_HEADINGS = (
     "难度判断", "讲解", "解题思维链", "一题多解", "解法对比",
     "变式题", "错因诊断", "错题本沉淀", "总结",
 )
-RULE_GUIDED = "SKILL.md「每轮输出总则 → 引导模式本轮只输出」"
-RULE_SUMMARY_FMT = "SKILL.md「题目完成后的总结格式」"
-RULE_DIFFICULTY = "SKILL.md「难度总则」"
-RULE_NOTEBOOK = "SKILL.md「错题本何时生成」「核心规则 6」"
-RULE_VERIFY = "SKILL.md「数学机验」"
+RULE_GUIDED = "SKILL.md「每轮输出总则」「引导模式本轮只输出」"
+RULE_SUMMARY_FMT = "modes/full.md「题目完成后的总结格式」"
+RULE_DIFFICULTY = "modes/full.md「难度总则」"
+RULE_NOTEBOOK = "modes/records.md「错题本何时生成」；modes/full.md「核心规则」"
+RULE_VERIFY = "modes/math-verify.md「数学机验」"
 # 数学完整模式第 2 节末尾只能用这五句机验标记之一，方便家长和老师按固定规则筛。
 VERIFY_MARKERS = ("已机验：通过", "未机验：无法解析", "未机验：超时", "未机验：未安装 SymPy", "此结果未通过机验")
 VERIFY_MARKER_HINT = " / ".join(VERIFY_MARKERS)
@@ -42,9 +42,9 @@ VERIFY_LOOSE_RE = re.compile(r"机验")
 ANSWER_LEAK_PATTERNS = [
     (r"答案[是为：:]\s*\S", "直接给出「答案为…」"),
     (r"(?:所以|因此|综上|故|∴)[^。！？\n]{0,40}(?:[=≤≥<>]|等于)\s*[-+]?[\d.]", "推到具体数值/不等式"),
-    (r"(?:取值范围|解集|值域)[是为：:]\s*[{\[（(]?[-+]?[\d.]", "给出范围/解集"),
+    (r"(?:取值范围|解集|值域|范围应当是|范围是)[是为：:是]?\s*[{\[（(]?[-+]?[\d.a-zA-Z]", "给出范围/解集"),
     (r"答案?是\s*[A-D]\b", "直接报选择题选项"),
-    (r"(?<![你他她谁咱刚学生])(?:故选|选)\s*[A-D](?:[选项]|[.。、]|$)", "直接报选择题选项"),
+    (r"(?<![你他她谁咱刚学生])(?:故选|选)\s*[A-D](?:[选项]|[.。、，,]|$)", "直接报选择题选项"),
 ]
 # 引导模式不该先说破的关键公式（常见形状）
 FORMULA_PATTERNS = [
@@ -57,9 +57,10 @@ FORMULA_PATTERNS = [
 BAD_DIFFICULTY_RE = re.compile(r"偏难|偏易|中等偏上|中等偏下|较难|较易|很难|太简单|太容易")
 HEADING_RE = re.compile(r"^#{2,3}\s*([0-9０-９])\s*[\.、．]\s*(\S+)")
 SCORES_RE = re.compile(r"([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*分")
+SCORES_SLASH_RE = re.compile(r"([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*分")
 WEIGHTED_EXPANSION_RE = re.compile(r"0\.30\s*[×x*]")
 MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
-ARROW_TOKEN = r"(?:-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
+ARROW_TOKEN = r"(?:<-->|-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
 NODE_LABEL_RE = re.compile(
@@ -70,9 +71,13 @@ NODE_LABEL_RE = re.compile(
     r'\[(?:["\']([^"\']+)["\']|([^\]]+))\]'
     r'|'
     r'\{(?:["\']([^"\']+)["\']|([^}]+))\}'
+    r'|'
+    r'>(?:["\']([^"\']+)["\']|([^]]+))\]'
 )
 MAX_REQUIRED_NAMES_PER_NODE = 6
-MIN_REQUIRED_NODE_LABELS = 10
+NODE_TYPE_SUFFIX_RE = re.compile(r"（(?:概念|技能|实验)）$")
+QUOTED_SPAN_RE = re.compile(r"「[^」]*」|『[^』]*』|“[^”]*”|\"[^\"]*\"")
+PROBE_ASK_RE = re.compile(r"什么|哪|几|多少|怎么|为何|吗")
 EDGE_LABELS = {"直接前置", "同章衔接", "常考组合"}
 SOLID_LABELS = {"直接前置", "同章衔接"}
 # 只核这一册这一章的整章图。本题切片不要写这一行。
@@ -102,6 +107,20 @@ def hits(pattern, text):
     return out
 
 
+def _without_quotes(text):
+    return QUOTED_SPAN_RE.sub("", str(text or ""))
+
+
+def _leak_sentence_is_probe(pattern, line):
+    for sentence in re.split(r"(?<=[。！？?\n])", line):
+        piece = sentence.strip()
+        if not piece or not re.search(pattern, piece):
+            continue
+        if piece.endswith(("？", "?")) and PROBE_ASK_RE.search(piece):
+            return True
+    return False
+
+
 def check_bad_difficulty(lines):
     out = []
     for i, line in enumerate(lines, 1):
@@ -127,11 +146,13 @@ def check_weighted(lines):
     """报了五项评分时核对加权。返回 (五项分, 账面加权, 应得加权) 或 None。"""
     scores = claimed = None
     for line in lines:
-        m = SCORES_RE.search(line)
+        m = SCORES_RE.search(line) or SCORES_SLASH_RE.search(line)
         if m:
             scores = [int(g) for g in m.groups()]
         if "加权" in line:
             nums = re.findall(r"[=＝为是：:]\s*([0-9]+\.[0-9]{2}|[0-9]+)", line)
+            if not nums:
+                nums = re.findall(r"加权\s*([0-9]+\.[0-9]{2}|[0-9]+)", line)
             if nums:
                 claimed = float(nums[-1])  # 展开式取最后一个等号后的总数
     if scores is None:
@@ -206,6 +227,32 @@ def check_mermaid_style(text):
     return problems
 
 
+def _label_core(label):
+    return NODE_TYPE_SUFFIX_RE.sub("", str(label or "").strip()).strip()
+
+
+def _label_covers_required(label, name):
+    core = _label_core(label)
+    if core == name:
+        return True
+    parts = [part.strip() for part in re.split(r"[/；、：]", core) if part.strip()]
+    for part in parts:
+        if part == name:
+            return True
+        extra = part[len(name):] if part.startswith(name) else None
+        if extra in ("法", "效应"):
+            return True
+        if name == "四种基本反应类型" and part.startswith("四种基本反应类型"):
+            return True
+        if name == "化合价" and part.startswith("化合价"):
+            return True
+        if "与" in part:
+            bits = [bit.strip() for bit in part.split("与") if bit.strip()]
+            if name in bits:
+                return True
+    return False
+
+
 def mermaid_node_labels(block):
     labels = []
     for groups in NODE_LABEL_RE.findall(block):
@@ -224,18 +271,25 @@ def check_pep_chem_chapter(text):
         return ["写了人教版化学必修第一册（2019）第一章的整章图标记，但后面没有 mermaid"]
     problems = []
     labels = mermaid_node_labels(block)
-    missing = [name for name in PEP_CHEM_BX1_CH1_REQUIRED if not any(name in label for label in labels)]
+    missing = [
+        name for name in PEP_CHEM_BX1_CH1_REQUIRED
+        if not any(_label_covers_required(label, name) for label in labels)
+    ]
     if missing:
         problems.append("这一章整章图缺少节点：" + "、".join(missing))
-    stuffed = [
+    jammed = [
         label for label in labels
-        if sum(1 for name in PEP_CHEM_BX1_CH1_REQUIRED if name in label) > MAX_REQUIRED_NAMES_PER_NODE
+        if any(
+            name in _label_core(label) and not _label_covers_required(label, name)
+            for name in PEP_CHEM_BX1_CH1_REQUIRED
+        )
     ]
-    if stuffed:
+    overfull = [
+        label for label in labels
+        if sum(1 for name in PEP_CHEM_BX1_CH1_REQUIRED if _label_covers_required(label, name)) > MAX_REQUIRED_NAMES_PER_NODE
+    ]
+    if jammed or overfull:
         problems.append("整章图把过多必需节点塞进了同一个节点")
-    covering = [label for label in labels if any(name in label for name in PEP_CHEM_BX1_CH1_REQUIRED)]
-    if covering and len(covering) < MIN_REQUIRED_NODE_LABELS:
-        problems.append("整章图把必需节点收进了过少的节点")
     present = [name for name in PEP_CHEM_BX1_CH1_FORBIDDEN if any(name in label for label in labels)]
     if present:
         problems.append("这一章整章图写入了题目物质：" + "、".join(present))
@@ -269,12 +323,15 @@ def canon_display(name):
     return ""
 
 
-def looks_like_solving(text):
-    """解题轮免标。七槽或判别自测出现时不再当成解题轮。"""
-    if "判别自测" in text or "一句话定义" in text:
-        return False
-    first = next((line.strip() for line in text.splitlines() if line.strip()), "")
-    return first.startswith("难度：") or first.startswith("难度:")
+def _slots_on_separate_lines(text):
+    lines = str(text or "").splitlines()
+    seen = []
+    for marker in SLOT_MARKERS:
+        found = [index for index, line in enumerate(lines) if marker in line]
+        if not found:
+            return False
+        seen.append(found[0])
+    return len(set(seen)) == len(SLOT_MARKERS)
 
 
 def question_lines(lines):
@@ -302,7 +359,7 @@ def check_study(text):
     elif first.startswith("【模式：自学 · 状态："):
         issues.append(("ERROR", "E17b", 1, "状态词不在封闭集（章览、诊断、节点、章末）",
                        "改成封闭集里的状态词后重发"))
-    elif not looks_like_solving(text):
+    else:
         issues.append(("ERROR", "E17a", 1, "自学轮缺状态标签", "补状态标签重发"))
 
     if state == "节点":
@@ -331,24 +388,6 @@ def check_study(text):
             issues.append(("ERROR", "R2", notebook_at, "错题本条目含拓展标记词（L3、拓展或延伸）",
                            "拓展只留在节点第七槽，不要写入错题本"))
 
-    slot_at = next((index for index, line in enumerate(lines, 1) if "判别自测" in line), None)
-    if slot_at:
-        end = len(lines) + 1
-        for index in range(slot_at, len(lines)):
-            if "拓展入口" in lines[index] or re.match(r"^Step\s*7\b", lines[index].strip()):
-                end = index + 1
-                break
-        block = lines[slot_at - 1:end - 1]
-        cursor = 0
-        while cursor < len(block):
-            if not QUESTION_LINE_RE.match(block[cursor]):
-                cursor += 1
-                continue
-            nxt = cursor + 1
-            while nxt < len(block) and not QUESTION_LINE_RE.match(block[nxt]):
-                nxt += 1
-            cursor = nxt
-
     if state == "章览" and "拓扑" not in text:
         issues.append(("ERROR", "E18", 1, "章览缺少拓扑学习顺序", "在整章图后写出拓扑学习顺序"))
     if state == "诊断":
@@ -364,7 +403,7 @@ def check_study(text):
                            "诊断轮须是恰一题的出题形态，或不再出题的判定形态",
                            "出题轮只留一道题；判定轮写判定、记录和下一跳，不要出新题"))
     if state == "节点":
-        has_slots = all(marker in text for marker in SLOT_MARKERS)
+        has_slots = _slots_on_separate_lines(text)
         if not has_slots and "补步" not in text:
             issues.append(("ERROR", "E18", 1, "节点轮既不是七槽，也不是补步问答",
                            "按七槽输出，或在连错两次后只写补步问答"))
@@ -404,8 +443,11 @@ def check(mode, text, no_student_answer, subject=None):
                        f"难度用词非法（第 {ln[0]} 行：「{ln[1][:30]}」），只能用 基础/中等/压轴/竞赛", ln[0]))
 
     if mode == "socratic":
+        leak_source = _without_quotes(text)
         for pat, why in ANSWER_LEAK_PATTERNS:
-            for ln in hits(pat, text):
+            for ln in hits(pat, leak_source):
+                if _leak_sentence_is_probe(pat, ln[1]):
+                    continue
                 issues.append(("ERROR", "E1", f"引导模式疑似泄露答案（{why}，第 {ln[0]} 行：「{ln[1][:36]}」）", ln[0]))
         for ln in hits(r"^#{1,6}[^\n]*(难度判断|解题思维链|一题多解|解法对比|错因诊断|错题本沉淀)", text):
             issues.append(("ERROR", "E2", f"引导模式输出了总结阶段标题（第 {ln[0]} 行：「{ln[1][:30]}」）", ln[0]))
@@ -471,7 +513,7 @@ def check(mode, text, no_student_answer, subject=None):
                "E12": "modes/chapter-map.md 人教版化学必修第一册（2019）第一章",
                "E14": RULE_VERIFY,
                "W1": RULE_GUIDED, "W2": "各科 reference「苏格拉底不要先说的内容」", "W3": RULE_GUIDED,
-               "W4": "SKILL.md「核心规则 2」", "W5": "SKILL.md「错因与错题本」", "W6": RULE_DIFFICULTY}
+               "W4": "modes/full.md「核心规则」", "W5": "modes/records.md「错因与错题本」", "W6": RULE_DIFFICULTY}
     return [(sev, code, msg, rule_of.get(code, "")) for sev, code, msg, _ in issues]
 
 
