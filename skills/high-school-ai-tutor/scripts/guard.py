@@ -71,6 +71,17 @@ NODE_LABEL_RE = re.compile(
     r'|'
     r'\{(?:["\']([^"\']+)["\']|([^}]+))\}'
 )
+# Mermaid asymmetric / flag shape: A>label]  (must not treat --> as this).
+ASYMMETRIC_NODE_RE = re.compile(
+    r'(?:^|[\s;])[A-Za-z][A-Za-z0-9_]*>(?:["\']([^"\']+)["\']|([^\]]+))\]'
+)
+NODE_DIRECTIVE_RE = re.compile(
+    r"^(?:classDef|class|click|style|linkStyle|subgraph|end|flowchart|graph|direction)\b"
+)
+NODE_TYPE_SUFFIX_RE = re.compile(r"（(?:概念|技能|实验)）$")
+NODE_BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+NODE_TOKEN_SPLIT_RE = re.compile(r"[/／、，,；;：:\s]+")
+EDGE_TEXT_RE = re.compile(r"--\s+[^-|\n]+-->")
 MAX_REQUIRED_NAMES_PER_NODE = 6
 MIN_REQUIRED_NODE_LABELS = 10
 EDGE_LABELS = {"直接前置", "同章衔接", "常考组合"}
@@ -207,12 +218,73 @@ def check_mermaid_style(text):
 
 
 def mermaid_node_labels(block):
+    """Only real node definitions. Comments, directives, and edge labels are ignored."""
     labels = []
-    for groups in NODE_LABEL_RE.findall(block):
-        label = next((part for part in groups if part), "").strip()
-        if label:
-            labels.append(label)
+    for raw in block.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("%%"):
+            continue
+        comment_at = line.find("%%")
+        if comment_at >= 0:
+            line = line[:comment_at].rstrip()
+            if not line:
+                continue
+        if NODE_DIRECTIVE_RE.match(line):
+            continue
+        line = LABELED_EDGE_RE.sub(" ", line)
+        line = EDGE_TEXT_RE.sub(" ", line)
+        found = ASYMMETRIC_NODE_RE.findall(line) + NODE_LABEL_RE.findall(line)
+        for groups in found:
+            label = next((part for part in groups if part), "").strip()
+            if label:
+                labels.append(label)
     return labels
+
+
+def _chem_topic_entries():
+    import nodes
+    path = nodes.NODES_DIR / "chemistry.md"
+    if not path.is_file():
+        return []
+    entries, _problems = nodes.parse_lines(path.name, path.read_text(encoding="utf-8"))
+    return entries
+
+
+def _allowed_labels_for_required(required, entries):
+    allowed = {required}
+    exact = []
+    prefixed = []
+    for standard, aliases, _chapter in entries:
+        names = (standard, *aliases)
+        if required in names:
+            exact.append((standard, aliases))
+        elif standard.startswith(required):
+            prefixed.append((standard, aliases))
+    chosen = exact[0] if exact else (prefixed[0] if len(prefixed) == 1 else None)
+    if chosen:
+        standard, aliases = chosen
+        allowed.add(standard)
+        required_set = set(PEP_CHEM_BX1_CH1_REQUIRED)
+        for alias in aliases:
+            if alias in required_set and alias != required:
+                continue
+            allowed.add(alias)
+    return allowed
+
+
+def _label_cores(label):
+    text = NODE_BR_RE.sub("/", label).strip()
+    text = NODE_TYPE_SUFFIX_RE.sub("", text).strip()
+    cores = {text} if text else set()
+    for token in NODE_TOKEN_SPLIT_RE.split(text):
+        token = token.strip()
+        if token:
+            cores.add(token)
+    return cores
+
+
+def _label_satisfies(label, allowed):
+    return bool(_label_cores(label) & allowed)
 
 
 def check_pep_chem_chapter(text):
@@ -224,16 +296,24 @@ def check_pep_chem_chapter(text):
         return ["写了人教版化学必修第一册（2019）第一章的整章图标记，但后面没有 mermaid"]
     problems = []
     labels = mermaid_node_labels(block)
-    missing = [name for name in PEP_CHEM_BX1_CH1_REQUIRED if not any(name in label for label in labels)]
+    entries = _chem_topic_entries()
+    allowed_by_name = {
+        name: _allowed_labels_for_required(name, entries) for name in PEP_CHEM_BX1_CH1_REQUIRED
+    }
+
+    def covers(label, name):
+        return _label_satisfies(label, allowed_by_name[name])
+
+    missing = [name for name in PEP_CHEM_BX1_CH1_REQUIRED if not any(covers(label, name) for label in labels)]
     if missing:
         problems.append("这一章整章图缺少节点：" + "、".join(missing))
     stuffed = [
         label for label in labels
-        if sum(1 for name in PEP_CHEM_BX1_CH1_REQUIRED if name in label) > MAX_REQUIRED_NAMES_PER_NODE
+        if sum(1 for name in PEP_CHEM_BX1_CH1_REQUIRED if covers(label, name)) > MAX_REQUIRED_NAMES_PER_NODE
     ]
     if stuffed:
         problems.append("整章图把过多必需节点塞进了同一个节点")
-    covering = [label for label in labels if any(name in label for name in PEP_CHEM_BX1_CH1_REQUIRED)]
+    covering = [label for label in labels if any(covers(label, name) for name in PEP_CHEM_BX1_CH1_REQUIRED)]
     if covering and len(covering) < MIN_REQUIRED_NODE_LABELS:
         problems.append("整章图把必需节点收进了过少的节点")
     present = [name for name in PEP_CHEM_BX1_CH1_FORBIDDEN if any(name in label for label in labels)]
