@@ -151,12 +151,12 @@ def check_summary_headings(lines):
     return [n for n in range(1, 10) if n not in found]
 
 
-# 加权引入句上的链式运算符；续行只认行首的 = / ＝。
-_WEIGHTED_CHAIN_OP_RE = re.compile(r"[=＝≈为是：:]")
+# 加权引入句上的链式运算符（与原先同一组）；续行只认行首的 = / ＝。
+_WEIGHTED_CHAIN_OP_RE = re.compile(r"[=＝为是：:]")
 _WEIGHTED_CONT_RE = re.compile(r"^\s*[=＝]")
-_WEIGHTED_NUM_RE = re.compile(r"[0-9]+\.[0-9]{2}|[0-9]+")
+_WEIGHTED_NUM_RE = re.compile(r"[0-9]+(?:\.[0-9]+)?")
 _WEIGHTED_SENTENCE_END_RE = re.compile(r"[。！？]")
-_WEIGHTED_ARITH = set("+-×x*·/÷()（）")
+_WEIGHTED_ARITH = set("+-×x*·/÷()")
 
 
 def _weighted_chain_text(lines, start):
