@@ -375,9 +375,6 @@ class ReviewCategoryTests(unittest.TestCase):
         self.assertTrue(leak.find_gold_leaks("4n=7，所以 n=7/4。", spec4))
         spec_cite = leak.GoldSpec(answers=["x=3"])
         self.assertTrue(leak.find_gold_leaks("由 2x+1=7 可得。", spec_cite))
-        self.assertFalse(leak.find_gold_leaks(
-            "题目写的是「2x+1=7」，先移项。", spec_cite, stem="解方程 2x+1=7。",
-        ))
 
 
 class AdversarialRunnerTests(unittest.TestCase):

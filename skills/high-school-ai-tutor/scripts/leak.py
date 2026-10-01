@@ -1186,8 +1186,9 @@ def linear_form(pair):
                         Fraction(str(poly.coeff_monomial(y))),
                         Fraction(str(poly.coeff_monomial(1))),
                     )
-        except (TypeError, ValueError, AttributeError):
+        except Exception:
             pass
+
     expr = left if right in {"0", "0.0"} else None
     if expr is None:
         fl, fr = _scan_linear(left, True), _scan_linear(right, True)
@@ -1489,9 +1490,9 @@ NUM_TOKEN_RE = re.compile(
     r"百分之[零〇一二两三四五六七八九十百0-9]+|"
     r"[零〇一二两三四五六七八九十]+倍根号[零〇一二两三四五六七八九十]+|"
     r"根号[零〇一二两三四五六七八九十]+|"
-    r"负?[零〇一二两三四五六七八九十]+度|"
+    r"(?:等于|是|为)?负?[零〇一二两三四五六七八九十百]+度|"
     r"-?\d+\.?\d*\s*度|"
-    r"(?:等于|是|为)负?[零〇一二两三四五六七八九十百]+|"
+    r"(?:等于|是|为)负?[零〇一二两三四五六七八九十百]+(?!十|百|又|分之|倍根号|度|种)|"
     r"[零〇一二两三四五六七八九十百]+\s*种|"
     r"一共[零〇一二两三四五六七八九十0-9]+\s*种|"
     r"负[零〇一二两三四五六七八九十百]+|"
@@ -1696,7 +1697,12 @@ def find_gold_leaks(text, spec: GoldSpec, stem=None):
                 hits.append(LeakHit(lineno, "方程", snippet))
 
         # 区间
-        whole_iv = parse_interval(scan) or _parse_cn_ineq(scan)
+        line = text.splitlines()[lineno - 1] if text.splitlines() else unit
+        line_scan = compact(line)
+        if re.search(r"再(?:大|小)就不|恰好.{0,16}(?:满足|取到)", line):
+            whole_iv = parse_interval(line_scan) or _parse_cn_ineq(line_scan)
+        else:
+            whole_iv = parse_interval(scan) or _parse_cn_ineq(scan)
         if whole_iv and gold_ivs:
             for _ans, giv in gold_ivs:
                 if iv_eq(whole_iv, giv) or iv_finite_endpoint_diff(whole_iv, giv) or iv_is_component(whole_iv, giv):
@@ -1816,7 +1822,9 @@ def _skip_exponent_or_sub(scan, start):
     prev = scan[max(0, start - 2):start]
     if prev.endswith(("**", "^")):
         return True
-    return start > 0 and scan[start - 1].isascii() and scan[start - 1].isalpha()
+    if start > 0 and scan[start - 1].isascii() and scan[start - 1].isalpha():
+        return start < len(scan) and scan[start].isdigit()
+    return False
 
 
 def _gold_vars(spec: GoldSpec):
@@ -1974,6 +1982,7 @@ def _option_leaks(text, spec, labels, gold_labs, contents, vq, stem):
         if not labels:
             return []
     hits = []
+    prev_ln, line_choose = None, False
     for lineno, unit, a, b in iter_units(text):
         if span_inside(a, b, vq):
             continue
@@ -1981,6 +1990,8 @@ def _option_leaks(text, spec, labels, gold_labs, contents, vq, stem):
         snippet = unit.replace("\n", " ")[:36]
         if ctx["neutral_opt"]:
             continue
+        if lineno != prev_ln:
+            prev_ln, line_choose = lineno, False
         found = extract_labels(unit, labels) if labels else extract_labels(
             unit, list("ABCD") if gold_labs <= set("ABCD") else [],
         )
@@ -1996,8 +2007,11 @@ def _option_leaks(text, spec, labels, gold_labs, contents, vq, stem):
         choosing = bool(
             ctx["choice"] or ctx["first_person"] or ctx["leading"]
             or ctx["eval"] or "✅" in unit or "✓" in unit
+            or line_choose
             or re.search(r"就是答案|is the answer|正确答案|那个就是", unit, re.IGNORECASE)
         )
+        if choosing:
+            line_choose = True
         if choosing and found and (found & gold_labs):
             if _allow_student(ctx, True) and found <= gold_labs:
                 continue
