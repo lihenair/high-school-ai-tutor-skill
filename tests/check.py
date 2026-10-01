@@ -219,35 +219,51 @@ def main():
         fail("判题记录示例应有一条带 --subject 与 --node 的命令")
     print("OK 节点正典，SKILL.md 示例节点落在正典内")
 
-    quote_re = re.compile(r"[「『]([^」』]+)[」』]")
-    hint_chunks = re.findall(
-        r'["\']([^"\']*(?:\.md|reference)[^"\']*[「『][^"\']*)["\']',
-        (SKILL_DIR / "scripts" / "guard.py").read_text(encoding="utf-8"),
-    )
-    cited = []
+    file_token_re = re.compile(r"(SKILL\.md|modes/[\w.-]+\.md)|[「『]([^」』]+)[」』]")
+    hint_chunks = [
+        chunk for chunk in re.findall(
+            r'["\']([^"\']*(?:\.md|reference)[^"\']*[「『][^"\']*)["\']',
+            (SKILL_DIR / "scripts" / "guard.py").read_text(encoding="utf-8"),
+        )
+        if "\n" not in chunk
+    ]
+    cited_pairs = []
+    current_file = None
     for chunk in hint_chunks:
-        cited.extend(quote_re.findall(chunk))
+        current_file = None
+        for match in file_token_re.finditer(chunk):
+            if match.group(1):
+                current_file = match.group(1)
+            elif current_file and match.group(2):
+                cited_pairs.append((current_file, match.group(2)))
     pointer_re = re.compile(
-        r"(?:见入口|modes/[^\s「』]+|SKILL\.md|技能说明里的)[^。\n]{0,80}[「『]([^」』]+)[」』]"
+        r"(SKILL\.md|modes/[\w.-]+\.md)[^。\n]{0,80}[「『]([^」』]+)[」』]"
     )
     for path in (SKILL_DIR / "references").glob("*.md"):
-        cited.extend(pointer_re.findall(path.read_text(encoding="utf-8")))
-    headings = set()
-    bodies = []
-    for path in SKILL_DIR.rglob("*.md"):
-        text = path.read_text(encoding="utf-8")
-        bodies.append(text)
-        for match in re.finditer(r"^#{1,6}\s+(.+)$", text, re.M):
-            headings.add(match.group(1).strip())
-    blob = "\n".join(bodies)
+        for match in pointer_re.finditer(path.read_text(encoding="utf-8")):
+            cited_pairs.append((match.group(1), match.group(2)))
+    headings_by_file = {}
     missing_sections = []
-    for name in cited:
+    for rel, name in cited_pairs:
+        target = SKILL_DIR / rel
+        if rel not in headings_by_file:
+            if not target.exists():
+                headings_by_file[rel] = set()
+            else:
+                text = target.read_text(encoding="utf-8")
+                headings_by_file[rel] = {
+                    match.group(1).strip()
+                    for match in re.finditer(r"^#{1,6}\s+(.+)$", text, re.M)
+                }
+        headings = headings_by_file[rel]
         pieces = [part.strip() for part in re.split(r"\s*→\s*|\s*；\s*", name) if part.strip()]
         for piece in pieces:
             core = re.sub(r"\s+\d+$", "", piece)
-            if piece in headings or core in headings or piece in blob:
+            if piece in headings or core in headings:
                 continue
-            missing_sections.append(piece)
+            if any(heading.startswith(piece) or piece.startswith(heading) for heading in headings):
+                continue
+            missing_sections.append(f"{rel}「{piece}」")
     if missing_sections:
         fail("修复提示引用了不存在的章节：" + "、".join(sorted(set(missing_sections))))
     print("OK 修复提示引用的章节名存在")

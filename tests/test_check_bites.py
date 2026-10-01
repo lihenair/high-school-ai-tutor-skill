@@ -112,5 +112,17 @@ class CheckBiteTests(unittest.TestCase):
         self.assertIn("explore_log", result.stdout)
 
 
+    def test_quoted_section_must_be_heading_in_cited_file(self):
+        guard_path = self.copy / "skills" / "high-school-ai-tutor" / "scripts" / "guard.py"
+        text = guard_path.read_text(encoding="utf-8")
+        old = 'RULE_NOTEBOOK = "modes/records.md「错题本何时生成」；modes/full.md「核心规则」"'
+        new = 'RULE_NOTEBOOK = "modes/records.md「数学机验」；modes/full.md「核心规则」"'
+        self.assertIn(old, text)
+        guard_path.write_text(text.replace(old, new, 1), encoding="utf-8")
+        result = self.run_check()
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("records.md「数学机验」", result.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
