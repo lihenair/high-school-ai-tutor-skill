@@ -1,0 +1,18 @@
+# file	expect	rationale
+ok-canonical.txt	OK	canonical-chapter-map
+alias-tyndall-oxide.txt	OK	canon-aliases
+four-edit.txt	E12	four-edit-drops-required
+suffix-false-friends.txt	E12	no-suffix-match
+four-nodes-delimited.txt	E12	too-few-nodes
+jammed-7.txt	E12	jammed-7
+jammed-11.txt	E12	jammed-11
+shape-paren-bracket.txt	OK	generic-node-shape
+shape-double-bracket.txt	OK	generic-node-shape
+shape-bracket-paren.txt	OK	generic-node-shape
+shape-hex.txt	OK	generic-node-shape
+shape-triple-circle.txt	OK	generic-node-shape
+shape-circle.txt	OK	generic-node-shape
+shape-round.txt	OK	generic-node-shape
+shape-diamond.txt	OK	generic-node-shape
+shape-flag.txt	OK	generic-node-shape
+shape-stadium.txt	OK	generic-node-shape

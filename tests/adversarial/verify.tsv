@@ -1,0 +1,67 @@
+# expr	where	expect	detail	rationale
+x**2 == -1	y = 2	无法解析		leftover-or-unrelated-where
+0 == 1 + y**2	x = 1	无法解析		leftover-or-unrelated-where
+sqrt(y) == -1	x = 0	无法解析		leftover-or-unrelated-where
+2*y == 4	x = 1	无法解析		leftover-or-unrelated-where
+x == 2*y	x = 3	无法解析		leftover-or-unrelated-where
+F == m*a	m = 2	无法解析		leftover-or-unrelated-where
+x == 3	y = 2	无法解析		leftover-or-unrelated-where
+x == 999	y = 1	无法解析		leftover-or-unrelated-where
+E == 5	F = 6	无法解析		leftover-or-unrelated-where
+x == sqrt(-1)	y = 1	无法解析		leftover-or-unrelated-where
+a == b	a = 1	无法解析		leftover-or-unrelated-where
+y == x**2	x = 3	通过		isolated-unknown-after-subst
+E == F/q	F=6; q=2	通过		isolated-E-determined
+E == F*q	F=6; q=2	通过		wrong-formula-still-determines-E
+x+1 == x	y = 1	矛盾		identity-false
+x+1 == x		矛盾		identity-false-no-where
+2 + 2 == 4		通过		identity-true
+(x+1)**2 == x**2 + 2*x + 1		通过		algebra-identity
+q == n*e	n=2; e=1.6	通过		charge-e-assigned
+E == F/q	F=6; q=2; E=4	矛盾		pinned-wrong-E
+pi == 3.15		矛盾		tolerance-or-exact-fail
+sqrt(2) == 1.42		矛盾		tolerance-or-exact-fail
+0.34 == 1/3		矛盾		tolerance-or-exact-fail
+0.4 == 1/3		矛盾		tolerance-or-exact-fail
+1e3 == 1999		矛盾		tolerance-or-exact-fail
+300 == 3e2 + 50		矛盾		tolerance-or-exact-fail
+1e3 == 2**10		矛盾		tolerance-or-exact-fail
+9.8 == 9.81		矛盾		tolerance-or-exact-fail
+2**10 == 1025		矛盾		tolerance-or-exact-fail
+3003 == 3004		矛盾		tolerance-or-exact-fail
+1.6e-19 == 1.601e-19		矛盾		tolerance-or-exact-fail
+1000 == 999		矛盾		tolerance-or-exact-fail
+100000 == 100099		矛盾		tolerance-or-exact-fail
+2 == 2.001		矛盾		tolerance-or-exact-fail
+1000 == 1001		矛盾		tolerance-or-exact-fail
+pi == 3		矛盾		tolerance-or-exact-fail
+1.2*3 == 3.7		矛盾		tolerance-or-exact-fail
+x == 1000	x = 1001	矛盾		where-path-same-rule
+3.1 == pi		通过	数值近似	half-ulp-pi-3.1
+pi == 3.14		通过	数值近似	half-ulp-pass
+0.33 == 1/3		通过	数值近似	half-ulp-pass
+1/3 == 0.333		通过	数值近似	half-ulp-pass
+1/3 == 0.3333333333333333		通过	数值近似	half-ulp-pass
+sqrt(2) == 1.41		通过	数值近似	half-ulp-pass
+e == 2.718		通过	数值近似	half-ulp-pass
+1.6e-19*2 == 3.2e-19		通过		exact-sci-decimal-equal
+3.0e8 == 300000000		通过		exact-sci-equal
+1e3 == 1000		通过		exact-sci-no-dot
+x == 3.14	x = pi	通过	数值近似	where-path-half-ulp
+x == 1	z = 0	无法解析		adversarial-leftover
+f == 9.8	m = 2	无法解析		adversarial-leftover
+E == F/q	E = 3	无法解析		adversarial-leftover
+2*x == 6	x = 3	通过		adversarial-leftover
+sqrt(-4) == y	x = 1	无法解析		adversarial-leftover
+0.333 == 1/3		通过	数值近似	adversarial-tol
+0.3 == 1/3		通过	数值近似	adversarial-tol-0.3-half-ulp
+pi == 3.141		矛盾		adversarial-pi-3.141-over-half
+E == F/q	q=2	无法解析		redteam-partial-where
+E == F/q	F=6	无法解析		redteam-missing-q
+1.414 == sqrt(2)		通过	数值近似	redteam-sqrt2-1.414
+0.3333 == 1/3		通过	数值近似	redteam-four-decimals
+pi == 22/7		矛盾		redteam-pi-22-7
+2 == y	x=1	无法解析		redteam-unrelated-rhs
+x**2 == 9	x=3	通过		redteam-subst-identity
+y == 2*x	x=3	通过		redteam-determined-y
+b == a	a=1; b=1	通过		redteam-both-assigned

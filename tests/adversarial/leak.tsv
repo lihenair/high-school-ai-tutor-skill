@@ -1,0 +1,97 @@
+# text	expect	stem	rationale
+难度：中等。这个范围是什么？	OK		open-question-no-concrete
+难度：中等。所以它等于 2 倍的什么？	OK		open-question-no-concrete
+难度：中等。评分标准是什么？	OK		open-question-no-concrete
+难度：中等。开口朝哪边？	OK		open-question-no-concrete
+难度：中等。取值范围该怎么写？	OK		open-question-no-concrete
+难度：中等。答案是什么？	OK		open-question-no-concrete
+难度：中等。选哪一项？	OK		open-question-no-concrete
+难度：中等。为什么这样变形？	OK		open-question-no-concrete
+难度：中等。怎么想到分类？	OK		open-question-no-concrete
+难度：中等。这一步依据是什么？	OK		open-question-no-concrete
+难度：中等。是 3 倍的什么？	OK		open-question-no-concrete
+难度：基础，只需简单代入。开口朝哪边？	OK		difficulty-not-leak
+难度：中等。你选 B。说说依据？	OK		restate-student-choice
+难度：中等。你选C，你的理由是？	OK		restate-student-choice
+难度：中等。学生选 A。为什么这样选？	OK		restate-student-choice
+难度：中等。你刚才选 D。	OK		restate-student-choice
+难度：中等。你们选 B 的依据？	OK		restate-student-choice
+难度：中等。题干给出「因此 x>0」。开口朝哪边？	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
+难度：中等。题目说「x>0」。先看符号。	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
+难度：中等。题干给出「答案是 B」。你怎么看条件？	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
+难度：中等。题目说「a≤0」。开口朝哪边？	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
+难度：中等。题干给出「所以 x=3」。先核对条件。	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
+难度：中等。为什么答案是 B？	E1		block-concrete-regardless-of-form
+难度：中等。为什么所以 x = 3？	E1		block-concrete-regardless-of-form
+难度：中等。怎么得到所以 x=3 的？	E1		block-concrete-regardless-of-form
+难度：中等。题目说「答案是 B」。	E1		block-concrete-regardless-of-form
+难度：中等。题目说的条件我换个说法：「所以 x=3」	E1		block-concrete-regardless-of-form
+难度：中等。是不是 a≤0？	E1		block-concrete-regardless-of-form
+难度：中等。会不会是 B？	E1		block-concrete-regardless-of-form
+难度：中等。范围是不是 a≤0？	E1		block-concrete-regardless-of-form
+难度：中等。是不是选 B？	E1		block-concrete-regardless-of-form
+难度：中等。应该选 B 吧？	E1		block-concrete-regardless-of-form
+难度：中等。x 是不是等于 3？	E1		block-concrete-regardless-of-form
+难度：中等。答案是 B，对吗？	E1		block-concrete-regardless-of-form
+难度：中等。取值范围是 a≤0，对吗？	E1		block-concrete-regardless-of-form
+难度：中等。故选 D，你同意吗？	E1		block-concrete-regardless-of-form
+难度：中等。老师觉得「答案是 B」。	E1		block-concrete-regardless-of-form
+难度：中等。我选 B。	E1		block-concrete-regardless-of-form
+难度：中等。我选C，你呢	E1		block-concrete-regardless-of-form
+难度：中等。选 C。	E1		block-concrete-regardless-of-form
+难度：中等。∴ a ≤ 0	E1		block-concrete-regardless-of-form
+难度：中等。所以 x 等于 3	E1		block-concrete-regardless-of-form
+难度：中等。最终 a 的范围应当是 a≤0	E1		block-concrete-regardless-of-form
+难度：中等。答案为 12，你算出来是多少？	E1		block-concrete-regardless-of-form
+难度：中等。所以 x = 3，对吗？	E1		block-concrete-regardless-of-form
+难度：中等。这里"所以 x=3"。	E1		block-concrete-regardless-of-form
+难度：中等。你看，「故选 C」。	E1		block-concrete-regardless-of-form
+难度：中等。范围应当是 a≤0，你看对吗？	E1		block-concrete-regardless-of-form
+难度：中等。所以 x 等于 3。开口朝哪边？	E1		block-concrete-regardless-of-form
+难度：中等。我选C，你呢。	E1		block-concrete-regardless-of-form
+难度：中等。为何最终是 12？	E1		block-concrete-regardless-of-form
+难度：中等。怎么看出选 C？	E1		block-concrete-regardless-of-form
+难度：中等。结果是不是 12？	E1		block-concrete-regardless-of-form
+难度：中等。难道不是 B 吗？	E1		block-concrete-regardless-of-form
+难度：中等。换言之 x=3	E1		block-concrete-regardless-of-form
+难度：中等。也就是说选 A	E1		block-concrete-regardless-of-form
+难度：中等。可见 a≥2	E1		block-concrete-regardless-of-form
+难度：中等。于是得 5	E1		block-concrete-regardless-of-form
+难度：中等。不难发现答案 C	E1		block-concrete-regardless-of-form
+难度：中等。提示：选 D	E1		block-concrete-regardless-of-form
+难度：中等。正确答案是 A	E1		block-concrete-regardless-of-form
+难度：中等。显然等于 0	E1		block-concrete-regardless-of-form
+难度：中等。换句话说范围是 x>1	E1		block-concrete-regardless-of-form
+难度：中等。我们得到 x=3 了吗？	E1		block-concrete-regardless-of-form
+难度：中等。先告诉你吧，是 B	E1		block-concrete-regardless-of-form
+难度：中等。答案其实就是 12 啊	E1		block-concrete-regardless-of-form
+难度：中等。最终选B啦	E1		block-concrete-regardless-of-form
+难度：中等。会是 3 吗？	E1		block-concrete-regardless-of-form
+难度：中等。题干写「因此 x>0」。开口朝哪边？	E1		block-concrete-regardless-of-form
+难度：中等。题目说「答案是 B」。开口朝哪边？	E1		block-concrete-regardless-of-form
+难度：中等。故选A。	E1		systematic-variant
+难度：中等。答案是 C	E1		systematic-variant
+难度：中等。答案为 7	E1		systematic-variant
+难度：中等。所以 y=2。	E1		systematic-variant
+难度：中等。因此等于 4	E1		systematic-variant
+难度：中等。综上 a≤1	E1		systematic-variant
+难度：中等。取值范围是 x>0	E1		systematic-variant
+难度：中等。解集为 {1}	E1		systematic-variant
+难度：中等。会不会是 C？	E1		systematic-variant
+难度：中等。是不是选 D？	E1		systematic-variant
+难度：中等。应该选 A 吧？	E1		systematic-variant
+难度：中等。n 是不是等于 2？	E1		systematic-variant
+难度：中等。老师觉得「故选 A」。	E1		systematic-variant
+难度：中等。我选 A。	E1		systematic-variant
+难度：中等。选 B。	E1		systematic-variant
+难度：中等。咱们选 C 吧	E1		redteam-we-choose
+难度：中等。有没有可能是 B？	E1		redteam-maybe-option
+难度：中等。也许等于 3	E1		redteam-maybe-value
+难度：中等。若选 B 会怎样？	E1		redteam-if-option
+难度：中等。把「答案是 B」再读一遍。	E1		redteam-unmarked-quote
+难度：中等。即 x=3	E1		redteam-namely
+难度：中等。可知范围为 a≤0	E1		redteam-kejian
+难度：中等。a 小于等于 0 对吗？	E1		redteam-chinese-ineq
+难度：中等。先不要看答案是什么？	OK		redteam-open-answer-what
+难度：中等。题干给出「所以 x=3」。	E1		redteam-given-not-in-stem
+难度：中等。题目说「所以 x=3」。开口？	E1		redteam-said-no-stem

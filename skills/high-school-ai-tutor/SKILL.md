@@ -151,6 +151,7 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 
 ```bash
 python3 <skill目录>/scripts/guard.py --mode socratic reply.txt   # 引导模式
+python3 <skill目录>/scripts/guard.py --mode socratic --stem stem.txt reply.txt   # 有题干时核「题目说/题干给出」引文
 python3 <skill目录>/scripts/guard.py --mode full reply.txt       # 完整模式与总结阶段（summary 同 full）
 python3 <skill目录>/scripts/guard.py --mode socratic --no-student-answer reply.txt
 python3 <skill目录>/scripts/guard.py --mode full --subject math reply.txt   # 数学完整模式：额外查机验标记

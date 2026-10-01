@@ -38,14 +38,7 @@ VERIFY_MARKER_HINT = " / ".join(VERIFY_MARKERS)
 # 出现「机验」二字但不是上面五句之一，视为句式漂移。
 VERIFY_LOOSE_RE = re.compile(r"机验")
 
-# 引导模式疑似给出最终结果的写法
-ANSWER_LEAK_PATTERNS = [
-    (r"答案[是为：:]\s*\S", "直接给出「答案为…」"),
-    (r"(?:所以|因此|综上|故|∴)[^。！？\n]{0,40}(?:[=≤≥<>]|等于)\s*[-+]?[\d.]", "推到具体数值/不等式"),
-    (r"(?:取值范围|解集|值域|范围应当是|范围是)[是为：:是]?\s*[{\[（(]?[-+]?[\d.a-zA-Z]", "给出范围/解集"),
-    (r"答案?是\s*[A-D]\b", "直接报选择题选项"),
-    (r"(?<![你他她谁咱刚学生])(?:故选|选)\s*[A-D](?:[选项]|[.。、，,」』“”\"']|$)", "直接报选择题选项"),
-]
+# 引导模式漏答：句子里出现本题的具体值/选项/不等式/结论即 E1；豁免见 _leak_issues。
 # 引导模式不该先说破的关键公式（常见形状）
 FORMULA_PATTERNS = [
     (r"[fF]\s*=\s*m\s*a\b", "牛顿第二定律"),
@@ -71,12 +64,31 @@ NODE_DEF_RE = re.compile(
     r'[\)\]\}]+'
 )
 MAX_REQUIRED_NAMES_PER_NODE = 6
+MIN_REQUIRED_NODE_LABELS = 10
 NODE_TYPE_SUFFIX_RE = re.compile(r"（(?:概念|技能|实验)）$")
 LABEL_SPLIT_RE = re.compile(r"[/；;、，,：:\s]+")
-NAME_TYPE_SUFFIXES = ("效应", "现象", "法")
+AND_SPLIT_RE = re.compile(r"[与和及]")
 QUOTED_SPAN_RE = re.compile(r"「[^」]*」|『[^』]*』|“[^”]*”|\"[^\"]*\"")
-STEM_QUOTE_PREFIX_RE = re.compile(r"(?:题目说|题干(?:写|给出|说|中写|里写|里说))")
-OPEN_ASK_RE = re.compile(r"什么|哪|几|多少|怎么|为何")
+PROTECTED_QUOTE_RE = re.compile(r"(题目说|题干给出)(「[^」]*」|『[^』]*』|“[^”]*”|\"[^\"]*\")")
+STUDENT_CHOICE_RE = re.compile(r"(?:你|你们|学生|同学|刚才)选\s*[A-Da-d]")
+OPTION_LEAK_RE = re.compile(
+    r"(?:答案\s*[是为]|正确答案[是为]?|故选|应该选|应选|(?<![你])选)\s*[A-Da-d]"
+    r"|是不是选\s*[A-Da-d]|会不会是\s*[A-Da-d]|难道不是\s*[A-Da-d]"
+)
+ANSWER_VALUE_RE = re.compile(r"答案[是为：:]\s*(?!什么|哪|几|多少)")
+EQUALS_NUMBER_RE = re.compile(r"(?:等于|=)\s*[-+]?\d+(?:\.\d+)?(?!\s*倍的什么)")
+INEQUALITY_RE = re.compile(r"[a-zA-Z]\s*[≤≥<>]=?\s*[-+]?\d|[≤≥<>]=?\s*[-+]?\d+\s*[a-zA-Z]")
+RANGE_LEAK_RE = re.compile(r"(?:取值范围|解集|值域|范围应当是|范围是)[是为：:]?[^\n]{0,24}[≤≥<>={}\d]")
+CONCLUSION_CUE_RE = re.compile(r"(?:所以|因此|综上|故|∴|最终|换言之|也就是说|可见|于是|不难发现|显然|换句话说)")
+EMPTY_SLOT_RE = re.compile(r"^[…·.\s略]*$")
+WEIGHTED_CLAIM_RE = re.compile(r"加权[约为是＝=\s：:]*([0-9]+\.[0-9]+|[0-9]+)")
+DIM_SCORE_PATTERNS = (
+    (re.compile(r"知识点[^\d]{0,6}([1-5])"), 0),
+    (re.compile(r"思维[^\d]{0,6}([1-5])"), 1),
+    (re.compile(r"综合[^\d]{0,6}([1-5])"), 2),
+    (re.compile(r"(?:计算|运算)[^\d]{0,6}([1-5])"), 3),
+    (re.compile(r"(?:频率|出现)[^\d]{0,6}([1-5])"), 4),
+)
 EDGE_LABELS = {"直接前置", "同章衔接", "常考组合"}
 SOLID_LABELS = {"直接前置", "同章衔接"}
 # 只核这一册这一章的整章图。本题切片不要写这一行。
@@ -106,38 +118,59 @@ def hits(pattern, text):
     return out
 
 
-def _without_quotes(text):
-    text = str(text or "")
+def _strip_protected_quotes(text, stem=""):
+    """只去掉紧挨在「题目说/题干给出」后的引号，且引文须在题干里逐字出现。无题干则不剥。"""
+    stem = str(stem or "")
+    if not stem:
+        return str(text or "")
 
-    def keep_or_strip(match):
-        prefix = text[max(0, match.start() - 16):match.start()]
-        if STEM_QUOTE_PREFIX_RE.search(prefix):
-            return ""
+    def repl(match):
+        inner = match.group(2)[1:-1]
+        if inner and inner in stem:
+            return match.group(1)
         return match.group(0)
 
-    return QUOTED_SPAN_RE.sub(keep_or_strip, text)
+    return PROTECTED_QUOTE_RE.sub(repl, str(text or ""))
 
 
-def _is_open_probe(piece):
-    if not piece.endswith(("？", "?")):
-        return False
-    if not OPEN_ASK_RE.search(piece):
-        return False
-    head = re.split(r"[，,；;]", piece)[0]
-    return bool(OPEN_ASK_RE.search(head))
+def _has_concrete_conclusion(piece):
+    """本题的具体选项、数值、不等式或范围结论。问句、设问、引号都不豁免。"""
+    text = STUDENT_CHOICE_RE.sub("", str(piece or ""))
+    if OPTION_LEAK_RE.search(text) or re.search(r"(?:是|为)\s*[A-Da-d](?:[选项。．!?？，,」』\"']|$)", text):
+        return True
+    if ANSWER_VALUE_RE.search(text) and re.search(r"答案[是为：:]\s*\S", text):
+        rest = ANSWER_VALUE_RE.split(text, 1)[-1]
+        if rest.strip() and not rest.strip().startswith(("什么", "哪", "几", "多少")):
+            return True
+    if EQUALS_NUMBER_RE.search(text):
+        return True
+    if re.search(r"(?:是不是|会是|会不会是)\s*[-+]?\d", text):
+        return True
+    if re.search(r"(?<![点层度])(?:是|为|得)\s*[-+]?\d+(?:\.\d+)?(?!\s*倍的什么)", text):
+        return True
+    if INEQUALITY_RE.search(text) or RANGE_LEAK_RE.search(text):
+        return True
+    if CONCLUSION_CUE_RE.search(text) and re.search(
+        r"[≤≥<>=]|等于|选\s*[A-Da-d]|答案|(?:得|为)\s*[-+]?\d", text
+    ):
+        if re.search(r"等于\s*[-+]?\d+\s*倍的什么", text):
+            return False
+        return True
+    return False
 
 
-def _leak_sentence_is_probe(pattern, line):
-    saw_real = False
-    for sentence in re.split(r"(?<=[。！？?\n])", line):
-        piece = sentence.strip()
-        if not piece or not re.search(pattern, piece):
-            continue
-        if _is_open_probe(piece):
-            continue
-        saw_real = True
-        break
-    return not saw_real
+def _leak_issues(text, stem=""):
+    """返回 [(lineno, snippet)]。fail-closed：有具体结论就拦。"""
+    source = _strip_protected_quotes(text, stem)
+    out = []
+    for lineno, line in enumerate(source.splitlines(), 1):
+        for sentence in re.split(r"(?<=[。！？?\n])", line):
+            piece = sentence.strip()
+            if not piece:
+                continue
+            if _has_concrete_conclusion(piece):
+                out.append((lineno, piece[:36]))
+    return out
 
 
 def check_bad_difficulty(lines):
@@ -168,12 +201,17 @@ def check_weighted(lines):
         m = SCORES_RE.search(line) or SCORES_SLASH_RE.search(line) or SCORES_SPACE_RE.search(line)
         if m:
             scores = [int(g) for g in m.groups()]
+        named = [None, None, None, None, None]
+        for pattern, index in DIM_SCORE_PATTERNS:
+            hit = pattern.search(line)
+            if hit:
+                named[index] = int(hit.group(1))
+        if all(value is not None for value in named):
+            scores = named
         if "加权" in line:
-            nums = re.findall(r"[=＝为是：:]\s*([0-9]+\.[0-9]+|[0-9]+)", line)
-            if not nums:
-                nums = re.findall(r"加权\s*([0-9]+\.[0-9]+|[0-9]+)", line)
+            nums = WEIGHTED_CLAIM_RE.findall(line)
             if nums:
-                claimed = float(nums[-1])  # 展开式取最后一个等号后的总数
+                claimed = float(nums[-1])
     if scores is None:
         return None
     expect = round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)
@@ -254,16 +292,16 @@ def _label_tokens(label):
     core = _label_core(label)
     parts = [part.strip() for part in LABEL_SPLIT_RE.split(core) if part.strip()]
     extra = []
-    for part in parts:
-        extra.extend(bit.strip() for bit in part.split("与") if bit.strip())
-    return extra or ([core] if core else [])
+    for part in parts or ([core] if core else []):
+        extra.extend(bit.strip() for bit in AND_SPLIT_RE.split(part) if bit.strip())
+    return extra
 
 
 _CHEM_COVER_TOKENS = None
 
 
 def _chem_cover_tokens(name):
-    """正典显示名、别名，以及效应/现象互换。"""
+    """每个必需名只认它自己的正典显示名/别名整段，不做后缀包含匹配。"""
     global _CHEM_COVER_TOKENS
     if _CHEM_COVER_TOKENS is None:
         import nodes
@@ -271,59 +309,31 @@ def _chem_cover_tokens(name):
         path = nodes.NODES_DIR / "chemistry.md"
         entries, _problems = nodes.parse_lines("chemistry.md", path.read_text(encoding="utf-8"))
         for standard, aliases, _chapter in entries:
-            pool = [standard, *aliases, *_label_tokens(standard)]
-            for alias in aliases:
-                pool.extend(_label_tokens(alias))
-            expanded = set()
-            for token in pool:
-                token = str(token or "").strip()
-                if not token:
-                    continue
-                expanded.add(token)
-                if token.endswith("效应"):
-                    expanded.add(token[:-2] + "现象")
-                elif token.endswith("现象"):
-                    expanded.add(token[:-2] + "效应")
+            official = [standard, *aliases]
+            official_parts = []
+            for item in official:
+                official_parts.append(item)
+                official_parts.extend(_label_tokens(item))
             for required in PEP_CHEM_BX1_CH1_REQUIRED:
-                if any(
-                    required == token
-                    or token.startswith(required)
-                    or required in _label_tokens(token)
-                    or required in token
-                    for token in expanded
-                ):
-                    mapping[required].update(expanded)
-                    mapping[required].add(required)
+                if not any(part == required or part.startswith(required) for part in official_parts):
+                    continue
+                for part in official_parts:
+                    if part == required or part.startswith(required):
+                        mapping[required].add(part)
+                if required in aliases:
+                    for alias in aliases:
+                        if alias == required or required in _label_tokens(alias) or alias.endswith(required) or alias.startswith(required):
+                            mapping[required].add(alias)
         _CHEM_COVER_TOKENS = mapping
     return _CHEM_COVER_TOKENS.get(name, {name})
 
 
-def _part_covers_name(part, name):
-    if not part or not name:
-        return False
-    if part == name:
-        return True
-    if part.startswith(name) and part[len(name):] in ("", *NAME_TYPE_SUFFIXES):
-        return True
-    if name in ("四种基本反应类型", "化合价") and part.startswith(name):
-        return True
-    if part.endswith(name) and len(part) > len(name):
-        prefix = part[:-len(name)]
-        if any(other != name and other in prefix for other in PEP_CHEM_BX1_CH1_REQUIRED):
-            return False
-        return True
-    return False
-
-
 def _label_covers_required(label, name):
-    core = _label_core(label)
-    if core == name:
-        return True
     allowed = _chem_cover_tokens(name)
-    for part in _label_tokens(label) + [core]:
-        if _part_covers_name(part, name) or part in allowed:
-            return True
-    return False
+    core = _label_core(label)
+    if core in allowed:
+        return True
+    return any(part in allowed for part in _label_tokens(label))
 
 
 def mermaid_node_labels(block):
@@ -363,6 +373,12 @@ def check_pep_chem_chapter(text):
     ]
     if jammed or overfull:
         problems.append("整章图把过多必需节点塞进了同一个节点")
+    covering = [
+        label for label in labels
+        if any(_label_covers_required(label, name) for name in PEP_CHEM_BX1_CH1_REQUIRED)
+    ]
+    if covering and len(covering) < MIN_REQUIRED_NODE_LABELS:
+        problems.append("整章图把过多必需节点塞进了过少的节点")
     present = [name for name in PEP_CHEM_BX1_CH1_FORBIDDEN if any(name in label for label in labels)]
     if present:
         problems.append("这一章整章图写入了题目物质：" + "、".join(present))
@@ -398,7 +414,10 @@ def canon_display(name):
 
 def _slot_line_content(line, marker):
     after = line.split(marker, 1)[-1]
-    return re.sub(r"^[：:\s]+", "", after).strip()
+    after = re.sub(r"^[：:\s]+", "", after).strip()
+    if EMPTY_SLOT_RE.fullmatch(after):
+        return ""
+    return after
 
 
 def _slots_on_separate_lines(text):
@@ -515,7 +534,7 @@ def check_study(text):
     return issues
 
 
-def check(mode, text, no_student_answer, subject=None):
+def check(mode, text, no_student_answer, subject=None, stem=""):
     issues = []  # (severity, code, message, evidence lineno or None)
     text = str(text or "").lstrip("\ufeff")
 
@@ -531,12 +550,8 @@ def check(mode, text, no_student_answer, subject=None):
                        f"难度用词非法（第 {ln[0]} 行：「{ln[1][:30]}」），只能用 基础/中等/压轴/竞赛", ln[0]))
 
     if mode == "socratic":
-        leak_source = _without_quotes(text)
-        for pat, why in ANSWER_LEAK_PATTERNS:
-            for ln in hits(pat, leak_source):
-                if _leak_sentence_is_probe(pat, ln[1]):
-                    continue
-                issues.append(("ERROR", "E1", f"引导模式疑似泄露答案（{why}，第 {ln[0]} 行：「{ln[1][:36]}」）", ln[0]))
+        for ln, snippet in _leak_issues(text, stem):
+            issues.append(("ERROR", "E1", f"引导模式疑似泄露答案（第 {ln} 行：「{snippet}」）", ln))
         for ln in hits(r"^#{1,6}[^\n]*(难度判断|解题思维链|一题多解|解法对比|错因诊断|错题本沉淀)", text):
             issues.append(("ERROR", "E2", f"引导模式输出了总结阶段标题（第 {ln[0]} 行：「{ln[1][:30]}」）", ln[0]))
         if hits(r"【错题本条目】", text):
@@ -637,6 +652,7 @@ def main():
                     help="上下文中没有学生作答（拦截编造「我的错误」）")
     ap.add_argument("--subject", choices=["math"],
                     help="科目；填 math 时，完整模式会额外要求第 2 节末尾出现固定机验标记")
+    ap.add_argument("--stem", default="", help="本题题干；题干给出的引文须在题干中逐字出现才豁免漏答")
     args = ap.parse_args()
 
     if args.mode == "study" and args.dir:
@@ -669,7 +685,13 @@ def main():
         sys.exit(_print_study(args.reply, check_study(text)))
 
     mode = "full" if args.mode == "summary" else args.mode
-    issues = check(mode, text, args.no_student_answer, args.subject)
+    stem = args.stem
+    if stem:
+        from pathlib import Path
+        stem_path = Path(stem)
+        if stem_path.is_file():
+            stem = stem_path.read_text(encoding="utf-8")
+    issues = check(mode, text, args.no_student_answer, args.subject, stem)
 
     errors = [i for i in issues if i[0] == "ERROR"]
     warns = [i for i in issues if i[0] == "WARN"]

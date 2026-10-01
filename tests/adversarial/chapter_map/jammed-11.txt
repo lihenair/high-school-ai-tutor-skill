@@ -1,0 +1,17 @@
+整章图：人教版《化学 必修 第一册》（2019）第一章
+```mermaid
+flowchart TD
+  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A
+  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A
+  n0["纯净物（概念）"]:::concept
+  n1["混合物单质（概念）"]:::concept
+  n2["化合物氧化物（概念）"]:::concept
+  n3["酸碱（概念）"]:::concept
+  n4["盐交叉分类（概念）"]:::concept
+  n5["分散系（概念）"]:::concept
+  n6["丁达尔物质的转化（概念）"]:::concept
+  n7["电解质电离（概念）"]:::concept
+  n8["离子方程式离子反应发生的条件（概念）"]:::concept
+  n9["化合价氧化剂（概念）"]:::concept
+  n10["还原剂四种基本反应类型（概念）"]:::concept
+```

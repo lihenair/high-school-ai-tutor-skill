@@ -15,8 +15,8 @@ import guard  # noqa: E402
 CHAPTER_OK = (ROOT / "tests" / "guard-cases" / "chapter-map-ok.txt").read_text(encoding="utf-8")
 
 
-def socratic_issues(text):
-    return guard.check("socratic", text, False)
+def socratic_issues(text, stem=""):
+    return guard.check("socratic", text, False, stem=stem)
 
 
 class LeakAndDifficultyTests(unittest.TestCase):
@@ -194,6 +194,30 @@ class StudyAndScoreTests(unittest.TestCase):
         issues = guard.check_study("\n".join(lines))
         self.assertTrue(any(item[1] == "E18" for item in issues), issues)
 
+    def test_empty_ellipsis_slot_lines_fail(self):
+        lines = ["【模式：自学 · 状态：节点 · 节点：氧化还原反应】"]
+        lines.extend(f"{marker}：…" for marker in guard.SLOT_MARKERS)
+        issues = guard.check_study("\n".join(lines))
+        self.assertTrue(any(item[1] == "E18" for item in issues), issues)
+
+    def test_score_colon_is_not_the_weighted_total(self):
+        text = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
+        text = text.replace("本题结论是 a≤1", "评分：5、4、3、2、1 分，加权 3.50。本题结论是 a≤1")
+        issues = guard.check("full", text, False)
+        self.assertFalse(any(item[1] == "E8" for item in issues), issues)
+
+    def test_named_dimension_scores_are_checked(self):
+        text = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
+        text = text.replace(
+            "本题结论是 a≤1",
+            "知识点数5 思维跨度4 综合程度3 运算2 频率1，加权 2.00。本题结论是 a≤1",
+        )
+        issues = guard.check("full", text, False)
+        e8 = [item for item in issues if item[1] == "E8"]
+        self.assertTrue(e8, issues)
+        self.assertIn("加权与五项分不一致", e8[0][2])
+        self.assertNotIn("5.00", e8[0][2])
+
     def test_difficulty_on_first_line_still_needs_study_label(self):
         issues = guard.check_study("难度：中等。先看这章怎么学。\n拓扑学习顺序：先分类。")
         self.assertTrue(any(item[1] == "E17a" for item in issues), issues)
@@ -273,14 +297,17 @@ flowchart TD
         self.assertTrue(any(item[1] == "E1" for item in choice), choice)
 
     def test_quoted_stem_and_probe_question_are_not_leaks(self):
-        quoted = socratic_issues("难度：中等。题干写「因此 x>0」。开口朝哪边？")
+        stem = "已知因此 x>0，答案是 B。"
+        quoted = socratic_issues("难度：中等。题干给出「因此 x>0」。开口朝哪边？", stem=stem)
         self.assertFalse(any(item[1] == "E1" for item in quoted), quoted)
         probe = socratic_issues("难度：中等。所以它等于 2 倍的什么？")
         self.assertFalse(any(item[1] == "E1" for item in probe), probe)
         open_range = socratic_issues("难度：中等。这个范围是什么？")
         self.assertFalse(any(item[1] == "E1" for item in open_range), open_range)
-        stem_given = socratic_issues("难度：中等。题干给出「答案是 B」。开口朝哪边？")
+        stem_given = socratic_issues("难度：中等。题干给出「答案是 B」。开口朝哪边？", stem=stem)
         self.assertFalse(any(item[1] == "E1" for item in stem_given), stem_given)
+        bare_write = socratic_issues("难度：中等。题干写「因此 x>0」。开口朝哪边？")
+        self.assertTrue(any(item[1] == "E1" for item in bare_write), bare_write)
 
     def test_confirmation_and_unmarked_quotes_are_still_leaks(self):
         cases = [
@@ -308,6 +335,43 @@ flowchart TD
         issues = guard.check("socratic", CHAPTER_OK.replace("-->|直接前置|", "-->|相关|"), False)
         rules = " ".join(item[3] for item in issues if item[1] == "E11")
         self.assertIn("chapter-map.md「边类型」", rules)
+
+
+def _load_tsv(path):
+    rows = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        if not raw.strip() or raw.startswith("#"):
+            continue
+        rows.append(raw.split("\t"))
+    return rows
+
+
+class AdversarialCorpusTests(unittest.TestCase):
+    def test_leak_corpus(self):
+        path = ROOT / "tests" / "adversarial" / "leak.tsv"
+        rows = _load_tsv(path)
+        self.assertGreaterEqual(len(rows), 50, "leak corpus too small")
+        for row in rows:
+            text, expect, stem, rationale = (row + ["", "", "", ""])[:4]
+            issues = socratic_issues(text, stem=stem)
+            has_e1 = any(item[1] == "E1" for item in issues)
+            if expect == "E1":
+                self.assertTrue(has_e1, f"{rationale}: {text!r} {issues}")
+            else:
+                self.assertFalse(has_e1, f"{rationale}: {text!r} {issues}")
+
+    def test_chapter_map_corpus(self):
+        folder = ROOT / "tests" / "adversarial" / "chapter_map"
+        rows = _load_tsv(folder / "index.tsv")
+        self.assertGreaterEqual(len(rows), 10)
+        for row in rows:
+            name, expect, rationale = (row + ["", "", ""])[:3]
+            text = (folder / name).read_text(encoding="utf-8")
+            problems = guard.check_pep_chem_chapter(text)
+            if expect == "E12":
+                self.assertTrue(problems, f"{rationale}: {name} passed")
+            else:
+                self.assertEqual(problems, [], f"{rationale}: {name} {problems}")
 
 
 if __name__ == "__main__":
