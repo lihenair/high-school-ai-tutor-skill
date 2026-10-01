@@ -151,17 +151,67 @@ def check_summary_headings(lines):
     return [n for n in range(1, 10) if n not in found]
 
 
+# 加权引入句上的链式运算符；续行只认行首的 = / ＝。
+_WEIGHTED_CHAIN_OP_RE = re.compile(r"[=＝≈为是：:]")
+_WEIGHTED_CONT_RE = re.compile(r"^\s*[=＝]")
+_WEIGHTED_NUM_RE = re.compile(r"[0-9]+\.[0-9]{2}|[0-9]+")
+_WEIGHTED_SENTENCE_END_RE = re.compile(r"[。！？]")
+_WEIGHTED_ARITH = set("+-×x*·/÷()（）")
+
+
+def _weighted_chain_text(lines, start):
+    """引入行从「加权」起到句末，加上随后以 = 开头的续行。不扫回复其余部分。"""
+    line = lines[start]
+    label = line.find("加权")
+    rest = line[label + len("加权"):] if label >= 0 else line
+    rest = _WEIGHTED_SENTENCE_END_RE.split(rest, maxsplit=1)[0]
+    chunks = [rest]
+    for nxt in lines[start + 1:]:
+        if not _WEIGHTED_CONT_RE.match(nxt):
+            break
+        chunks.append(_WEIGHTED_SENTENCE_END_RE.split(nxt, maxsplit=1)[0])
+    return "\n".join(chunks)
+
+
+def _final_chain_number(chain):
+    """等号链的终值：仅当某段是独立数字（其后不再接运算）才采纳，并在此处截断。"""
+    m = _WEIGHTED_CHAIN_OP_RE.search(chain)
+    if not m:
+        return None
+    pos = m.start()
+    while pos < len(chain):
+        op = _WEIGHTED_CHAIN_OP_RE.search(chain, pos)
+        if not op:
+            return None
+        k = op.end()
+        while k < len(chain) and chain[k] in " \t\r\n":
+            k += 1
+        num = _WEIGHTED_NUM_RE.match(chain, k)
+        if num is None:
+            pos = op.end() + 1
+            continue
+        j = num.end()
+        while j < len(chain) and chain[j] in " \t\r\n":
+            j += 1
+        if j < len(chain) and chain[j] in _WEIGHTED_ARITH:
+            pos = j
+            continue
+        return float(num.group(0))
+    return None
+
+
 def check_weighted(lines):
     """报了五项评分时核对加权。返回 (五项分, 账面加权, 应得加权) 或 None。"""
     scores = claimed = None
-    for line in lines:
+    for i, line in enumerate(lines):
         m = SCORES_RE.search(line)
         if m:
             scores = [int(g) for g in m.groups()]
-        if "加权" in line:
-            nums = re.findall(r"[=＝为是：:]\s*([0-9]+\.[0-9]{2}|[0-9]+)", line)
-            if nums:
-                claimed = float(nums[-1])  # 展开式取最后一个等号后的总数
+        if "加权" not in line:
+            continue
+        parsed = _final_chain_number(_weighted_chain_text(lines, i))
+        if parsed is not None:
+            claimed = parsed
     if scores is None:
         return None
     expect = round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)

@@ -304,6 +304,22 @@ flowchart TD
         self.assertEqual(guard.check_pep_chem_chapter(_pep_map(labels)), [])
 
 
+FULL_OK = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
+
+
+def full_reply_with_score_line(score_line):
+    """Inject a five-item score / weighted line into an otherwise valid full reply."""
+    return FULL_OK.replace(
+        "- 能力层级：掌握。\n",
+        "- 能力层级：掌握。\n" + score_line + "\n",
+        1,
+    )
+
+
+def e8_issues(issues):
+    return [item for item in issues if item[1] == "E8"]
+
+
 class StudyAndScoreTests(unittest.TestCase):
     def test_bom_does_not_hide_study_label(self):
         body = (ROOT / "tests" / "guard-cases" / "self-study" / "08-overview-ok.txt").read_text(encoding="utf-8")
@@ -315,10 +331,59 @@ class StudyAndScoreTests(unittest.TestCase):
         self.assertTrue(any(item[1] == "E17a" for item in issues), issues)
 
     def test_scores_without_weighted_total_are_an_error(self):
-        text = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
-        text = text.replace("本题结论是 a≤1", "五项评分 4、3、2、2、3 分。本题结论是 a≤1")
+        text = FULL_OK.replace("本题结论是 a≤1", "五项评分 4、3、2、2、3 分。本题结论是 a≤1")
         issues = guard.check("full", text, False)
         self.assertTrue(any(item[1] == "E8" for item in issues), issues)
+
+    def test_later_equals_after_weighted_sentence_does_not_override(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权总分 = 2.95。"
+            "跟进：若把对称轴改成 x = 1，区间还单调吗？"
+        )
+        issues = guard.check("full", text, False)
+        self.assertFalse(e8_issues(issues), issues)
+
+    def test_later_equals_on_following_question_line_does_not_override(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权分 = 2.95。\n"
+            "- 追问：令 k = 0 时图像怎么变？"
+        )
+        issues = guard.check("full", text, False)
+        self.assertFalse(e8_issues(issues), issues)
+
+    def test_wrong_weighted_value_still_blocked_despite_later_equals(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权 = 1.00。"
+            "对照：展开里某一项写成 0.30×4 = 1.20，并不改总分。"
+        )
+        issues = guard.check("full", text, False)
+        self.assertTrue(e8_issues(issues), issues)
+
+    def test_multiline_equals_continuation_uses_final_value(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权 =\n"
+            "  = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3\n"
+            "  = 2.95"
+        )
+        issues = guard.check("full", text, False)
+        self.assertFalse(e8_issues(issues), issues)
+
+    def test_multiline_equals_continuation_wrong_final_is_blocked(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权 =\n"
+            "  = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3\n"
+            "  = 9.99"
+        )
+        issues = guard.check("full", text, False)
+        self.assertTrue(e8_issues(issues), issues)
+
+    def test_non_equals_following_line_is_not_a_chain(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权 = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3\n"
+            "合计 = 2.95，到这里才写出总数。"
+        )
+        issues = guard.check("full", text, False)
+        self.assertTrue(e8_issues(issues), issues)
 
 
 if __name__ == "__main__":
