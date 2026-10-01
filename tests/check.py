@@ -263,9 +263,9 @@ def main():
                 continue
             if any(heading.startswith(piece) or piece.startswith(heading) for heading in headings):
                 continue
-            missing_sections.append(f"{rel}「{piece}」")
+            missing_sections.append(f"{rel} 没有标题「{piece}」")
     if missing_sections:
-        fail("修复提示引用了不存在的章节：" + "、".join(sorted(set(missing_sections))))
+        fail("文档引用无效：下列「」标题在目标文件中不存在：" + "、".join(sorted(set(missing_sections))))
     print("OK 修复提示引用的章节名存在")
 
     print("全部通过。")

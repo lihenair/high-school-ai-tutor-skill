@@ -121,7 +121,7 @@ class CheckBiteTests(unittest.TestCase):
         guard_path.write_text(text.replace(old, new, 1), encoding="utf-8")
         result = self.run_check()
         self.assertNotEqual(result.returncode, 0, result.stdout)
-        self.assertIn("records.md「数学机验」", result.stdout)
+        self.assertIn("records.md 没有标题「数学机验」", result.stdout)
 
 
 if __name__ == "__main__":

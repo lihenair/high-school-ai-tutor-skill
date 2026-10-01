@@ -242,58 +242,61 @@ def _parse_day(value):
 def _connect(path):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
-    conn.row_factory = sqlite3.Row
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS cards (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created TEXT NOT NULL,
-            grade TEXT DEFAULT '',
-            subject TEXT NOT NULL,
-            textbook TEXT DEFAULT '',
-            node TEXT DEFAULT '',
-            raw_node TEXT DEFAULT '',
-            verify_status TEXT DEFAULT '',
-            stem TEXT NOT NULL,
-            my_error TEXT DEFAULT '',
-            error_type TEXT DEFAULT '',
-            error_detail TEXT DEFAULT '',
-            correct_approach TEXT DEFAULT '',
-            key_steps TEXT DEFAULT '',
-            pitfall TEXT DEFAULT '',
-            variant TEXT DEFAULT '',
-            variant_answer TEXT DEFAULT '',
-            mastery TEXT NOT NULL,
-            ease REAL NOT NULL,
-            interval_days INTEGER NOT NULL,
-            reps INTEGER NOT NULL,
-            due TEXT NOT NULL,
-            last_review TEXT DEFAULT '',
-            note TEXT DEFAULT '',
-            UNIQUE (subject, node, stem)
+    try:
+        conn = sqlite3.connect(path)
+        conn.row_factory = sqlite3.Row
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS cards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created TEXT NOT NULL,
+                grade TEXT DEFAULT '',
+                subject TEXT NOT NULL,
+                textbook TEXT DEFAULT '',
+                node TEXT DEFAULT '',
+                raw_node TEXT DEFAULT '',
+                verify_status TEXT DEFAULT '',
+                stem TEXT NOT NULL,
+                my_error TEXT DEFAULT '',
+                error_type TEXT DEFAULT '',
+                error_detail TEXT DEFAULT '',
+                correct_approach TEXT DEFAULT '',
+                key_steps TEXT DEFAULT '',
+                pitfall TEXT DEFAULT '',
+                variant TEXT DEFAULT '',
+                variant_answer TEXT DEFAULT '',
+                mastery TEXT NOT NULL,
+                ease REAL NOT NULL,
+                interval_days INTEGER NOT NULL,
+                reps INTEGER NOT NULL,
+                due TEXT NOT NULL,
+                last_review TEXT DEFAULT '',
+                note TEXT DEFAULT '',
+                UNIQUE (subject, node, stem)
+            )
+            """
         )
-        """
-    )
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS meta (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS meta (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+            """
         )
-        """
-    )
-    columns = {row[1] for row in conn.execute("PRAGMA table_info(cards)")}
-    version = _schema_version(conn)
-    if version < 1:
-        if "raw_node" not in columns:
-            conn.execute("ALTER TABLE cards ADD COLUMN raw_node TEXT DEFAULT ''")
-        if "verify_status" not in columns:
-            conn.execute("ALTER TABLE cards ADD COLUMN verify_status TEXT DEFAULT ''")
-        version = 1
-    _set_schema_version(conn, version)
-    conn.commit()
-    return conn
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(cards)")}
+        version = _schema_version(conn)
+        if version < 1:
+            if "raw_node" not in columns:
+                conn.execute("ALTER TABLE cards ADD COLUMN raw_node TEXT DEFAULT ''")
+            if "verify_status" not in columns:
+                conn.execute("ALTER TABLE cards ADD COLUMN verify_status TEXT DEFAULT ''")
+            version = 1
+        _set_schema_version(conn, version)
+        conn.commit()
+        return conn
+    except sqlite3.Error as exc:
+        raise NotebookError(f"错题本数据库无法打开：{path}") from exc
 
 
 def _schema_version(conn):
@@ -362,6 +365,9 @@ def main(argv=None):
             print(f"已导出：{args.output}")
     except NotebookError as exc:
         print(str(exc), file=sys.stderr)
+        return 2
+    except sqlite3.Error as exc:
+        print(f"错题本数据库无法打开：{exc}", file=sys.stderr)
         return 2
     return 0
 

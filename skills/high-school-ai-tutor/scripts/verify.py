@@ -242,10 +242,22 @@ def _check_math(sympy, expr, where):
             return conflict
         chained = _resolve_assignment_chain(sympy, parsed)
         return _substitute(sympy, claim, chained, ulp)
-    if len(parsed) == 1 and _is_expr(sympy, claim) and _is_expr(sympy, parsed[0]):
-        return _expressions_equal(sympy, claim, parsed[0])
-    if len(parsed) == 1 and _is_constraint(sympy, claim) and _is_constraint(sympy, parsed[0]):
-        return _relations_equal(sympy, claim, parsed[0])
+    assignments = [item for item in parsed if _is_assignment(sympy, item)]
+    constraints = [item for item in parsed if not _is_assignment(sympy, item)]
+    if assignments:
+        conflict = _assignment_conflict(sympy, assignments)
+        if conflict is not None:
+            return conflict
+        chained = _resolve_assignment_chain(sympy, assignments)
+        claim = _apply_assignments(sympy, claim, chained)
+        constraints = [_apply_assignments(sympy, item, chained) for item in constraints]
+        if not constraints:
+            return _substitute(sympy, claim, chained, ulp)
+    if len(constraints) == 1 and _is_expr(sympy, claim) and _is_expr(sympy, constraints[0]):
+        return _expressions_equal(sympy, claim, constraints[0])
+    if constraints and _is_constraint(sympy, claim) and all(_is_constraint(sympy, item) for item in constraints):
+        reference = constraints[0] if len(constraints) == 1 else sympy.And(*constraints)
+        return _relations_equal(sympy, claim, reference)
     return VerifyResult("无法解析", "这组式子无法比对")
 
 
@@ -253,6 +265,11 @@ def _parse(sympy, text, bound=()):
     raw = str(text or "").strip()
     if not raw:
         return None
+    raw = re.sub(
+        r"[⁻−]([⁰¹²³⁴⁵⁶⁷⁸⁹]+)",
+        lambda match: "**(-" + match.group(1).translate(_SUP_DIGITS) + ")",
+        raw,
+    )
     raw = re.sub(
         r"[⁰¹²³⁴⁵⁶⁷⁸⁹]+",
         lambda match: "**" + match.group(0).translate(_SUP_DIGITS),
@@ -459,6 +476,10 @@ def _reject_huge_pow(base, exp):
     if not getattr(exp, "is_Integer", False):
         return
     exponent = int(exp)
+    if exponent > 400:
+        raise ValueError("exponent too large")
+    if getattr(base, "is_Integer", False) and abs(int(base)) == 10:
+        return
     if exponent > 256:
         raise ValueError("exponent too large")
     if getattr(base, "is_Integer", False):
@@ -549,6 +570,15 @@ def _numeric_pass(sympy, claim, ulp=None):
 def _closed(sympy, claim, ulp=None):
     if _has_undefined(sympy, claim):
         return VerifyResult("无法解析", "式子含未定义值")
+    if isinstance(claim, sympy.And):
+        pieces = [_closed(sympy, arg, ulp) for arg in claim.args]
+        if any(item.status == "无法解析" for item in pieces):
+            return next(item for item in pieces if item.status == "无法解析")
+        if any(item.status == "矛盾" for item in pieces):
+            return next(item for item in pieces if item.status == "矛盾")
+        if all(item.status == "通过" for item in pieces):
+            return VerifyResult("通过")
+        return VerifyResult("无法解析", "这个式子不是恒真或恒假")
     if isinstance(claim, sympy.Equality):
         status = _truth(sympy, sympy.simplify(claim))
         if status == "通过":
