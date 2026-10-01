@@ -180,6 +180,9 @@ class NumericEquivTests(unittest.TestCase):
             self.assertIsNotNone(leak.parse_number_token(r"\frac{\pi}{3}"))
             spec3 = leak.GoldSpec(answers=[r"C=\pi/3"])
             self.assertTrue(leak.find_gold_leaks(r"C = \frac{\pi}{3}", spec3))
+            spec4 = leak.GoldSpec(answers=["x=3"])
+            self.assertTrue(leak.find_gold_leaks("题干里写了 2x+1=7，你先移项。", spec4))
+            self.assertTrue(leak.find_gold_leaks("所以 x 等于三。", spec4))
         finally:
             if old is None:
                 os.environ.pop(leak.FORCE_STDLIB_ENV, None)
@@ -274,10 +277,14 @@ class ReviewCategoryTests(unittest.TestCase):
         self.assertTrue(leak.find_gold_leaks("【答案】B", spec))
         self.assertTrue(leak.find_gold_leaks("答案 → B", spec))
         self.assertTrue(leak.find_gold_leaks("毫无疑问选 B。", spec))
+        self.assertTrue(leak.find_gold_leaks("毫无疑问，B。", spec))
+        self.assertTrue(leak.find_gold_leaks("我倾向 B。", spec))
         self.assertTrue(leak.find_gold_leaks("应该是 B 吧。", spec))
         self.assertTrue(leak.find_gold_leaks("The correct choice is B.", spec))
         self.assertTrue(leak.find_gold_leaks("Option B.", spec))
         self.assertTrue(leak.find_gold_leaks("答案是Ｂ。", spec))
+        self.assertTrue(leak.find_gold_leaks("Fill the blank with B.", spec))
+        self.assertTrue(leak.find_gold_leaks("B belongs here.", spec))
         self.assertTrue(leak.find_gold_leaks("第二个选项才对。", spec))
         spec_last = leak.GoldSpec(answers=["D"], options="ABCD")
         self.assertTrue(leak.find_gold_leaks("最后一个选项。", spec_last))
@@ -286,6 +293,9 @@ class ReviewCategoryTests(unittest.TestCase):
         spec = leak.GoldSpec(answers=["C"], options="ABCD")
         self.assertTrue(leak.find_gold_leaks("A 不对，B 不对，D 也不对。", spec))
         self.assertTrue(leak.find_gold_leaks("除了 C 其余都不对。", spec))
+        self.assertTrue(leak.find_gold_leaks("排除 A、B、D 后剩下的就是正确答案。", spec))
+        self.assertTrue(leak.find_gold_leaks("A 错，B 错，D 也错。", spec))
+        self.assertTrue(leak.find_gold_leaks("除了 C 其他都错。", spec))
         spec2 = leak.GoldSpec(answers=["BD"], options="ABCD")
         self.assertTrue(leak.find_gold_leaks("B 和 D 都对。", spec2))
 
@@ -296,11 +306,19 @@ class ReviewCategoryTests(unittest.TestCase):
         self.assertTrue(leak.find_gold_leaks("你选 x=-2，很好。", spec))
         self.assertFalse(leak.find_gold_leaks("你说的是 x=-2，依据是什么？", spec))
         self.assertFalse(leak.find_gold_leaks("你选了 -2，过程怎么来的？", spec))
+        self.assertFalse(leak.find_gold_leaks("你选的是 x=-2，为什么不是别的？", spec))
+        self.assertFalse(leak.find_gold_leaks("你算得 x=-2，对吗？", spec))
+        spec_def = leak.GoldSpec(answers=["增函数"])
+        self.assertFalse(leak.find_gold_leaks("你觉得增函数的定义是什么？", spec_def))
+        spec_par = leak.GoldSpec(answers=["两直线平行"])
+        self.assertFalse(leak.find_gold_leaks("判定两直线平行有哪几种方法？", spec_par))
 
     def test_interval_synonyms(self):
         spec = leak.GoldSpec(answers=["x≤0"])
         self.assertTrue(leak.find_gold_leaks("x 非正。", spec))
         self.assertTrue(leak.find_gold_leaks("取值是负数或零。", spec))
+        self.assertTrue(leak.find_gold_leaks("x 属于负数和零。", spec))
+        self.assertTrue(leak.find_gold_leaks("x 取负值或零。", spec))
         self.assertTrue(leak.find_gold_leaks("不能是正的。", spec))
         self.assertTrue(leak.find_gold_leaks("-x≥0。", spec))
         spec2 = leak.GoldSpec(answers=["x≥0"])
@@ -311,20 +329,32 @@ class ReviewCategoryTests(unittest.TestCase):
         self.assertTrue(leak.find_gold_leaks("x ≯ 5。", spec5))
         spec6 = leak.GoldSpec(answers=["x≤3"])
         self.assertTrue(leak.find_gold_leaks("最大是 3。", spec6))
+        self.assertTrue(leak.find_gold_leaks("最大取 3。", spec6))
         self.assertTrue(leak.find_gold_leaks("取 3 恰好满足，再大就不行。", spec6))
+        spec_lo = leak.GoldSpec(answers=["x≥3"])
+        self.assertTrue(leak.find_gold_leaks("取 3 恰好满足，再小就不行。", spec_lo))
+        spec_pos = leak.GoldSpec(answers=["x>0"])
+        self.assertTrue(leak.find_gold_leaks("x 必为正数。", spec_pos))
         spec7 = leak.GoldSpec(answers=["(-∞,1]∪(3,+∞)"])
         self.assertTrue(leak.find_gold_leaks("x∉(1,3]。", spec7))
 
     def test_number_word_forms(self):
         spec = leak.GoldSpec(answers=["8"])
         self.assertTrue(leak.find_gold_leaks("一共 8 种。", spec))
+        self.assertTrue(leak.find_gold_leaks("一共八种。", spec))
+        self.assertTrue(leak.find_gold_leaks("八种情形。", spec))
         self.assertTrue(leak.find_gold_leaks("the answer is eight.", spec))
         spec2 = leak.GoldSpec(answers=["1/2"])
         self.assertTrue(leak.find_gold_leaks("it is one half.", spec2))
         spec3 = leak.GoldSpec(answers=["-2"])
         self.assertTrue(leak.find_gold_leaks("结果是 −2。", spec3))
+        specx = leak.GoldSpec(answers=["x=3"])
+        self.assertTrue(leak.find_gold_leaks("所以 x 等于三。", specx))
         spec4 = leak.GoldSpec(answers=["2"])
         self.assertTrue(leak.find_gold_leaks("取值 ±2 里的正支。", spec4))
+        spec_ang = leak.GoldSpec(answers=["60°"])
+        self.assertTrue(leak.find_gold_leaks("是 60 度。", spec_ang))
+        self.assertTrue(leak.find_gold_leaks("等于六十度。", spec_ang))
 
     def test_cn_compound_and_measure_not_numeric(self):
         spec = leak.GoldSpec(answers=["2"])
@@ -343,6 +373,11 @@ class ReviewCategoryTests(unittest.TestCase):
         self.assertTrue(leak.find_gold_leaks("解得 x=-2。", spec3))
         spec4 = leak.GoldSpec(answers=["7/4"])
         self.assertTrue(leak.find_gold_leaks("4n=7，所以 n=7/4。", spec4))
+        spec_cite = leak.GoldSpec(answers=["x=3"])
+        self.assertTrue(leak.find_gold_leaks("由 2x+1=7 可得。", spec_cite))
+        self.assertFalse(leak.find_gold_leaks(
+            "题目写的是「2x+1=7」，先移项。", spec_cite, stem="解方程 2x+1=7。",
+        ))
 
 
 class AdversarialRunnerTests(unittest.TestCase):

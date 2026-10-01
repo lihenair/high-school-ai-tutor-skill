@@ -99,24 +99,27 @@ REL_REPL = [
 ]
 
 STUDENT_RE = re.compile(
-    r"你(?:写的|算的|得到|选了|的结果|刚才|认为|选的|说的|的答案|选(?!项))|"
+    r"你(?:写的|算的|算得|得到|选了|选的是|的结果|刚才|认为|选的|说的|"
+    r"的答案|的(?!选项)|选(?!项))|"
     r"your (?:answer|result|choice)"
 )
 FIRST_PERSON_RE = re.compile(
-    r"(?:我|我们|老师)(?:算出来|选|倾向于|猜|得到|会得到)|"
-    r"\bI (?:choose|got|think|guess)\b"
+    r"(?:我|我们|老师)(?:算出来|选|倾向|猜|得到|会得到)|"
+    r"\bI (?:choose|got|think|guess|lean)\b"
 )
 EVAL_RE = re.compile(
     r"完全正确|正确|没错|就是|很好|完全(?!平方)|✓|✅|"
-    r"(?<![对顶])对的|(?<![对顶])对了|不对|错了|不是"
+    r"(?<![对顶])对的|(?<![对顶])对了|不对|错了|(?<!为什么)不是"
 )
 SUBST_RE = re.compile(r"不妨把|把.{0,12}代进去|plug in")
 LEADING_RE = re.compile(
-    r"会不会是|是不是|难道不是|难道.{0,24}不|对吗|对不对|"
+    r"会不会是|是不是|难道不是|难道.{0,24}不|"
     r"毫无疑问|无疑|应该是|应当是"
 )
 EITHER_RE = re.compile(r"还是| or ")
-PROCESS_RE = re.compile(r"依据|过程|怎么|为什么|讲讲|说说|哪一步|[？?]|呢(?![喃])")
+PROCESS_RE = re.compile(
+    r"依据|过程|怎么|为什么|讲讲|说说|哪一步|对吗|对不对|[？?]|呢(?![喃])"
+)
 # 量词/时间/分值/日期：抽出的数字默认不和金标比，除非金标带同一量词。
 MEASURE_SKIP_RE = re.compile(
     r"(?:分钟|\d+\s*分(?!之)|满分\s*\d+\s*分|"
@@ -133,14 +136,17 @@ CHOICE_ACT_RE = re.compile(
     r"【答案】|毫无疑问|无疑|应该是|应当是|直接说|"
     r"answer\s+is|is the answer|correct\s+(?:option|choice|one)|"
     r"\boption\s*[a-z]|"
-    r"[→⇒]|肯定要选|才是对的|\bfits\b|fill in|"
+    r"[→⇒]|肯定要选|才是对的|"
+    r"\b(?:fill|blank|complete|insert)\b|"
+    r"\b(?:belong|work|fit)s?\b|"
     r"都对|都正确|都是对|是真|为真|真命题|真的|才对)",
     re.IGNORECASE,
 )
 # 排除/判错：句法槽。
 ELIM_ACT_RE = re.compile(
-    r"排除|都是错|都有错|都不对|都不是|只剩|其余都不|"
-    r"除了.+其余|都可以排除|(?<!对)不对|错了|有错|判错"
+    r"排除|都是错|都有错|都不对|都不是|只剩|剩下的|"
+    r"其余都不|其他都(?:错|不对)|"
+    r"除了.+?(?:其余|其他)|都可以排除|(?<!对)不对|错了|有错|判错|(?<![对顶一])错"
 )
 # 中性指代：选项标签出现在读/看/对照，或「选项…里」这类名词短语，且无选择/确认/排除。
 READ_ACT_RE = re.compile(
@@ -593,6 +599,17 @@ def parse_number_token(raw):
             return ("num", Fraction(m.group(1)))
         except (ValueError, ZeroDivisionError):
             pass
+    core = re.sub(r"^(?:等于|是|为)", "", s)
+    core = re.sub(r"种$", "", core)
+    mdeg = re.fullmatch(r"(-?[0-9.]+)度", core)
+    if mdeg:
+        val = _try_frac(mdeg.group(1))
+        if val is not None:
+            return ("qty", val, "angle-deg")
+    if core != s:
+        cn_core = parse_cn_quantity(core)
+        if cn_core:
+            return cn_core
     cn = parse_cn_quantity(s)
     if cn:
         return cn
@@ -896,8 +913,13 @@ def _parse_cn_ineq(p):
     s = s.replace("必须", "").replace("要满足", "").replace("应当是", "")
     s = s.replace("才行", "").replace("才没有实根", "")
     compact_s = compact(s)
-    if re.search(r"非正|不能是正|不是正数|负数或零|负的或零", compact_s):
+    if re.search(
+        r"非正|不能是正|不是正数|负数[和或]零|负的或零|负值或零|负数或0",
+        compact_s,
+    ):
         return Interval([(None, False, 0, True)])
+    if re.search(r"必为正|为正数|必须是正", compact(p)):
+        return Interval([(0, False, None, False)])
     if re.search(r"非负", compact_s):
         return Interval([(0, True, None, False)])
     m = re.search(r"∉(.+)", compact_s)
@@ -912,21 +934,23 @@ def _parse_cn_ineq(p):
                 parts.append((hi, not hi_i, None, False))
             if parts:
                 return Interval(parts)
-    m = re.search(r"最大(?:是|为|等于)?(.+)$", compact_s)
+    m = re.search(r"最大(?:是|为|等于|取)(.+)$", compact_s)
     if m:
         bound = _cn_bound_num(m.group(1))
         if bound is not None:
             return Interval([(None, False, bound, True)])
-    m = re.search(r"最小(?:是|为|等于)?(.+)$", compact_s)
+    m = re.search(r"最小(?:是|为|等于|取)(.+)$", compact_s)
     if m:
         bound = _cn_bound_num(m.group(1))
         if bound is not None:
             return Interval([(bound, True, None, False)])
-    if re.search(r"再大就不|恰好.{0,16}(?:满足|取到)", compact_s):
+    if re.search(r"再(?:大|小)就不|恰好.{0,16}(?:满足|取到)", compact_s):
         nums = re.findall(r"-?[0-9.]+", compact_s)
         if len(nums) == 1:
             b = _try_frac(nums[0])
             if b is not None:
+                if re.search(r"再小就不", compact_s):
+                    return Interval([(b, True, None, False)])
                 return Interval([(None, False, b, True)])
     and_parts = re.split(r"且|并且", s)
     if len(and_parts) == 2:
@@ -1105,11 +1129,15 @@ def _to_sp_str(s):
 
 
 def _stdlib_eq_equiv(a, b):
-    """一次式 ax+by+c=0 系数成比例；赋值 x=值。"""
+    """一次式 ax+by+c=0 系数成比例；同根；赋值 x=值。"""
     fa = linear_form(a)
     fb = linear_form(b)
     if fa and fb:
-        return _proportional(fa, fb)
+        if _proportional(fa, fb):
+            return True
+        ra, rb = _one_var_root(a), _one_var_root(b)
+        if ra is not None and rb is not None:
+            return ra == rb
     # 赋值
     va = assignment(a)
     vb = assignment(b)
@@ -1117,8 +1145,9 @@ def _stdlib_eq_equiv(a, b):
         if va[0] == vb[0]:
             return nums_equiv(("num", va[1]), ("num", vb[1]))
         return False
-    if va and fb:
-        return False
+    ra, rb = _one_var_root(a), _one_var_root(b)
+    if ra is not None and rb is not None:
+        return ra == rb
     roots_a = linear_factors_eq("=".join(a) if isinstance(a, tuple) else str(a))
     roots_b = linear_factors_eq("=".join(b) if isinstance(b, tuple) else str(b))
     if roots_a and roots_b:
@@ -1161,21 +1190,27 @@ def linear_form(pair):
             pass
     expr = left if right in {"0", "0.0"} else None
     if expr is None:
-        fl, fr = _scan_linear(left), _scan_linear(right)
+        fl, fr = _scan_linear(left, True), _scan_linear(right, True)
         if fl is None or fr is None:
             return None
         return (fl[0] - fr[0], fl[1] - fr[1], fl[2] - fr[2])
     return _scan_linear(expr)
 
 
-def _scan_linear(side):
+def _scan_linear(side, allow_const=False):
     expr = compact(side).replace("−", "-")
     if not expr:
         return None
     if not expr.startswith(("+", "-")):
         expr = "+" + expr
     coeffs = {"x": Fraction(0), "y": Fraction(0), "c": Fraction(0)}
-    for m in re.finditer(r"([+-])(\d+(?:\.\d+)?(?:/\d+)?)?(x|y)?", expr):
+    bits = list(re.finditer(r"([+-])(\d+(?:\.\d+)?(?:/\d+)?)?(x|y)?", expr))
+    if not bits:
+        return None
+    consumed = "".join(m.group(0) for m in bits)
+    if consumed != expr:
+        return None
+    for m in bits:
         sign = -1 if m.group(1) == "-" else 1
         num = Fraction(m.group(2)) if m.group(2) else Fraction(1)
         var = m.group(3)
@@ -1184,8 +1219,19 @@ def _scan_linear(side):
         else:
             coeffs["c"] += sign * num
     if coeffs["x"] == 0 and coeffs["y"] == 0:
-        return None
+        return (Fraction(0), Fraction(0), coeffs["c"]) if allow_const else None
     return coeffs["x"], coeffs["y"], coeffs["c"]
+
+
+def _one_var_root(pair):
+    """一次一元等式的根。ax+c=0 → -c/a。"""
+    form = linear_form(pair)
+    if not form:
+        return None
+    ax, ay, ac = form
+    if ay != 0 or ax == 0:
+        return None
+    return -ac / ax
 
 
 def _proportional(fa, fb):
@@ -1425,12 +1471,14 @@ def unit_context(unit, full_text, start, end, stem):
 
 
 def _is_method_sentence(unit):
-    """方法句：问途径/判定，且没有选择、确认、排除。金标值是否抽出在主循环里再判。"""
+    """方法或定义问句：问途径/判定/定义，且没有断言结论。"""
     if CHOICE_ACT_RE.search(unit) or LEADING_RE.search(unit):
         return False
     if re.search(r"所以|因此|得到|故|答案|就是", unit):
         return False
-    return bool(re.search(r"方法|如何|怎么(?:判定|判断|做)|哪几种", unit))
+    asked = bool(re.search(r"[？?]|什么|哪几种|如何|怎么", unit))
+    topic = bool(re.search(r"方法|定义|概念|判定|判断", unit))
+    return asked and topic
 
 
 # ---------- 候选抽出 ----------
@@ -1442,6 +1490,9 @@ NUM_TOKEN_RE = re.compile(
     r"[零〇一二两三四五六七八九十]+倍根号[零〇一二两三四五六七八九十]+|"
     r"根号[零〇一二两三四五六七八九十]+|"
     r"负?[零〇一二两三四五六七八九十]+度|"
+    r"-?\d+\.?\d*\s*度|"
+    r"(?:等于|是|为)负?[零〇一二两三四五六七八九十百]+|"
+    r"[零〇一二两三四五六七八九十百]+\s*种|"
     r"一共[零〇一二两三四五六七八九十0-9]+\s*种|"
     r"负[零〇一二两三四五六七八九十百]+|"
     r"(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|"
@@ -1468,13 +1519,13 @@ INEQ_TOKEN_RE = re.compile(
     r"(?:大于等于|小于等于|不超过|大于|小于)\s*[-+0-9.零〇一二两三四五六七八九十]+(?:且(?:不超过|不大于|小于等于|大于)\s*[-+0-9.零〇一二两三四五六七八九十]+)?|"
     r"[^{}]+∪[^{}]+|"
     r"\{[^}]+\|"
-    r"非正|非负|不能是正|负数或零|∉|"
+    r"非正|非负|不能是正|负数[和或]零|负值或零|必为正|为正数|∉|"
     r"[a-zA-Z]\s*(?:<=|>=|<|>)[^。；]{0,20}(?:或|或者)[^。；]{0,20}(?:<=|>=|<|>)"
 )
 
 EQ_TOKEN_RE = re.compile(
-    r"[a-zA-Z]\s*=\s*[-+0-9./π√()\\a-zA-Z]{1,48}|"
-    r"[-+0-9./π√()\\a-zA-Z]{1,48}\s*=\s*[a-zA-Z]|"
+    r"[a-zA-Z]\s*(?:=|等于)\s*[-+0-9./π√()\\a-zA-Z零〇一二两三四五六七八九十百负]{1,48}|"
+    r"[-+0-9./π√()\\a-zA-Z零〇一二两三四五六七八九十百负]{1,48}\s*(?:=|等于)\s*[a-zA-Z]|"
     r"\([^()]+\)\s*\([^()]+\)\s*=\s*0|"
     r"[0-9a-zA-Zπ+\-*/√().]{1,40}\s*=\s*[0-9a-zA-Zπ+\-*/√().]{1,40}"
 )
@@ -1498,10 +1549,8 @@ def conclusion_hits_in(unit, gold_answers):
             if re.search(r"(?:是)?对的|对了", unit) and not re.search(r"对顶", unit):
                 hits.append(ans)
                 continue
-        # 方法名「判定两直线平行」放行
-        if key == "平行" and re.search(r"判定.{0,6}平行|平行有哪几种|判定两直线平行", unit):
-            if not re.search(r"所以|因此|得到|是不是|难道", unit):
-                continue
+        if _is_method_sentence(unit):
+            continue
         for syn in syns:
             if syn and syn in nunit:
                 # 修辞双否：难道不平行 → 仍算断言平行
@@ -1613,8 +1662,8 @@ def find_gold_leaks(text, spec: GoldSpec, stem=None):
             eq = parse_equation(tok)
             fac = linear_factors_eq(compact(tok))
             matched = False
+            gold_roots = _gold_roots(spec)
             if fac:
-                gold_roots = _gold_roots(spec)
                 if gold_roots and set(fac) & set(gold_roots):
                     matched = True
                 if gold_roots and sorted(fac) == sorted(gold_roots):
@@ -1623,12 +1672,20 @@ def find_gold_leaks(text, spec: GoldSpec, stem=None):
                 for _ans, geq in gold_eqs:
                     if sympy_eq_equiv(eq, geq):
                         matched = True
-                # x=-2 与裸值
+                # x=-2 与裸值；引用一次式若根等于金标也拦
                 asg = assignment(eq) if eq else None
                 if asg:
                     for _ans, gn, gvar in gold_nums:
                         if nums_equiv(("num", asg[1]), gn, tok) or nums_equiv(("num", Fraction(str(asg[1]))), gn, tok):
                             matched = True
+                root = _one_var_root(eq)
+                if root is not None:
+                    rn = ("num", root)
+                    for _ans, gn, _gvar in gold_nums:
+                        if nums_equiv(rn, gn, tok):
+                            matched = True
+                    if gold_roots and any(abs(float(root) - r) < 1e-10 for r in gold_roots):
+                        matched = True
             if matched:
                 if ctx["probe"] and _is_point_vs_interval(tok, gold_ivs):
                     continue
@@ -1929,12 +1986,17 @@ def _option_leaks(text, spec, labels, gold_labs, contents, vq, stem):
         )
         for lab, body in contents.items():
             if body and compact(body) and compact(body) in compact(unit):
-                if re.search(r"就是答案|is the answer|fill in|正确答案|那个就是", unit, re.IGNORECASE):
+                if re.search(
+                    r"就是答案|is the answer|正确答案|那个就是|"
+                    r"\b(?:fill|blank|complete|insert)\b",
+                    unit,
+                    re.IGNORECASE,
+                ):
                     found.add(_norm_label(lab))
         choosing = bool(
             ctx["choice"] or ctx["first_person"] or ctx["leading"]
             or ctx["eval"] or "✅" in unit or "✓" in unit
-            or re.search(r"就是答案|is the answer|fill in|那个就是", unit, re.IGNORECASE)
+            or re.search(r"就是答案|is the answer|正确答案|那个就是", unit, re.IGNORECASE)
         )
         if choosing and found and (found & gold_labs):
             if _allow_student(ctx, True) and found <= gold_labs:
@@ -1948,10 +2010,6 @@ def _option_leaks(text, spec, labels, gold_labs, contents, vq, stem):
             remain, _excluded = _elim_remain(unit, labels, text)
             if remain and remain <= gold_labs and not ctx["neutral_opt"]:
                 hits.append(LeakHit(lineno, "排除", snippet))
-        if labels and re.search(r"\bfits here\b|option\s+[a-d]\s+is", unit, re.IGNORECASE):
-            found2 = extract_labels(unit, labels)
-            if found2 & gold_labs:
-                hits.append(LeakHit(lineno, "选项", snippet))
     if labels and gold_labs:
         remain, _excluded = _elim_remain(text, labels, text)
         if remain and remain <= gold_labs and (
@@ -1970,27 +2028,30 @@ def _option_leaks(text, spec, labels, gold_labs, contents, vq, stem):
 
 def _elim_remain(unit, labels, whole=""):
     labset = {_norm_label(x) for x in labels}
-    m = re.search(r"除了(.+?)其余", unit)
+    m = re.search(r"除了(.+?)(?:其余|其他)", unit)
     if m:
         keep = extract_labels(m.group(1), labels)
         if keep:
             return keep, labset - keep
     wrong = set()
+    m = re.search(r"排除(.+?)(?:后|剩下|$)", unit)
+    if m:
+        wrong |= extract_labels(m.group(1), labels)
     for lab in labels:
         nl = _norm_label(lab)
         if re.search(
-            rf"{re.escape(lab)}\s*(?:、|,|，)?(?:.{{0,4}})?(?:不对|错了|有错|都有错|排除|都是错)",
+            rf"{re.escape(lab)}\s*(?:、|,|，)?(?:.{{0,8}})?(?:不对|错了|有错|都有错|排除|都是错|(?<![对顶一])错)",
             unit,
         ):
             wrong.add(nl)
-    if re.search(r"都有错|都可以排除|都不对|都是错", unit):
+    if re.search(r"都有错|都可以排除|都不对|都是错|其他都(?:错|不对)", unit):
         wrong |= extract_labels(unit, labels)
         m2 = re.search(r"除了(.+?)都", unit)
         if m2:
             wrong -= extract_labels(m2.group(1), labels)
-    if re.search(r"只剩", unit) or re.search(r"只剩", whole or ""):
+    if re.search(r"只剩|剩下的就是", unit) or re.search(r"只剩|剩下的就是", whole or ""):
         mentioned = extract_labels(unit, labels)
-        if mentioned:
+        if mentioned and not wrong:
             return labset - mentioned, mentioned
     if wrong:
         return labset - wrong, wrong
