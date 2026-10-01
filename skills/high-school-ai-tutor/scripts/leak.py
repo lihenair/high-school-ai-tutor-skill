@@ -21,11 +21,15 @@ from math import pi as PI
 # 结论同义：只在「结论短语」比对时使用。左边是规范义项，右边是可互换写法。
 # 「不相交」仅当句中出现同平面/共面时才并入「平行」。
 # 几何符号：∥/|| 与平行；⊥ 与垂直；≌ 与全等；∽ 与相似。
+# 垂直还覆盖口述「成直角 / 互相垂直 / 夹角为 90 度」。
 # 单调性：减函数/递减/单调减互认；增函数同理。
 # 「一半」覆盖分数、百分数和汉语比例说法。
 CONCLUSION_SYNONYMS = {
     "平行": frozenset({"平行", "∥", "||"}),
-    "垂直": frozenset({"垂直", "⊥"}),
+    "垂直": frozenset({
+        "垂直", "⊥", "成直角", "互相垂直", "夹角为90度", "夹角为90°",
+        "夹角是90度", "夹角是90°",
+    }),
     "全等": frozenset({"全等", "≌"}),
     "相似": frozenset({"相似", "∽"}),
     "不存在": frozenset({"不存在", "找不到", "没有这样的"}),
@@ -103,8 +107,8 @@ REL_REPL = [
 ]
 
 STUDENT_RE = re.compile(
-    r"你(?:写的|算的|算得|得到|选了|选的是|的结果|刚才|认为|选的|说的|"
-    r"的答案|的(?!选项)|选(?!项))|"
+    r"你(?:写的|算的|算得|得到|选了|选的是|的结果|刚才|认为|觉得|"
+    r"选的|说的|说(?!明)|的答案|的(?!选项)|选(?!项))|"
     r"your (?:answer|result|choice)"
 )
 FIRST_PERSON_RE = re.compile(
@@ -112,8 +116,8 @@ FIRST_PERSON_RE = re.compile(
     r"\bI (?:choose|got|think|guess|lean)\b"
 )
 EVAL_RE = re.compile(
-    r"完全正确|正确|没错|就是|很好|完全(?!平方)|✓|✅|"
-    r"(?<![对顶])对的|(?<![对顶])对了|不对|错了|(?<!为什么)不是"
+    r"完全正确|(?<!不)正确|没错|就是|很好|完全(?!平方)|✓|✅|"
+    r"(?<![对顶])对的|(?<![对顶])对了|(?<![都均全])不对|错了|(?<!为什么)不是"
 )
 SUBST_RE = re.compile(r"不妨把|把.{0,12}代进去|plug in")
 LEADING_RE = re.compile(
@@ -149,7 +153,7 @@ CHOICE_ACT_RE = re.compile(
 # 排除/判错：句法槽。
 ELIM_ACT_RE = re.compile(
     r"排除|都是错|都有错|都不对|都不是|都不成立|均不正确|"
-    r"全都不对|一个都不行|只剩|剩下的|"
+    r"全都不对|一个都不行|都不行|只剩|剩下的|"
     r"其余都不|其他都(?:错|不对)|"
     r"除了.+?(?:其余|其他)|都可以排除|(?<!对)不对|错了|有错|判错|(?<![对顶一])错"
 )
@@ -984,10 +988,14 @@ def _one_cn_rel(s):
     s = compact(s)
     s = re.sub(r"^[a-zA-Z]", "", s)
     pairs = [
+        (r"不比(.+?)小", ">="),
+        (r"不比(.+?)大", "<="),
         (r"不少于(-?.+)|不小于(-?.+)|至少(-?.+)", ">="),
         (r"不大于(-?.+)|不超过(-?.+)|至多(-?.+)", "<="),
         (r"大于等于(-?.+)", ">="),
         (r"小于等于(-?.+)", "<="),
+        (r"低于(-?.+)|不到(-?.+)", "<"),
+        (r"高于(-?.+)|超过(-?.+)", ">"),
         (r"比(.+?)还?大", ">"),
         (r"比(.+?)还?小", "<"),
         (r"(-?[0-9.零〇一二两三四五六七八九十π]+)以上", ">="),
@@ -1002,6 +1010,8 @@ def _one_cn_rel(s):
         if m:
             bound = next(g for g in m.groups() if g)
             bound = bound.replace("度", "")
+            if re.search(r"(?:次|题|行|分钟|小时|秒|步)$", bound):
+                continue
             n = parse_cn_quantity(bound) or parse_number_token(bound)
             if n and n[0] == "num":
                 return _rel_to_iv(op, str(n[1]))
@@ -1084,11 +1094,42 @@ def _linear_root(fac):
 
 def parse_equation(raw):
     s = compact(raw)
+    verbal = parse_verbal_algebra(s)
+    if verbal is not None:
+        s = verbal
     s = s.replace("等于", "=")
     if "=" not in s:
         return None
     left, right = s.split("=", 1)
     return left, right
+
+
+def parse_verbal_algebra(raw):
+    """「等于/是 + 系数 + 变量 + 加/减/乘/除 + …」收成代数式。"""
+    s = compact(raw)
+    if not re.search(r"加|减|乘|除", s):
+        return None
+    m = re.search(r"(?:等于|解析式是|式子是|写成|是)(.+)$", s)
+    body = m.group(1) if m else s
+    for ch, n in CN_DIGIT.items():
+        body = body.replace(ch, str(n))
+    body = re.sub(r"负(?=[0-9A-Za-z])", "-", body)
+    body = (
+        body.replace("加上", "+").replace("减去", "-")
+        .replace("乘以", "*").replace("除以", "/")
+        .replace("加", "+").replace("减", "-")
+        .replace("乘", "*").replace("除", "/")
+    )
+    body = re.sub(r"(\d)([a-zA-Z])", r"\1\2", body)
+    if not re.search(r"[+\-*/]", body):
+        return None
+    if "=" not in body and re.match(r"^[a-zA-Z]", compact(raw)):
+        head = compact(raw)[0]
+        if head.isalpha():
+            body = head + "=" + re.sub(r"^[a-zA-Z](?:等于|是|为)?", "", body)
+    if re.fullmatch(r"[0-9A-Za-z+\-*/=().]+", body):
+        return body
+    return None
 
 
 def sympy_eq_equiv(a, b):
@@ -1474,7 +1515,7 @@ def unit_context(unit, full_text, start, end, stem):
     ctx = {
         "student": bool(STUDENT_RE.search(unit)),
         "first_person": bool(FIRST_PERSON_RE.search(unit)),
-        "eval": bool(EVAL_RE.search(unit) or EVAL_RE.search(tail)),
+        "eval": _teacher_eval(unit, tail),
         "subst": bool(SUBST_RE.search(unit)),
         "leading": bool(LEADING_RE.search(unit)),
         "either": bool(EITHER_RE.search(unit)),
@@ -1507,15 +1548,52 @@ def unit_context(unit, full_text, start, end, stem):
 
 
 def _is_method_sentence(unit):
-    """方法、定义、或无断言的「是否」问句。"""
-    if CHOICE_ACT_RE.search(unit) or LEADING_RE.search(unit):
+    """疑问词 + 方法/判定/性质/定义类名词，且没有结论引导。"""
+    if re.search(
+        r"所以|因此|故|可知|得出|得到|由此可见|答案是|结论是",
+        unit,
+    ):
         return False
-    if re.search(r"所以|因此|得到|故|答案|就是", unit):
-        return False
-    asked = bool(re.search(r"[？?]|什么|哪几种|如何|怎么|是否", unit))
-    topic = bool(re.search(r"方法|定义|概念|判定|判断", unit))
-    whether = bool(re.search(r"是否", unit))
-    return asked and (topic or whether)
+    questioned = bool(re.search(
+        r"[？?]|什么|怎么|如何|怎样|为何|为什么|哪",
+        unit,
+    ))
+    topic = bool(re.search(r"方法|判定|性质|定义|概念|读法|区别|定理", unit))
+    return questioned and topic
+
+
+def _is_concept_mention(unit):
+    """结论词只当概念名或修饰语：判定/性质/对应边/读法等。"""
+    if _is_method_sentence(unit):
+        return True
+    return bool(re.search(
+        r"(?:平行|垂直|全等|相似|直角).{0,8}"
+        r"(?:判定|性质|对应边|定义|条件|定理|读法)|"
+        r"的(?:判定|性质|对应边|定义|条件|定理|读法|区别)|"
+        r"对应边|"
+        r"(?:读|念).{0,8}(?:符号|这个号|这个记号)|"
+        r"(?:回忆|对比).{0,20}(?:概念|定义|区别)|"
+        r"(?:概念|定义).{0,8}区别",
+        unit,
+    ))
+
+
+def _teacher_eval(unit, tail=""):
+    """老师对师生观点的肯/否评价。学生从句里的排除否定不算。"""
+    blob = f"{unit}{tail or ''}"
+    if re.search(
+        r"你(?:写的|算的|算得|得到|的结果|的答案|说的|刚才|选)"
+        r".{0,32}(?:完全正确|没错|很好|对的|对了|(?<!为什么)不是|"
+        r"(?<![都均全])不对|错了)",
+        blob,
+    ):
+        return True
+    stripped = re.sub(
+        r"你(?:认为|觉得|说(?!明)|选(?:了|的是|的)?)[^。？?！，,]*",
+        " ",
+        blob,
+    )
+    return bool(EVAL_RE.search(stripped))
 
 
 # ---------- 候选抽出 ----------
@@ -1554,7 +1632,9 @@ INEQ_TOKEN_RE = re.compile(
     r"[-+0-9.∞π]+\s*(?:<=|>=|<|>|≤|≥)\s*[a-zA-Z](?:\s*(?:<=|>=|<|>|≤|≥)\s*[-+0-9.∞π]+)?|"
     r"[a-zA-Z]\s*(?:必须)?(?:大于等于|小于等于|不小于|不大于|不超过|不少于|至多|至少|大于|小于)\s*[-+0-9.零〇一二两三四五六七八九十π]+|"
     r"(?:大于等于|小于等于|不超过|不少于|至多|至少|大于|小于)\s*[-+0-9.零〇一二两三四五六七八九十]+(?:且(?:不超过|不大于|小于等于|大于)\s*[-+0-9.零〇一二两三四五六七八九十]+)?|"
-    r"比[-+0-9.零〇一二两三四五六七八九十π]+还?[大小]|"
+    r"低于[-+0-9.零〇一二两三四五六七八九十π]+|高于[-+0-9.零〇一二两三四五六七八九十π]+|"
+    r"不到[-+0-9.零〇一二两三四五六七八九十π]+|超过[-+0-9.零〇一二两三四五六七八九十π]+|"
+    r"不比[-+0-9.零〇一二两三四五六七八九十π]+[大小]|"
     r"[-+0-9.零〇一二两三四五六七八九十π]+(?:以上|以下)|"
     r"[^{}]+∪[^{}]+|"
     r"\{[^}]+\|"
@@ -1573,35 +1653,87 @@ SET_TOKEN_RE = re.compile(r"\{[^{}|]{1,40}\}")
 
 
 def conclusion_hits_in(unit, gold_answers):
-    """用封闭同义表；表外的结论短语按规范化原文比对。"""
+    """只在断言句式里认结论，不靠子串出现。"""
     hits = []
-    if _is_method_sentence(unit):
+    if _is_concept_mention(unit):
         return hits
     nunit = compact(unit)
     punit = phrase_norm(unit)
     for ans in gold_answers:
         key = _conclusion_key(ans)
+        needles = []
         if key:
-            syns = set(CONCLUSION_SYNONYMS.get(key, {key}))
+            needles = list(CONCLUSION_SYNONYMS.get(key, {key}))
             if key == "平行" and re.search(r"同平面|共面", unit):
-                syns.add("不相交")
-            if key == "正确":
-                if re.search(r"(?:是)?对的|对了", unit) and not re.search(r"对顶", unit):
-                    hits.append(ans)
-                    continue
-            for syn in syns:
-                if syn and (syn in nunit or phrase_norm(syn) in punit):
-                    hits.append(ans)
-                    break
-            if key == "不存在" and re.search(r"找不到|没有这样的|不存在", unit):
-                hits.append(ans)
+                needles.append("不相交")
+        elif _looks_like_phrase(ans):
+            needles = [phrase_norm(ans)]
+        else:
             continue
-        if not _looks_like_phrase(ans):
+        needles = [n for n in needles if n]
+        if not any(n in nunit or phrase_norm(n) in punit for n in needles):
             continue
-        needle = phrase_norm(ans)
-        if len(needle) >= 2 and needle in punit:
+        if key == "正确":
+            if re.search(r"(?:是)?对的|对了", unit) and not re.search(r"对顶", unit):
+                if _conclusion_asserted(unit, needles + ["对"]):
+                    hits.append(ans)
+                continue
+        if _conclusion_asserted(unit, needles):
             hits.append(ans)
     return hits
+
+
+def _conclusion_asserted(unit, needles):
+    """引导词 + 结论，或对本题对象的判断 / 是非问。"""
+    n = compact(unit)
+    p = phrase_norm(unit)
+    present = [s for s in needles if s and (s in n or phrase_norm(s) in p)]
+    if not present:
+        return False
+    alts = "|".join(re.escape(s) for s in present)
+    lead = (
+        r"所以|因此|故|于是|从而|可见|因而|答案|结论|可知|"
+        r"得出|得到|说明|由此可见"
+    )
+    if re.search(rf"(?:{lead}).{{0,32}}(?:{alts})", n):
+        return True
+    if re.search(rf"(?:{lead}).{{0,32}}(?:{alts})", unit):
+        return True
+    if re.search(rf"难道.{{0,24}}(?:{alts})", unit):
+        return True
+    for s in present:
+        esc = re.escape(s)
+        if re.search(rf"(?:是|为|就是)(?:了)?{esc}", n):
+            return True
+        if re.search(rf"{esc}(?:的)?(?:吗|么)", unit):
+            return True
+        if re.search(rf"(?:是不是|是否).{{0,12}}{esc}", unit):
+            return True
+        if re.search(
+            rf"这[两某].{{0,12}}(?:三角形|直线|角|边).{{0,12}}{esc}",
+            n,
+        ):
+            return True
+    # 无系词谓语：不存在 / 找不到 + 本题对象
+    if re.search(
+        r"(?:不存在|找不到|没有这样的)",
+        n,
+    ) and re.search(alts, n):
+        if not re.search(r"[？?]|什么|怎么|如何|怎样|为何|为什么|哪", unit):
+            if re.search(
+                rf"(?:这样|满足|条件|[a-zA-Z]).{{0,16}}(?:{alts})|"
+                rf"(?:{alts}).{{0,20}}(?:这样|满足|条件|[a-zA-Z])",
+                n,
+            ):
+                return True
+    geom = r"⊥|∥|\|\||≌|∽|成直角|互相垂直|夹角为90度|夹角为90°|夹角是90度|夹角是90°|垂直|平行|全等|相似"
+    if re.search(
+        rf"[A-Za-z△∠].{{0,10}}(?:{geom}).{{0,10}}[A-Za-z△∠]?",
+        n,
+    ) and re.search(alts, n):
+        if re.search(rf"[A-Za-z△∠].{{0,10}}(?:{alts})", n):
+            return True
+    return False
 
 
 def _looks_like_phrase(ans):
@@ -1712,12 +1844,17 @@ def find_gold_leaks(text, spec: GoldSpec, stem=None):
         scan = compact(unit_wo)
 
         # 结论
-        for _ans in conclusion_hits_in(unit, spec.answers):
-            if ctx["method"]:
-                continue
-            if _allow_student(ctx, True):
-                continue
-            hits.append(LeakHit(lineno, "结论", snippet))
+        line = text.splitlines()[lineno - 1] if text.splitlines() else unit
+        if not (
+            _is_concept_mention(line)
+            and not re.search(r"所以|因此|故|可知|得出|得到|答案|结论", line)
+        ):
+            for _ans in conclusion_hits_in(unit, spec.answers):
+                if ctx["method"]:
+                    continue
+                if _allow_student(ctx, True):
+                    continue
+                hits.append(LeakHit(lineno, "结论", snippet))
 
         # 代入提示：值≡金标一律拦
         # 方程
@@ -1760,6 +1897,16 @@ def find_gold_leaks(text, spec: GoldSpec, stem=None):
                 if ctx["neutral_opt"]:
                     continue
                 hits.append(LeakHit(lineno, "方程", snippet))
+        verbal = parse_verbal_algebra(unit_wo)
+        if verbal and gold_eqs and not _allow_student(ctx, True):
+            veq = parse_equation(verbal)
+            if veq is None and "=" not in verbal:
+                veq = (gold_eqs[0][1][0], verbal)
+            if veq:
+                for _ans, geq in gold_eqs:
+                    if sympy_eq_equiv(veq, geq):
+                        hits.append(LeakHit(lineno, "方程", snippet))
+                        break
 
         # 区间
         line = text.splitlines()[lineno - 1] if text.splitlines() else unit
@@ -2018,15 +2165,13 @@ def _is_point_vs_interval(tok, gold_ivs):
 def _allow_student(ctx, value_is_gold):
     if ctx["first_person"]:
         return False
-    if ctx["subst"] or ctx["either"] or ctx["leading"]:
+    if ctx["subst"]:
         return False
     if not ctx["student"]:
         return False
-    if ctx.get("process") and not ctx["eval"]:
-        return True
-    if not value_is_gold:
-        return True
-    return not ctx["eval"]
+    if ctx["eval"]:
+        return not value_is_gold
+    return True
 
 
 def _dedupe(hits):
@@ -2086,10 +2231,13 @@ def _option_leaks(text, spec, labels, gold_labs, contents, vq, stem):
             if not _allow_student(ctx, True):
                 hits.append(LeakHit(lineno, "选项", snippet))
         if labels and (ctx["elim"] or re.search(r"只剩", unit)):
-            remain, _excluded = _elim_remain(unit, labels, text)
-            if remain and remain <= gold_labs and not ctx["neutral_opt"]:
-                hits.append(LeakHit(lineno, "排除", snippet))
-    if labels and gold_labs:
+            if not _allow_student(ctx, True):
+                remain, _excluded = _elim_remain(unit, labels, text)
+                if remain and remain <= gold_labs and not ctx["neutral_opt"]:
+                    hits.append(LeakHit(lineno, "排除", snippet))
+    if labels and gold_labs and not (
+        STUDENT_RE.search(text) and not _teacher_eval(text)
+    ):
         remain, _excluded = _elim_remain(text, labels, text)
         if remain and remain <= gold_labs and (
             ELIM_ACT_RE.search(text) or re.search(r"只剩", text)
@@ -2107,10 +2255,22 @@ def _option_leaks(text, spec, labels, gold_labs, contents, vq, stem):
 
 def _elim_remain(unit, labels, whole=""):
     labset = {_norm_label(x) for x in labels}
-    m = re.search(r"除了(.+?)(?:其余|其他)", unit)
+    m = re.search(
+        r"(?:都不行|都不对|都不成立|均不正确|全都不对|一个都不行)"
+        r".{0,24}除了(.+)",
+        unit,
+    )
     if m:
         keep = extract_labels(m.group(1), labels)
         if keep:
+            return keep, labset - keep
+    m = re.search(r"除了(.+?)(?:其余|其他|$)", unit)
+    if m:
+        keep = extract_labels(m.group(1), labels)
+        if keep and (
+            re.search(r"其余|其他|都不|均不|全部|一个都不", unit)
+            or re.search(r"都不|均不|全部|一个都不", whole or "")
+        ):
             return keep, labset - keep
     wrong = set()
     m = re.search(r"排除(.+?)(?:后|剩下|$)", unit)
