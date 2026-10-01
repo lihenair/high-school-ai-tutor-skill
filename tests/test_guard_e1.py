@@ -114,6 +114,9 @@ class NormalizeTests(unittest.TestCase):
 
     def test_conclusion_synonym_table(self):
         self.assertIn("∥", leak.CONCLUSION_SYNONYMS["平行"])
+        self.assertIn("⊥", leak.CONCLUSION_SYNONYMS["垂直"])
+        self.assertIn("≌", leak.CONCLUSION_SYNONYMS["全等"])
+        self.assertIn("∽", leak.CONCLUSION_SYNONYMS["相似"])
         self.assertIn("找不到", leak.CONCLUSION_SYNONYMS["不存在"])
         self.assertIn("成立", leak.CONCLUSION_SYNONYMS["正确"])
         self.assertIn("不成立", leak.CONCLUSION_SYNONYMS["错误"])
@@ -298,6 +301,11 @@ class ReviewCategoryTests(unittest.TestCase):
         self.assertTrue(leak.find_gold_leaks("除了 C 其他都错。", spec))
         spec2 = leak.GoldSpec(answers=["BD"], options="ABCD")
         self.assertTrue(leak.find_gold_leaks("B 和 D 都对。", spec2))
+        spec3 = leak.GoldSpec(answers=["C"], options="ABCD")
+        self.assertTrue(leak.find_gold_leaks("A、B、D 都不成立。", spec3))
+        self.assertTrue(leak.find_gold_leaks("A、B、D 均不正确。", spec3))
+        self.assertTrue(leak.find_gold_leaks("A、B、D 全都不对。", spec3))
+        self.assertTrue(leak.find_gold_leaks("A、B、D 一个都不行。", spec3))
 
     def test_student_second_person_eval_and_process(self):
         spec = leak.GoldSpec(answers=["x=-2"])
@@ -312,6 +320,9 @@ class ReviewCategoryTests(unittest.TestCase):
         self.assertFalse(leak.find_gold_leaks("你觉得增函数的定义是什么？", spec_def))
         spec_par = leak.GoldSpec(answers=["两直线平行"])
         self.assertFalse(leak.find_gold_leaks("判定两直线平行有哪几种方法？", spec_par))
+        spec_v = leak.GoldSpec(answers=["两直线垂直"])
+        self.assertFalse(leak.find_gold_leaks("这两条直线是否垂直？", spec_v))
+        self.assertFalse(leak.find_gold_leaks("垂直关系的定义是什么？", spec_v))
 
     def test_interval_synonyms(self):
         spec = leak.GoldSpec(answers=["x≤0"])
@@ -337,6 +348,18 @@ class ReviewCategoryTests(unittest.TestCase):
         self.assertTrue(leak.find_gold_leaks("x 必为正数。", spec_pos))
         spec7 = leak.GoldSpec(answers=["(-∞,1]∪(3,+∞)"])
         self.assertTrue(leak.find_gold_leaks("x∉(1,3]。", spec7))
+        spec_cmp = leak.GoldSpec(answers=["x<5"])
+        self.assertTrue(leak.find_gold_leaks("x 比 5 小。", spec_cmp))
+        spec_gt = leak.GoldSpec(answers=["x>2"])
+        self.assertTrue(leak.find_gold_leaks("x 比 2 大。", spec_gt))
+        spec_le = leak.GoldSpec(answers=["x≤3"])
+        self.assertTrue(leak.find_gold_leaks("x 不超过 3。", spec_le))
+        self.assertTrue(leak.find_gold_leaks("x 至多 3。", spec_le))
+        self.assertTrue(leak.find_gold_leaks("3 以下都可以。", spec_le))
+        spec_ge = leak.GoldSpec(answers=["x≥2"])
+        self.assertTrue(leak.find_gold_leaks("x 不少于 2。", spec_ge))
+        self.assertTrue(leak.find_gold_leaks("x 至少 2。", spec_ge))
+        self.assertTrue(leak.find_gold_leaks("2 以上才行。", spec_ge))
 
     def test_number_word_forms(self):
         spec = leak.GoldSpec(answers=["8"])
@@ -375,6 +398,20 @@ class ReviewCategoryTests(unittest.TestCase):
         self.assertTrue(leak.find_gold_leaks("4n=7，所以 n=7/4。", spec4))
         spec_cite = leak.GoldSpec(answers=["x=3"])
         self.assertTrue(leak.find_gold_leaks("由 2x+1=7 可得。", spec_cite))
+
+    def test_conclusion_phrase_and_geometry_symbols(self):
+        spec_rt = leak.GoldSpec(answers=["直角三角形"])
+        self.assertTrue(leak.find_gold_leaks("所以 △ABC 是直角三角形。", spec_rt))
+        self.assertTrue(leak.find_gold_leaks("形状：直角 三角形。", spec_rt))
+        self.assertFalse(leak.find_gold_leaks("直角三角形的定义是什么？", spec_rt))
+        spec_v = leak.GoldSpec(answers=["两直线垂直"])
+        self.assertTrue(leak.find_gold_leaks("因此 a ⊥ b。", spec_v))
+        spec_cong = leak.GoldSpec(answers=["全等"])
+        self.assertTrue(leak.find_gold_leaks("这两个三角形 ≌。", spec_cong))
+        spec_sim = leak.GoldSpec(answers=["相似"])
+        self.assertTrue(leak.find_gold_leaks("△ABC∽△DEF，对应边成比例吗？", spec_sim))
+        spec_iso = leak.GoldSpec(answers=["等腰直角"])
+        self.assertTrue(leak.find_gold_leaks("这个角的对边关系说明它是等腰直角。", spec_iso))
 
 
 class AdversarialRunnerTests(unittest.TestCase):

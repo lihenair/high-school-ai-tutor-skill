@@ -20,10 +20,14 @@ from math import pi as PI
 
 # 结论同义：只在「结论短语」比对时使用。左边是规范义项，右边是可互换写法。
 # 「不相交」仅当句中出现同平面/共面时才并入「平行」。
+# 几何符号：∥/|| 与平行；⊥ 与垂直；≌ 与全等；∽ 与相似。
 # 单调性：减函数/递减/单调减互认；增函数同理。
 # 「一半」覆盖分数、百分数和汉语比例说法。
 CONCLUSION_SYNONYMS = {
     "平行": frozenset({"平行", "∥", "||"}),
+    "垂直": frozenset({"垂直", "⊥"}),
+    "全等": frozenset({"全等", "≌"}),
+    "相似": frozenset({"相似", "∽"}),
     "不存在": frozenset({"不存在", "找不到", "没有这样的"}),
     "正确": frozenset({"正确", "成立"}),
     "错误": frozenset({"错误", "不对", "不成立"}),
@@ -144,7 +148,8 @@ CHOICE_ACT_RE = re.compile(
 )
 # 排除/判错：句法槽。
 ELIM_ACT_RE = re.compile(
-    r"排除|都是错|都有错|都不对|都不是|只剩|剩下的|"
+    r"排除|都是错|都有错|都不对|都不是|都不成立|均不正确|"
+    r"全都不对|一个都不行|只剩|剩下的|"
     r"其余都不|其他都(?:错|不对)|"
     r"除了.+?(?:其余|其他)|都可以排除|(?<!对)不对|错了|有错|判错|(?<![对顶一])错"
 )
@@ -450,6 +455,12 @@ def compact(text):
     s = re.sub(r"\((\d+)\)/\((π)\)", r"\1/π", s)
     s = re.sub(r"[ \t]+", "", s)
     return s
+
+
+def phrase_norm(text):
+    """结论短语比对：去空白、全半角、标点。"""
+    s = compact(text)
+    return re.sub(r"[。．，,、；;：:！!？?\(\)（）\[\]【】《》\"'“”‘’·…]+", "", s)
 
 
 def normalize_for_stem(text):
@@ -973,10 +984,14 @@ def _one_cn_rel(s):
     s = compact(s)
     s = re.sub(r"^[a-zA-Z]", "", s)
     pairs = [
-        (r"不小于(-?.+)", ">="),
-        (r"不大于(-?.+)|不超过(-?.+)", "<="),
+        (r"不少于(-?.+)|不小于(-?.+)|至少(-?.+)", ">="),
+        (r"不大于(-?.+)|不超过(-?.+)|至多(-?.+)", "<="),
         (r"大于等于(-?.+)", ">="),
         (r"小于等于(-?.+)", "<="),
+        (r"比(.+?)还?大", ">"),
+        (r"比(.+?)还?小", "<"),
+        (r"(-?[0-9.零〇一二两三四五六七八九十π]+)以上", ">="),
+        (r"(-?[0-9.零〇一二两三四五六七八九十π]+)以下", "<="),
         (r"大于(-?.+)", ">"),
         (r"小于(-?.+)", "<"),
         (r"greaterthan(-?.+)", ">"),
@@ -1170,10 +1185,28 @@ def assignment(pair):
     return None
 
 
+def _sympy_fail_types(sp):
+    """SymPy 解析/多项式失败；不含其它运行时错误。"""
+    types = [
+        TypeError, ValueError, AttributeError, NotImplementedError,
+        KeyError, OverflowError, ZeroDivisionError, RecursionError,
+    ]
+    for name in ("SympifyError",):
+        err = getattr(sp, name, None)
+        if err is not None:
+            types.append(err)
+    polys = getattr(sp, "polys", None)
+    perr = getattr(getattr(polys, "polyerrors", None), "PolynomialError", None)
+    if perr is not None:
+        types.append(perr)
+    return tuple(types)
+
+
 def linear_form(pair):
     """把等式收到 ax+by+c=0 的系数。优先 SymPy，否则标准库一次项扫描。"""
     left, right = compact(pair[0]), compact(pair[1])
     sp = use_sympy()
+    parsed = None
     if sp is not None:
         try:
             x, y = sp.symbols("x y")
@@ -1181,13 +1214,15 @@ def linear_form(pair):
             if e.free_symbols <= {x, y}:
                 poly = sp.Poly(e, x, y)
                 if poly.total_degree() <= 1:
-                    return (
+                    parsed = (
                         Fraction(str(poly.coeff_monomial(x))),
                         Fraction(str(poly.coeff_monomial(y))),
                         Fraction(str(poly.coeff_monomial(1))),
                     )
-        except Exception:
-            pass
+        except _sympy_fail_types(sp):
+            parsed = None
+    if parsed is not None:
+        return parsed
 
     expr = left if right in {"0", "0.0"} else None
     if expr is None:
@@ -1472,14 +1507,15 @@ def unit_context(unit, full_text, start, end, stem):
 
 
 def _is_method_sentence(unit):
-    """方法或定义问句：问途径/判定/定义，且没有断言结论。"""
+    """方法、定义、或无断言的「是否」问句。"""
     if CHOICE_ACT_RE.search(unit) or LEADING_RE.search(unit):
         return False
     if re.search(r"所以|因此|得到|故|答案|就是", unit):
         return False
-    asked = bool(re.search(r"[？?]|什么|哪几种|如何|怎么", unit))
+    asked = bool(re.search(r"[？?]|什么|哪几种|如何|怎么|是否", unit))
     topic = bool(re.search(r"方法|定义|概念|判定|判断", unit))
-    return asked and topic
+    whether = bool(re.search(r"是否", unit))
+    return asked and (topic or whether)
 
 
 # ---------- 候选抽出 ----------
@@ -1516,8 +1552,10 @@ INEQ_TOKEN_RE = re.compile(
     r"[\[\(][^\[\]\(\)]+[,，][^\[\]\(\)]+[\]\)]|"
     r"[a-zA-Z]\s*(?:<=|>=|<|>|≤|≥|＜|＞)\s*[-+0-9.∞π\\]+|"
     r"[-+0-9.∞π]+\s*(?:<=|>=|<|>|≤|≥)\s*[a-zA-Z](?:\s*(?:<=|>=|<|>|≤|≥)\s*[-+0-9.∞π]+)?|"
-    r"[a-zA-Z]\s*(?:必须)?(?:大于等于|小于等于|不小于|不大于|不超过|大于|小于)\s*[-+0-9.零〇一二两三四五六七八九十π]+|"
-    r"(?:大于等于|小于等于|不超过|大于|小于)\s*[-+0-9.零〇一二两三四五六七八九十]+(?:且(?:不超过|不大于|小于等于|大于)\s*[-+0-9.零〇一二两三四五六七八九十]+)?|"
+    r"[a-zA-Z]\s*(?:必须)?(?:大于等于|小于等于|不小于|不大于|不超过|不少于|至多|至少|大于|小于)\s*[-+0-9.零〇一二两三四五六七八九十π]+|"
+    r"(?:大于等于|小于等于|不超过|不少于|至多|至少|大于|小于)\s*[-+0-9.零〇一二两三四五六七八九十]+(?:且(?:不超过|不大于|小于等于|大于)\s*[-+0-9.零〇一二两三四五六七八九十]+)?|"
+    r"比[-+0-9.零〇一二两三四五六七八九十π]+还?[大小]|"
+    r"[-+0-9.零〇一二两三四五六七八九十π]+(?:以上|以下)|"
     r"[^{}]+∪[^{}]+|"
     r"\{[^}]+\|"
     r"非正|非负|不能是正|负数[和或]零|负值或零|必为正|为正数|∉|"
@@ -1535,37 +1573,64 @@ SET_TOKEN_RE = re.compile(r"\{[^{}|]{1,40}\}")
 
 
 def conclusion_hits_in(unit, gold_answers):
-    """用封闭同义表。"""
+    """用封闭同义表；表外的结论短语按规范化原文比对。"""
     hits = []
+    if _is_method_sentence(unit):
+        return hits
     nunit = compact(unit)
+    punit = phrase_norm(unit)
     for ans in gold_answers:
         key = _conclusion_key(ans)
-        if not key:
-            continue
-        syns = set(CONCLUSION_SYNONYMS.get(key, {key}))
-        if key == "平行" and re.search(r"同平面|共面", unit):
-            syns.add("不相交")
-        if key == "正确":
-            # 短词「对」只认谓语
-            if re.search(r"(?:是)?对的|对了", unit) and not re.search(r"对顶", unit):
+        if key:
+            syns = set(CONCLUSION_SYNONYMS.get(key, {key}))
+            if key == "平行" and re.search(r"同平面|共面", unit):
+                syns.add("不相交")
+            if key == "正确":
+                if re.search(r"(?:是)?对的|对了", unit) and not re.search(r"对顶", unit):
+                    hits.append(ans)
+                    continue
+            for syn in syns:
+                if syn and (syn in nunit or phrase_norm(syn) in punit):
+                    hits.append(ans)
+                    break
+            if key == "不存在" and re.search(r"找不到|没有这样的|不存在", unit):
                 hits.append(ans)
-                continue
-        if _is_method_sentence(unit):
             continue
-        for syn in syns:
-            if syn and syn in nunit:
-                # 修辞双否：难道不平行 → 仍算断言平行
-                hits.append(ans)
-                break
-        if key == "不存在" and re.search(r"找不到|没有这样的|不存在", unit):
+        if not _looks_like_phrase(ans):
+            continue
+        needle = phrase_norm(ans)
+        if len(needle) >= 2 and needle in punit:
             hits.append(ans)
     return hits
+
+
+def _looks_like_phrase(ans):
+    s = phrase_norm(ans)
+    if len(s) < 2:
+        return False
+    if s and all(ch in CIRCLED + JIAZI + LATIN_OPTS for ch in s):
+        return False
+    if parse_interval(ans) or parse_equation(ans):
+        return False
+    n = parse_number_token(ans) or parse_cn_quantity(ans)
+    if n:
+        return False
+    return any(
+        "\u4e00" <= ch <= "\u9fff" or ch in "⊥∥≌∽△∠"
+        for ch in s
+    )
 
 
 def _conclusion_key(ans):
     s = compact(ans)
     if "平行" in s or s in {"∥", "||"}:
         return "平行"
+    if "垂直" in s or s in {"⊥"}:
+        return "垂直"
+    if "全等" in s or s in {"≌"}:
+        return "全等"
+    if "相似" in s or s in {"∽"}:
+        return "相似"
     if s in {"不存在", "找不到"} or "不存在" in s:
         return "不存在"
     for key in ("递减", "递增", "一半"):
@@ -2058,7 +2123,11 @@ def _elim_remain(unit, labels, whole=""):
             unit,
         ):
             wrong.add(nl)
-    if re.search(r"都有错|都可以排除|都不对|都是错|其他都(?:错|不对)", unit):
+    if re.search(
+        r"都有错|都可以排除|都不对|都是错|都不成立|均不正确|"
+        r"全都不对|一个都不行|其他都(?:错|不对)",
+        unit,
+    ):
         wrong |= extract_labels(unit, labels)
         m2 = re.search(r"除了(.+?)都", unit)
         if m2:
