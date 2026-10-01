@@ -245,10 +245,6 @@ def _check_math(sympy, expr, where):
     if len(parsed) == 1 and _is_expr(sympy, claim) and _is_expr(sympy, parsed[0]):
         return _expressions_equal(sympy, claim, parsed[0])
     if len(parsed) == 1 and _is_constraint(sympy, claim) and _is_constraint(sympy, parsed[0]):
-        if not _is_assignment(sympy, parsed[0]) and (
-            isinstance(parsed[0], sympy.Equality) or isinstance(claim, sympy.Equality)
-        ):
-            return VerifyResult("无法解析", "条件不是赋值")
         return _relations_equal(sympy, claim, parsed[0])
     return VerifyResult("无法解析", "这组式子无法比对")
 

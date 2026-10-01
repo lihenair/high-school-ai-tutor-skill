@@ -40,6 +40,19 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(verify.check_math("a <= 1", "a <= 0").status, "矛盾")
 
     @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_non_assignment_where_compares_solution_sets(self):
+        self.assertEqual(
+            verify.check_math("(x - 2)*(x + 2) == 0", "x**2 - 4 == 0").status, "通过"
+        )
+        lost = verify.check_math("x - 2 == 0", "x**2 - 4 == 0")
+        self.assertEqual(lost.status, "矛盾", lost)
+        extra = verify.check_math("x**2 - 4 == 0", "x - 2 == 0")
+        self.assertEqual(extra.status, "矛盾", extra)
+        self.assertEqual(verify.check_math("2*a <= 0", "a <= 0").status, "通过")
+        mismatch = verify.check_math("a < 0", "a <= 0")
+        self.assertEqual(mismatch.status, "矛盾", mismatch)
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
     def test_substitution(self):
         self.assertEqual(verify.check_math("a + 1 == 2", "a = 1").status, "通过")
         self.assertEqual(verify.check_math("a + 1 == 2", "a = 0").status, "矛盾")
