@@ -15,15 +15,15 @@ import guard  # noqa: E402
 CHAPTER_OK = (ROOT / "tests" / "guard-cases" / "chapter-map-ok.txt").read_text(encoding="utf-8")
 
 
-def socratic_issues(text, stem=""):
-    return guard.check("socratic", text, False, stem=stem)
+def socratic_issues(text, stem="", answers=(), options=""):
+    return guard.check("socratic", text, False, stem=stem, answers=answers, options=options)
 
 
 class LeakAndDifficultyTests(unittest.TestCase):
     def test_choice_letter_and_therefore_are_leaks(self):
-        choice = socratic_issues("难度：中等。选 C。")
+        choice = socratic_issues("难度：中等。选 C。", answers=["C"], options="ABCD")
         self.assertTrue(any(item[0] == "ERROR" and item[1] == "E1" for item in choice), choice)
-        therefore = socratic_issues("难度：中等。∴ a ≤ 0")
+        therefore = socratic_issues("难度：中等。∴ a ≤ 0", answers=["a≤0"])
         self.assertTrue(any(item[0] == "ERROR" and item[1] == "E1" for item in therefore), therefore)
 
     def test_simple_substitution_is_not_illegal_difficulty(self):
@@ -31,15 +31,15 @@ class LeakAndDifficultyTests(unittest.TestCase):
         self.assertFalse(any(item[1] in ("E5", "E7") for item in issues), issues)
 
     def test_restating_student_choice_is_not_a_leak(self):
-        issues = socratic_issues("难度：中等。你选 B。说说依据？")
+        issues = socratic_issues("难度：中等。你选 B。说说依据？", answers=["B"], options="ABCD")
         self.assertFalse(any(item[1] == "E1" for item in issues), issues)
 
     def test_teacher_stating_own_choice_is_a_leak(self):
-        issues = socratic_issues("难度：中等。我选 B。")
+        issues = socratic_issues("难度：中等。我选 B。", answers=["B"], options="ABCD")
         self.assertTrue(any(item[0] == "ERROR" and item[1] == "E1" for item in issues), issues)
 
     def test_therefore_equals_in_chinese_is_a_leak(self):
-        issues = socratic_issues("难度：中等。所以 x 等于 3。开口朝哪边？")
+        issues = socratic_issues("难度：中等。所以 x 等于 3。开口朝哪边？", answers=["x=3"])
         self.assertTrue(any(item[1] == "E1" for item in issues), issues)
 
     def test_scoring_standard_is_not_a_score_report(self):
@@ -291,9 +291,9 @@ flowchart TD
         self.assertEqual(guard.check_pep_chem_chapter("\n".join(lines)), [])
 
     def test_range_and_choice_leaks_are_caught(self):
-        rang = socratic_issues("难度：中等。范围应当是 a≤0")
+        rang = socratic_issues("难度：中等。范围应当是 a≤0", answers=["a≤0"])
         self.assertTrue(any(item[1] == "E1" for item in rang), rang)
-        choice = socratic_issues("难度：中等。我选C，你呢")
+        choice = socratic_issues("难度：中等。我选C，你呢", answers=["C"], options="ABCD")
         self.assertTrue(any(item[1] == "E1" for item in choice), choice)
 
     def test_quoted_stem_and_probe_question_are_not_leaks(self):
@@ -304,9 +304,9 @@ flowchart TD
         self.assertFalse(any(item[1] == "E1" for item in probe), probe)
         open_range = socratic_issues("难度：中等。这个范围是什么？")
         self.assertFalse(any(item[1] == "E1" for item in open_range), open_range)
-        stem_given = socratic_issues("难度：中等。题干给出「答案是 B」。开口朝哪边？", stem=stem)
+        stem_given = socratic_issues("难度：中等。题干给出「答案是 B」。开口朝哪边？", stem=stem, answers=["B"], options="ABCD")
         self.assertTrue(any(item[1] == "E1" for item in stem_given), stem_given)
-        bare_write = socratic_issues("难度：中等。题干写「因此 x>0」。开口朝哪边？")
+        bare_write = socratic_issues("难度：中等。题干写「因此 x>0」。开口朝哪边？", answers=["x>0"])
         self.assertTrue(any(item[1] == "E1" for item in bare_write), bare_write)
 
     def test_confirmation_and_unmarked_quotes_are_still_leaks(self):
@@ -322,7 +322,18 @@ flowchart TD
             "难度：中等。范围应当是 a≤0，你看对吗？",
         ]
         for text in cases:
-            issues = socratic_issues(text)
+            gold = "B"
+            if "x = 3" in text or "x=3" in text:
+                gold = "x=3"
+            elif "12" in text:
+                gold = "12"
+            elif "a≤0" in text:
+                gold = "a≤0"
+            elif "故选 D" in text:
+                gold = "D"
+            elif "故选 C" in text:
+                gold = "C"
+            issues = socratic_issues(text, answers=[gold], options="ABCD")
             self.assertTrue(
                 any(item[1] == "E1" for item in issues),
                 f"expected E1 for {text!r}: {issues}",
@@ -352,13 +363,35 @@ class AdversarialCorpusTests(unittest.TestCase):
         rows = _load_tsv(path)
         self.assertGreaterEqual(len(rows), 50, "leak corpus too small")
         for row in rows:
-            text, expect, stem, rationale = (row + ["", "", "", ""])[:4]
-            issues = socratic_issues(text, stem=stem)
+            text, expect, stem, gold, options, rationale = (row + ["", "", "", "", "", ""])[:6]
+            answers = [item for item in gold.split("|") if item] if gold else []
+            issues = socratic_issues(text, stem=stem, answers=answers, options=options)
             has_e1 = any(item[1] == "E1" for item in issues)
             if expect == "E1":
-                self.assertTrue(has_e1, f"{rationale}: {text!r} {issues}")
+                self.assertTrue(has_e1, f"{rationale}: {text!r} gold={gold!r} {issues}")
             else:
-                self.assertFalse(has_e1, f"{rationale}: {text!r} {issues}")
+                self.assertFalse(has_e1, f"{rationale}: {text!r} gold={gold!r} {issues}")
+        missing = socratic_issues("难度：中等。开口朝哪边？")
+        self.assertTrue(any(item[1] == "W7" for item in missing), missing)
+        fallback_block = socratic_issues("难度：中等。答案 → B")
+        self.assertTrue(any(item[1] == "E1" for item in fallback_block), fallback_block)
+        fallback_ok = socratic_issues("难度：中等。你还记得一次函数吗？")
+        self.assertFalse(any(item[1] == "E1" for item in fallback_ok), fallback_ok)
+
+    def test_step_lines_are_not_slot_content(self):
+        lines = ["【模式：自学 · 状态：节点 · 节点：氧化还原反应】"]
+        for index, marker in enumerate(guard.SLOT_MARKERS):
+            lines.append(f"Step {index + 1}")
+            lines.append(f"{marker}：")
+        issues = guard.check_study("\n".join(lines))
+        self.assertTrue(any(item[1] == "E18" for item in issues), issues)
+
+    def test_duplicate_slot_bodies_fail_even_if_long(self):
+        lines = ["【模式：自学 · 状态：节点 · 节点：氧化还原反应】"]
+        body = "氧化还原反应是电子转移过程足够长"
+        lines.extend(f"{marker}：{body}" for marker in guard.SLOT_MARKERS)
+        issues = guard.check_study("\n".join(lines))
+        self.assertTrue(any(item[1] == "E18" for item in issues), issues)
 
     def test_chapter_map_corpus(self):
         folder = ROOT / "tests" / "adversarial" / "chapter_map"
@@ -414,7 +447,9 @@ class AdversarialCorpusTests(unittest.TestCase):
         for row in rows:
             filler, expect, rationale = (row + ["", "", ""])[:3]
             lines = ["【模式：自学 · 状态：节点 · 节点：氧化还原反应】"]
-            lines.extend(f"{marker}：{filler}" for marker in guard.SLOT_MARKERS)
+            for index, marker in enumerate(guard.SLOT_MARKERS):
+                body = filler if expect == "E18" else f"{filler}补充说明{index}足够长了"
+                lines.append(f"{marker}：{body}")
             issues = guard.check_study("\n".join(lines))
             has_e18 = any(item[1] == "E18" for item in issues)
             if expect == "E18":

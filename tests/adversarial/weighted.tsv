@@ -16,4 +16,33 @@
 评分：3、3、4、2、2 分。加权三点九五。	E8	redteam2-cn-wrong-total
 评分：4、3、2、2、0 分。加权 2.65。	E8	redteam2-zero-score
 评分：4、3、2、2、3 分。加权总分：4.00。	E8	redteam2-colon-wrong
-
+评分：4、3、2、2、3 分。加权 2.95 分（5 分制）	OK	weighted-then-scale
+评分：4、3、2、2、3 分。加权：2.95 / 5	OK	slash-scale
+评分：4、3、2、2、3 分。加权 2.95，排在第 2 档	OK	rank-after
+评分：4、3、2、2、3 分。加权 2.95 —— 计算复杂度 2 分	OK	dim-after-dash
+评分：4、3、2、2、3 分。加权 2.95，比上题高 0.5	OK	delta-after
+评分：4、3、2、2、3 分。加权 2.95；加权前总分 14	OK	pre-weighted-total
+评分：4、3、2、2、3 分。加权 2.95（权重 30%/25%/20%/15%/10%）	OK	weights-in-paren
+评分：4、3、2、2、3 分。加权 2.95（满分 5）	OK	full-mark-paren
+评分：4、3、2、2、3 分。加权 2.95；若按 5 分制则约 3	OK	approx-other-scale
+评分：4、3、2、2、3 分。加权 = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3\n= 2.95	OK	two-line-last-eq
+评分：4、3、2、2、3 分。加权分 2.95。	OK	redteam-weighted-fen
+评分：4、3、2、2、3 分。加权约为 2.95。	OK	redteam-approx-word
+评分：4、3、2、2、3 分。加权是 2.95。	OK	redteam-shi
+评分：4、3、2、2、3 分。加权 2.95。共 2 种解法。	OK	redteam-two-methods-after
+评分：4、3、2、2、3 分。加权 2.95（第 2 档，满分 5）	OK	redteam-rank-and-full
+评分：4、3、2、2、3 分。加权 2.95；计算复杂度给了 2	OK	redteam-dim-after-semi
+评分：4、3、2、2、3 分。加权≈2.95	OK	redteam-approx-eq
+评分：4、3、2、2、3 分。加权 = 2.95 = 2.95	OK	redteam-repeat-eq
+评分：4、3、2、2、3 分。加权 2.95 / 五分制	OK	redteam-cn-scale
+评分：4、3、2、2、3 分。加权 2.95。变式有 2 题。	OK	redteam-variant-count
+评分：4、3、2、2、3 分。加权 3.00。	E8	redteam-wrong-3
+评分：4、3、2、2、3 分。加权总分 2.00。	E8	redteam-wrong-total
+评分：4、3、2、2、3 分。加权 = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3 = 2.00。	E8	redteam-wrong-last
+评分：1、1、1、1、1 分。加权 1.00。	OK	redteam-all-one
+评分：5、5、5、5、5 分。加权 5.00。	OK	redteam-all-five
+评分：4、3、2、2、3 分。加权二点九五（满分五）	OK	redteam-cn-then-full
+评分：4、3、2、2、3 分。加权 2.95\n排第 2	OK	redteam-newline-rank
+评分：4、3、2、2、3 分。加权分：2.95	OK	redteam-fen-colon
+评分：4、3、2、2、3 分。加权 2.95，比 3 低	OK	redteam-vs-three
+评分：4、3、2、2、3 分。加权 2.95（见第 2 节）	OK	redteam-see-section

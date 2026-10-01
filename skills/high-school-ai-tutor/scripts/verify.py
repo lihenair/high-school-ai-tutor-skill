@@ -43,7 +43,7 @@ class VerifyResult:
 
 VERIFY_TIMEOUT_SEC = 1.5
 VERIFY_RETRY_TIMEOUT_SEC = 12.0
-_MAX_INT_DIGITS = 12
+_MAX_INT_DIGITS = 16
 _FORMULA = re.compile(r"^[0-9A-Za-z+\-*/^=<>!().,\s_]+$")
 _NUMBER_LIT = re.compile(
     r"(?<![A-Za-z0-9_])(\d+\.\d+(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)"
@@ -66,8 +66,14 @@ _FUNCTIONS = {
     "expand": "expand",
 }
 _CALLABLE_NAMES = frozenset({"Eq", "Rational", *_FUNCTIONS})
-_KEEP_IDENTIFIERS = _CALLABLE_NAMES | {"pi", "e"}
+_KEEP_IDENTIFIERS = _CALLABLE_NAMES | {"pi", "e", "oo", "zoo", "nan", "inf"}
 _LETTER_JUXTAPOSE = re.compile(r"^[a-z]{2,3}$")
+_SUP_DIGITS = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
+_VULGAR_FRACTIONS = {
+    "½": "(1/2)", "⅓": "(1/3)", "⅔": "(2/3)", "¼": "(1/4)", "¾": "(3/4)",
+    "⅕": "(1/5)", "⅖": "(2/5)", "⅗": "(3/5)", "⅘": "(4/5)", "⅙": "(1/6)",
+    "⅚": "(5/6)", "⅛": "(1/8)", "⅜": "(3/8)", "⅝": "(5/8)", "⅞": "(7/8)",
+}
 
 _worker_lock = threading.Lock()
 _worker_proc = None
@@ -223,6 +229,8 @@ def _check_math(sympy, expr, where):
         return VerifyResult("无法解析", "最终式无法解析")
     condition = str(where or "").strip()
     if not condition:
+        if _has_undefined(sympy, claim):
+            return VerifyResult("无法解析", "式子含未定义值")
         return _closed(sympy, claim, ulp)
     parts = _split_where(condition)
     parsed = [_parse(sympy, part, bound) for part in parts]
@@ -237,6 +245,9 @@ def _check_math(sympy, expr, where):
     if len(parsed) == 1 and _is_expr(sympy, claim) and _is_expr(sympy, parsed[0]):
         return _expressions_equal(sympy, claim, parsed[0])
     if len(parsed) == 1 and _is_constraint(sympy, claim) and _is_constraint(sympy, parsed[0]):
+        where_eq = isinstance(parsed[0], sympy.Equality) and not _is_assignment(sympy, parsed[0])
+        if where_eq and isinstance(claim, sympy.Equality):
+            return VerifyResult("无法解析", "条件不是赋值")
         return _relations_equal(sympy, claim, parsed[0])
     return VerifyResult("无法解析", "这组式子无法比对")
 
@@ -245,13 +256,24 @@ def _parse(sympy, text, bound=()):
     raw = str(text or "").strip()
     if not raw:
         return None
+    raw = re.sub(
+        r"[⁰¹²³⁴⁵⁶⁷⁸⁹]+",
+        lambda match: "**" + match.group(0).translate(_SUP_DIGITS),
+        raw,
+    )
+    for glyph, repl in _VULGAR_FRACTIONS.items():
+        raw = raw.replace(glyph, repl)
+    raw = re.sub(r"√\s*(\d+(?:\.\d+)?)", r"sqrt(\1)", raw)
+    raw = re.sub(r"√\s*\(", "sqrt(", raw)
     raw = (
-        raw.replace("²", "**2")
-        .replace("³", "**3")
-        .replace("¹", "**1")
+        raw.replace("√", "sqrt")
+        .replace("·", "*")
         .replace("×", "*")
         .replace("÷", "/")
         .replace("⋅", "*")
+        .replace("²", "**2")
+        .replace("³", "**3")
+        .replace("¹", "**1")
     )
     raw = unicodedata.normalize("NFKC", raw)
     raw = (
@@ -366,6 +388,12 @@ def _from_ast(sympy, node, bound=()):
             return sympy.pi
         if node.id == "e":
             return sympy.E
+        if node.id in ("oo", "inf"):
+            return sympy.oo
+        if node.id == "zoo":
+            return sympy.zoo
+        if node.id == "nan":
+            return sympy.nan
         return sympy.Symbol(node.id)
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
         value = _from_ast(sympy, node.operand, bound)
@@ -418,11 +446,11 @@ def _from_ast(sympy, node, bound=()):
 def _compare(sympy, op, left, right):
     mapping = {
         ast.Eq: lambda a, b: sympy.Eq(a, b, evaluate=False),
-        ast.NotEq: sympy.Ne,
-        ast.Lt: sympy.Lt,
-        ast.LtE: sympy.Le,
-        ast.Gt: sympy.Gt,
-        ast.GtE: sympy.Ge,
+        ast.NotEq: lambda a, b: sympy.Ne(a, b, evaluate=False),
+        ast.Lt: lambda a, b: sympy.Lt(a, b, evaluate=False),
+        ast.LtE: lambda a, b: sympy.Le(a, b, evaluate=False),
+        ast.Gt: lambda a, b: sympy.Gt(a, b, evaluate=False),
+        ast.GtE: lambda a, b: sympy.Ge(a, b, evaluate=False),
     }
     fn = mapping.get(type(op))
     if fn is None:
@@ -502,18 +530,26 @@ def _truth(sympy, value):
 
 
 def _numeric_pass(sympy, claim, ulp=None):
-    if ulp is None or not isinstance(claim, sympy.Equality) or claim.free_symbols:
+    if ulp is None or not _is_relational(sympy, claim) or claim.free_symbols:
         return None
     try:
         limit = sympy.Rational(*Decimal(str(ulp)).as_integer_ratio())
-        delta = sympy.simplify(abs(claim.lhs - claim.rhs))
-        if getattr(delta, "is_number", False) is False:
+        if isinstance(claim, sympy.Equality):
+            delta = sympy.simplify(abs(claim.lhs - claim.rhs))
+            if getattr(delta, "is_number", False) is False:
+                return None
+            if delta.is_rational or getattr(delta, "is_Rational", False):
+                passed = delta < limit
+            else:
+                passed = sympy.N(delta, 50) < sympy.N(limit, 50)
+            if passed:
+                return VerifyResult("通过", "数值近似")
             return None
-        if delta.is_rational or getattr(delta, "is_Rational", False):
-            passed = delta < limit
-        else:
-            passed = sympy.N(delta, 50) < sympy.N(limit, 50)
-        if passed:
+        exact = _truth(sympy, sympy.simplify(claim))
+        if exact == "通过":
+            return VerifyResult("通过")
+        delta = sympy.N(abs(claim.lhs - claim.rhs), 50)
+        if delta < sympy.N(limit, 50):
             return VerifyResult("通过", "数值近似")
     except Exception:
         return None
@@ -521,6 +557,8 @@ def _numeric_pass(sympy, claim, ulp=None):
 
 
 def _closed(sympy, claim, ulp=None):
+    if _has_undefined(sympy, claim):
+        return VerifyResult("无法解析", "式子含未定义值")
     if isinstance(claim, sympy.Equality):
         status = _truth(sympy, sympy.simplify(claim))
         if status == "通过":
@@ -541,6 +579,9 @@ def _closed(sympy, claim, ulp=None):
     status = _truth(sympy, sympy.simplify(claim))
     if status == "通过":
         return VerifyResult("通过")
+    approx = _numeric_pass(sympy, claim, ulp)
+    if approx is not None:
+        return approx
     if status == "矛盾":
         return VerifyResult("矛盾", f"化简为 {_relation_text(sympy, claim)}")
     return VerifyResult("无法解析", "这个式子不是恒真或恒假")

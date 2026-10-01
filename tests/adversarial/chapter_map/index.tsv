@@ -29,5 +29,10 @@ digit-id.txt	OK	digit-starting-id
 shape-trapezoid.txt	OK	trapezoid-shape
 shape-trapezoid-alt.txt	OK	trapezoid-alt-shape
 style-line-only.txt	E12	required-only-in-style
+jammed-plus-distinct-singles.txt	E12	coverage-not-label-dedupe
+jammed-plus-experiment-variants.txt	E12	experiment-suffix-padding
+same-id-last-label.txt	E12	same-id-last-wins
+md-backtick-label.txt	OK	markdown-string-label
+dot-plus-newline-delim.txt	OK	dot-plus-newline-delimiters
 forbidden-ph3-ci.txt	E12	forbidden-case-insensitive
 

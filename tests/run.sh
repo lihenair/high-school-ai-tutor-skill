@@ -19,11 +19,11 @@ run() {
   fi
 }
 
-run socratic-ok.txt    socratic 0
-run map-ok.txt         socratic 0
-run chapter-map-ok.txt socratic 0
-run problem-slice-ok.txt socratic 0
-run socratic-bad.txt   socratic 1
+run socratic-ok.txt    socratic 0 --answer B --options ABCD
+run map-ok.txt         socratic 0 --answer B --options ABCD
+run chapter-map-ok.txt socratic 0 --answer B --options ABCD
+run problem-slice-ok.txt socratic 0 --answer B --options ABCD
+run socratic-bad.txt   socratic 1 --answer "a≤1" --options ABCD
 run chapter-map-bad.txt socratic 1
 run edge-bad.txt       socratic 1
 run style-bad.txt      socratic 1
