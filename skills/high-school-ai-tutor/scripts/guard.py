@@ -62,7 +62,7 @@ MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
 ARROW_TOKEN = r"(?:-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
-_NODE_ID_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
+_NODE_ID_RE = re.compile(r"[\w]+(?:-[\w]+)*")
 # Longest Mermaid flowchart shapes first so inner brackets are not the label.
 _NODE_SHAPES = (
     ("(((", ")))"),
@@ -96,7 +96,7 @@ EMOJI_RE = re.compile(
     "\U0000200D"
     "]+"
 )
-NODE_TOKEN_SPLIT_RE = re.compile(r"[/／、，,；;：:·+\s]+")
+NODE_TOKEN_SPLIT_RE = re.compile(r"[/／、，,；;：:·・+＋\s]+")
 CANON_PART_RE = re.compile(r"[/／、，,；;：:\s与]+")
 EDGE_TEXT_RE = re.compile(r"--\s+[^-|\n]+-->")
 MAX_REQUIRED_NAMES_PER_NODE = 6

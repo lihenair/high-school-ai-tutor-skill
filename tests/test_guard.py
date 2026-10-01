@@ -268,6 +268,8 @@ flowchart TD
         splits = [
             f"{names[0]}·{names[1]}",
             f"{names[0]}+{names[1]}",
+            f"{names[0]}・{names[1]}",
+            f"{names[0]}＋{names[1]}",
             f"{names[0]}<br/>{names[1]}",
             f"{names[0]}\\n{names[1]}",
         ]
@@ -275,6 +277,22 @@ flowchart TD
             with self.subTest(combined=combined):
                 labels = [combined, *rest[1:]]
                 self.assertEqual(guard.check_pep_chem_chapter(_pep_map(labels)), [])
+
+    def test_chinese_cjk_digit_and_hyphen_node_ids_count(self):
+        cases = {
+            "chinese": lambda i, name: f'  节点{i}["{name}（概念）"]:::concept',
+            "cjk_digit": lambda i, name: f'  点{i}["{name}（概念）"]:::concept',
+            "hyphen": lambda i, name: f'  mix-{i}["{name}（概念）"]:::concept',
+        }
+        for case_name, line_for in cases.items():
+            with self.subTest(ids=case_name):
+                self.assertEqual(guard.check_pep_chem_chapter(_complete_map(line_for)), [])
+
+    def test_hyphenated_arrow_is_not_parsed_as_a_node_id(self):
+        labels = [name for name in guard.PEP_CHEM_BX1_CH1_REQUIRED if name not in ("纯净物", "混合物")]
+        extra = ('  src-->["纯净物（概念）"]',)
+        problems = guard.check_pep_chem_chapter(_pep_map(labels, extra=extra))
+        self.assertTrue(any("缺少节点" in item and "纯净物" in item for item in problems), problems)
 
     def test_borrowed_canon_title_does_not_satisfy_alias_required_name(self):
         labels = _required_labels_replacing("氧化物", "单质 / 化合物")
