@@ -159,6 +159,12 @@ _WEIGHTED_SENTENCE_END_RE = re.compile(r"[。！？]")
 _WEIGHTED_ARITH = set("+-×x*·/÷()")
 
 
+def _chain_still_open(text):
+    """上一截以 = / ＝ 收尾时，等号链才接到下一行。"""
+    stripped = text.rstrip()
+    return bool(stripped) and stripped[-1] in "=＝"
+
+
 def _weighted_chain_text(lines, start):
     """引入行从「加权」起到句末，加上随后以 = 开头的续行。不扫回复其余部分。"""
     line = lines[start]
@@ -166,10 +172,13 @@ def _weighted_chain_text(lines, start):
     rest = line[label + len("加权"):] if label >= 0 else line
     rest = _WEIGHTED_SENTENCE_END_RE.split(rest, maxsplit=1)[0]
     chunks = [rest]
+    acc = rest
     for nxt in lines[start + 1:]:
-        if not _WEIGHTED_CONT_RE.match(nxt):
+        if not _WEIGHTED_CONT_RE.match(nxt) or not _chain_still_open(acc):
             break
-        chunks.append(_WEIGHTED_SENTENCE_END_RE.split(nxt, maxsplit=1)[0])
+        piece = _WEIGHTED_SENTENCE_END_RE.split(nxt, maxsplit=1)[0]
+        chunks.append(piece)
+        acc += piece
     return "\n".join(chunks)
 
 

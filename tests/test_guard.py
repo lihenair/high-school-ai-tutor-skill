@@ -362,7 +362,8 @@ class StudyAndScoreTests(unittest.TestCase):
     def test_multiline_equals_continuation_uses_final_value(self):
         text = full_reply_with_score_line(
             "- 五项评分 4、3、2、2、3 分。加权 =\n"
-            "  = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3\n"
+            "  = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3 =\n"
+            "  = 1.20 + 0.75 + 0.40 + 0.30 + 0.30 =\n"
             "  = 2.95"
         )
         issues = guard.check("full", text, False)
@@ -370,8 +371,7 @@ class StudyAndScoreTests(unittest.TestCase):
 
     def test_multiline_equals_continuation_wrong_final_is_blocked(self):
         text = full_reply_with_score_line(
-            "- 五项评分 4、3、2、2、3 分。加权 =\n"
-            "  = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3\n"
+            "- 五项评分 4、3、2、2、3 分。加权 = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3 =\n"
             "  = 9.99"
         )
         issues = guard.check("full", text, False)
