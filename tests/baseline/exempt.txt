@@ -1,0 +1,7 @@
+# Changing this file requires maintainer approval.
+# Known main (4a5cb53) false-blocks: listed ids are reported by
+# run_baseline.py but never fail CI. One case id per line plus '# reason'.
+g0442  # '>' shaped node wrongly blocked by main
+g0521  # fake node only in a %% comment wrongly blocked by main
+g0522  # fake node only in a %% comment wrongly blocked by main
+g0523  # fake node only in a %% comment wrongly blocked by main
