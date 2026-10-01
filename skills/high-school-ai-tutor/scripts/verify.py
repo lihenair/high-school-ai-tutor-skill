@@ -43,8 +43,6 @@ class VerifyResult:
 VERIFY_TIMEOUT_SEC = 1.5
 VERIFY_RETRY_TIMEOUT_SEC = 12.0
 _MAX_INT_DIGITS = 12
-_APPROX_ABS = 1e-12
-_APPROX_REL = 1e-3
 _FORMULA = re.compile(r"^[0-9A-Za-z+\-*/^=<>!().,\s_]+$")
 _NUMBER_LIT = re.compile(
     r"(?<![A-Za-z0-9_])(\d+\.\d+(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)"
@@ -218,12 +216,13 @@ def _bound_names(where):
 
 def _check_math(sympy, expr, where):
     bound = _bound_names(where)
+    ulp = _min_decimal_ulp(f"{expr}\n{where or ''}")
     claim = _parse(sympy, expr, bound)
     if claim is None:
         return VerifyResult("无法解析", "最终式无法解析")
     condition = str(where or "").strip()
     if not condition:
-        return _closed(sympy, claim)
+        return _closed(sympy, claim, ulp)
     parts = _split_where(condition)
     parsed = [_parse(sympy, part, bound) for part in parts]
     if any(item is None for item in parsed):
@@ -232,7 +231,7 @@ def _check_math(sympy, expr, where):
         conflict = _assignment_conflict(sympy, parsed)
         if conflict is not None:
             return conflict
-        return _substitute(sympy, claim, parsed)
+        return _substitute(sympy, claim, parsed, ulp)
     if len(parsed) == 1 and _is_expr(sympy, claim) and _is_expr(sympy, parsed[0]):
         return _expressions_equal(sympy, claim, parsed[0])
     if len(parsed) == 1 and _is_constraint(sympy, claim) and _is_constraint(sympy, parsed[0]):
@@ -458,6 +457,27 @@ def _is_expr(sympy, expr):
     return isinstance(expr, sympy.Expr) and not _is_relational(sympy, expr) and not isinstance(expr, sympy.And)
 
 
+def _literal_ulp(text):
+    body = str(text).strip().lower()
+    exp = 0
+    if "e" in body:
+        mant, exp_s = body.split("e", 1)
+        exp = int(exp_s)
+    else:
+        mant = body
+    if "." in mant:
+        frac = mant.split(".", 1)[1]
+        return Decimal(10) ** (exp - len(frac))
+    return Decimal(10) ** exp
+
+
+def _min_decimal_ulp(text):
+    ulps = [_literal_ulp(match.group(1)) for match in _NUMBER_LIT.finditer(str(text or ""))]
+    if not ulps:
+        return None
+    return min(ulps)
+
+
 def _truth(sympy, value):
     if value in (True, sympy.true):
         return "通过"
@@ -466,36 +486,38 @@ def _truth(sympy, value):
     return None
 
 
-def _numeric_pass(sympy, claim):
-    if not isinstance(claim, sympy.Equality) or claim.free_symbols:
+def _numeric_pass(sympy, claim, ulp=None):
+    if ulp is None or not isinstance(claim, sympy.Equality) or claim.free_symbols:
         return None
     try:
-        left = complex(claim.lhs.evalf(20))
-        right = complex(claim.rhs.evalf(20))
+        limit = sympy.Rational(*Decimal(str(ulp)).as_integer_ratio())
+        delta = sympy.simplify(abs(claim.lhs - claim.rhs))
+        if getattr(delta, "is_number", False) is False:
+            return None
+        if delta.is_rational or getattr(delta, "is_Rational", False):
+            passed = delta < limit
+        else:
+            passed = sympy.N(delta, 50) < sympy.N(limit, 50)
+        if passed:
+            return VerifyResult("通过", "数值近似")
     except Exception:
         return None
-    if not all(math.isfinite(part) for part in (left.real, left.imag, right.real, right.imag)):
-        return None
-    diff = abs(left - right)
-    scale = abs(left) if abs(left) >= abs(right) else abs(right)
-    if diff <= _APPROX_REL * scale or (scale == 0 and diff <= _APPROX_ABS):
-        return VerifyResult("通过", "数值近似" if diff > _APPROX_ABS else "")
     return None
 
 
-def _closed(sympy, claim):
+def _closed(sympy, claim, ulp=None):
     if isinstance(claim, sympy.Equality):
         status = _truth(sympy, sympy.simplify(claim))
         if status == "通过":
             return VerifyResult("通过")
         if status == "矛盾":
-            approx = _numeric_pass(sympy, claim)
+            approx = _numeric_pass(sympy, claim, ulp)
             if approx is not None:
                 return approx
             return VerifyResult("矛盾", f"化简为 {_relation_text(sympy, claim)}")
         if claim.lhs.free_symbols and claim.rhs.free_symbols:
             return _expressions_equal(sympy, claim.lhs, claim.rhs)
-        approx = _numeric_pass(sympy, claim)
+        approx = _numeric_pass(sympy, claim, ulp)
         if approx is not None:
             return approx
         return VerifyResult("无法解析", "这个式子不是恒真或恒假")
@@ -519,7 +541,21 @@ def _assignment_conflict(sympy, assignments):
     return None
 
 
-def _substitute(sympy, claim, assignments):
+def _determined_unknown(sympy, claim):
+    if not isinstance(claim, sympy.Equality):
+        return False
+    leftover = claim.free_symbols
+    if len(leftover) != 1:
+        return False
+    symbol = next(iter(leftover))
+    if claim.lhs == symbol and not claim.rhs.free_symbols:
+        return True
+    if claim.rhs == symbol and not claim.lhs.free_symbols:
+        return True
+    return False
+
+
+def _substitute(sympy, claim, assignments, ulp=None):
     replaced = claim
     for item in assignments:
         replaced = replaced.subs(item.lhs, item.rhs)
@@ -527,16 +563,18 @@ def _substitute(sympy, claim, assignments):
     if status == "通过":
         return VerifyResult("通过")
     if status == "矛盾":
-        approx = _numeric_pass(sympy, replaced)
+        approx = _numeric_pass(sympy, replaced, ulp)
         if approx is not None:
             return approx
         values = "，".join(f"{item.lhs} = {item.rhs}" for item in assignments)
         return VerifyResult("矛盾", f"代入 {values} 后为 {_relation_text(sympy, claim, assignments)}")
-    approx = _numeric_pass(sympy, replaced)
+    approx = _numeric_pass(sympy, replaced, ulp)
     if approx is not None:
         return approx
-    if replaced.free_symbols:
+    if _determined_unknown(sympy, replaced):
         return VerifyResult("通过")
+    if replaced.free_symbols:
+        return VerifyResult("无法解析", "代入后仍有未赋值符号")
     return VerifyResult("无法解析", "代入后仍无法判断")
 
 

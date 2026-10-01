@@ -206,9 +206,48 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(pi_approx.status, "通过", pi_approx)
         e_approx = verify.check_math("e == 2.718")
         self.assertEqual(e_approx.status, "通过", e_approx)
+        self.assertEqual(third.detail, "数值近似")
+        self.assertEqual(pi_approx.detail, "数值近似")
+        self.assertEqual(e_approx.detail, "数值近似")
         self.assertEqual(verify.check_math("pi == 3").status, "矛盾")
         self.assertEqual(verify.check_math("1.2*3 == 3.7").status, "矛盾")
         self.assertEqual(verify.check_math("2 + 2 == 5").status, "矛盾")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_leftover_symbols_after_where_are_unparsed_unless_determined(self):
+        cases = [
+            ("x**2 == -1", "y = 2"),
+            ("0 == 1 + y**2", "x = 1"),
+            ("sqrt(y) == -1", "x = 0"),
+            ("2*y == 4", "x = 1"),
+            ("x == 2*y", "x = 3"),
+            ("F == m*a", "m = 2"),
+        ]
+        for expr, where in cases:
+            result = verify.check_math(expr, where)
+            self.assertEqual(result.status, "无法解析", (expr, where, result))
+        determined = verify.check_math("E == F/q", "F=6; q=2")
+        self.assertEqual(determined.status, "通过", determined)
+        identity = verify.check_math("x+1 == x", "y = 1")
+        self.assertEqual(identity.status, "矛盾", identity)
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_exact_rationals_do_not_use_relative_tolerance(self):
+        cases = [
+            "2**10 == 1025",
+            "3003 == 3004",
+            "1000 == 999",
+            "100000 == 100099",
+            "2 == 2.001",
+            "1.6e-19 == 1.601e-19",
+            "1000 == 1001",
+        ]
+        for expr in cases:
+            result = verify.check_math(expr)
+            self.assertEqual(result.status, "矛盾", (expr, result))
+        assigned = verify.check_math("x == 1000", "x = 1001")
+        self.assertEqual(assigned.status, "矛盾", assigned)
+        self.assertEqual(assigned.detail.find("数值近似"), -1)
 
     @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
     def test_concurrent_contradictions_stay_safe_under_64_workers(self):
