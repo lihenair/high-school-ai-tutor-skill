@@ -245,8 +245,9 @@ def _check_math(sympy, expr, where):
     if len(parsed) == 1 and _is_expr(sympy, claim) and _is_expr(sympy, parsed[0]):
         return _expressions_equal(sympy, claim, parsed[0])
     if len(parsed) == 1 and _is_constraint(sympy, claim) and _is_constraint(sympy, parsed[0]):
-        where_eq = isinstance(parsed[0], sympy.Equality) and not _is_assignment(sympy, parsed[0])
-        if where_eq and isinstance(claim, sympy.Equality):
+        if not _is_assignment(sympy, parsed[0]) and (
+            isinstance(parsed[0], sympy.Equality) or isinstance(claim, sympy.Equality)
+        ):
             return VerifyResult("无法解析", "条件不是赋值")
         return _relations_equal(sympy, claim, parsed[0])
     return VerifyResult("无法解析", "这组式子无法比对")
@@ -530,28 +531,21 @@ def _truth(sympy, value):
 
 
 def _numeric_pass(sympy, claim, ulp=None):
-    if ulp is None or not _is_relational(sympy, claim) or claim.free_symbols:
+    """半单位容差只用于等式。不等式一律精确判断。"""
+    if ulp is None or not isinstance(claim, sympy.Equality) or claim.free_symbols:
         return None
     try:
         limit = sympy.Rational(*Decimal(str(ulp)).as_integer_ratio())
-        if isinstance(claim, sympy.Equality):
-            delta = sympy.simplify(abs(claim.lhs - claim.rhs))
-            if getattr(delta, "is_number", False) is False:
-                return None
-            if delta.is_rational or getattr(delta, "is_Rational", False):
-                passed = delta < limit
-            else:
-                passed = sympy.N(delta, 50) < sympy.N(limit, 50)
-            if passed:
-                return VerifyResult("通过", "数值近似")
+        delta = sympy.simplify(abs(claim.lhs - claim.rhs))
+        if getattr(delta, "is_number", False) is False:
             return None
-        exact = _truth(sympy, sympy.simplify(claim))
-        if exact == "通过":
-            return VerifyResult("通过")
-        delta = sympy.N(abs(claim.lhs - claim.rhs), 50)
-        if delta < sympy.N(limit, 50):
+        if delta.is_rational or getattr(delta, "is_Rational", False):
+            passed = delta < limit
+        else:
+            passed = sympy.N(delta, 50) < sympy.N(limit, 50)
+        if passed:
             return VerifyResult("通过", "数值近似")
-    except Exception:
+    except (TypeError, ValueError, ArithmeticError, AttributeError, OverflowError):
         return None
     return None
 
@@ -579,9 +573,6 @@ def _closed(sympy, claim, ulp=None):
     status = _truth(sympy, sympy.simplify(claim))
     if status == "通过":
         return VerifyResult("通过")
-    approx = _numeric_pass(sympy, claim, ulp)
-    if approx is not None:
-        return approx
     if status == "矛盾":
         return VerifyResult("矛盾", f"化简为 {_relation_text(sympy, claim)}")
     return VerifyResult("无法解析", "这个式子不是恒真或恒假")
@@ -595,7 +586,7 @@ def _assignment_conflict(sympy, assignments):
             try:
                 if sympy.simplify(previous - item.rhs) != 0:
                     return VerifyResult("矛盾", f"条件自相矛盾：{item.lhs} 不能同时为 {previous} 与 {item.rhs}")
-            except Exception:
+            except (TypeError, ValueError, ArithmeticError, AttributeError):
                 return VerifyResult("无法解析", "条件无法解析")
         seen[item.lhs] = item.rhs
     return None
@@ -623,7 +614,7 @@ def _has_undefined(sympy, expr):
     try:
         atoms = (sympy.zoo, sympy.nan, sympy.oo, -sympy.oo, sympy.S.ComplexInfinity)
         return bool(expr.has(*atoms))
-    except Exception:
+    except (TypeError, ValueError, AttributeError):
         return False
 
 
@@ -634,7 +625,7 @@ def _is_real_closed(sympy, value):
         if value.is_real is False:
             return False
         numeric = complex(sympy.N(value, 30))
-    except Exception:
+    except (TypeError, ValueError, ArithmeticError, AttributeError, OverflowError):
         return False
     return abs(numeric.imag) <= 1e-12 and math.isfinite(numeric.real)
 
@@ -682,7 +673,7 @@ def _substitute(sympy, claim, assignments, ulp=None):
         return VerifyResult("无法解析", "代入后出现未定义值")
     try:
         simplified = sympy.simplify(replaced)
-    except Exception:
+    except (TypeError, ValueError, ArithmeticError, AttributeError):
         return VerifyResult("无法解析", "代入后仍无法判断")
     if _has_undefined(sympy, simplified):
         return VerifyResult("无法解析", "代入后出现未定义值")
@@ -690,14 +681,16 @@ def _substitute(sympy, claim, assignments, ulp=None):
     if status == "通过":
         return VerifyResult("通过")
     if status == "矛盾":
+        if isinstance(replaced, sympy.Equality):
+            approx = _numeric_pass(sympy, replaced, ulp)
+            if approx is not None:
+                return approx
+        values = "，".join(f"{item.lhs} = {item.rhs}" for item in assignments)
+        return VerifyResult("矛盾", f"代入 {values} 后为 {_relation_text(sympy, claim, assignments)}")
+    if isinstance(replaced, sympy.Equality):
         approx = _numeric_pass(sympy, replaced, ulp)
         if approx is not None:
             return approx
-        values = "，".join(f"{item.lhs} = {item.rhs}" for item in assignments)
-        return VerifyResult("矛盾", f"代入 {values} 后为 {_relation_text(sympy, claim, assignments)}")
-    approx = _numeric_pass(sympy, replaced, ulp)
-    if approx is not None:
-        return approx
     if _determined_unknown(sympy, claim, replaced, assignments):
         return VerifyResult("通过")
     if replaced.free_symbols:

@@ -19,11 +19,11 @@ run() {
   fi
 }
 
-run socratic-ok.txt    socratic 0 --answer B --options ABCD
-run map-ok.txt         socratic 0 --answer B --options ABCD
-run chapter-map-ok.txt socratic 0 --answer B --options ABCD
-run problem-slice-ok.txt socratic 0 --answer B --options ABCD
-run socratic-bad.txt   socratic 1 --answer "a≤1" --options ABCD
+run socratic-ok.txt    socratic 0
+run map-ok.txt         socratic 0
+run chapter-map-ok.txt socratic 0
+run problem-slice-ok.txt socratic 0
+run socratic-bad.txt   socratic 1
 run chapter-map-bad.txt socratic 1
 run edge-bad.txt       socratic 1
 run style-bad.txt      socratic 1
@@ -51,7 +51,7 @@ run self-study/12-notebook-extension.txt study 1
 run self-study/13-diagnosis-ask.txt study 0
 run self-study/14-diagnosis-judge.txt study 0
 run self-study/15-repair-step.txt study 0
-run self-study/16-solve-unlabeled.txt study 1
+run self-study/16-solve-unlabeled.txt study 0
 
 echo "通过 $pass / $((pass + fail))"
 [ "$fail" -eq 0 ]

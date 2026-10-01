@@ -253,7 +253,7 @@ def main():
                 text = target.read_text(encoding="utf-8")
                 headings_by_file[rel] = {
                     match.group(1).strip()
-                    for match in re.finditer(r"^#{1,6}\s+(.+)$", text, re.M)
+                    for match in re.finditer(r"^#{1,6}\s+(.+)$", text, re.MULTILINE)
                 }
         headings = headings_by_file[rel]
         pieces = [part.strip() for part in re.split(r"\s*→\s*|\s*；\s*", name) if part.strip()]

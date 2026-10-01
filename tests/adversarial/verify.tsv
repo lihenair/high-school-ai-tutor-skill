@@ -99,11 +99,16 @@ oo == oo		无法解析		oo-identity
 log(0) == log(0)		无法解析		log0-identity
 0/0 == 0/0		无法解析		nan-identity
 x == 2	x**2=4	无法解析		where-not-assignment
+x == 2	x>1	无法解析		where-inequality-not-assign
 2·3 == 6		通过		middle-dot
 ½ == 0.5		通过		vulgar-half
 √4 == 2		通过		sqrt-glyph
-pi <= 3.14		通过	数值近似	pi-le-half-ulp
-pi >= 3.14		通过		pi-ge
+pi < 3.14		矛盾		pi-lt-exact
+pi <= 3.14		矛盾		pi-le-exact
+e <= 2.718		矛盾		e-le-exact
+sqrt(2) <= 1.414		矛盾		sqrt2-le-exact
+1/3 < 0.333		矛盾		third-lt-exact
+pi >= 3.14		通过		pi-ge-exact
 10**13 == 10000000000000		通过		ten-to-13
 3·4 == 12		通过		redteam-dot-mul
 ¼ == 0.25		通过		redteam-vulgar-quarter

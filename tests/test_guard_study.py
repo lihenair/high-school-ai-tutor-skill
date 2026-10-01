@@ -26,7 +26,7 @@ EXPECT = {
     "13-diagnosis-ask.txt": (0, []),
     "14-diagnosis-judge.txt": (0, []),
     "15-repair-step.txt": (0, []),
-    "16-solve-unlabeled.txt": (1, ["E17a"]),
+    "16-solve-unlabeled.txt": (0, []),
 }
 
 

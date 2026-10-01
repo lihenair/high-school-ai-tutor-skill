@@ -150,21 +150,17 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 每一轮把要发给用户的回复先写入临时文件（如 reply.txt），运行守卫，退出码为 0 才发送；有 ERROR 时按清单修改后重检：
 
 ```bash
-python3 <skill目录>/scripts/guard.py --mode socratic --answer B --options ABCD reply.txt
-python3 <skill目录>/scripts/guard.py --mode socratic --answer-file gold.txt --options ABCD --stem stem.txt reply.txt
-python3 <skill目录>/scripts/guard.py --mode socratic --stem stem.txt reply.txt   # 缺 --answer 时只走小规则并 WARN
+python3 <skill目录>/scripts/guard.py --mode socratic reply.txt   # 引导模式
 python3 <skill目录>/scripts/guard.py --mode full reply.txt       # 完整模式与总结阶段（summary 同 full）
-python3 <skill目录>/scripts/guard.py --mode socratic --no-student-answer --answer B reply.txt
+python3 <skill目录>/scripts/guard.py --mode socratic --no-student-answer reply.txt
 python3 <skill目录>/scripts/guard.py --mode full --subject math reply.txt   # 数学完整模式：额外查机验标记
 python3 <skill目录>/scripts/guard.py --mode study reply.txt       # 自学模式单文件
 python3 <skill目录>/scripts/guard.py --mode study --dir tests/guard-cases/self-study/   # 自学用例目录
 ```
 
-引导模式**必须**传入本题金标：`--answer` 可重复，或 `--answer-file` 一行一个。题库题目已有金标字段（选项如 `BD`、多选连写、数值、区间、结论词）和选项字母串时，原样传给 `--answer` / `--options`，不要手抄或改写。守卫按答案键比对（含等价不等式/区间），不要靠枚举话术。选择题把选项字母串传给 `--options`（默认按 ABCD 理解甲乙丙丁、①②③、第几个选项）。缺 `--answer` 时只拦「答案/选/故/所以 + 值」「【答案】」「answer →」「Correct option」，并打 WARN。
-
 数学完整模式跑守卫时带上该科目参数，其它科目不带。自学轮用 `--mode study`。解题轮不要改用 study。
 
-守卫机检红线：引导模式对照金标漏答案、报加权、输出总结标题或错题本条目；完整模式缺九段标题或本题 mermaid 图谱；边标签不是三种之一或线型用错；节点没有按概念、技能、实验、后续章节配色；人教版化学必修第一册（2019）第一章整章图缺节点或写入电石、PH₃、Cu₃P；非法难度用词；加权与五项分不一致；--no-student-answer 时出现「我的错误」。自学模式另查：非章览出现整章 mermaid（R1a）、章览缺图（R1b，WARN）、错题本条目混入拓展词（R2）、缺状态标签（E17a）、状态词不在封闭集（E17b）、节点名未命中正典显示名（E17c；正文已写「此章正典待补录」时降为 WARN）、标签和正文格式冲突（E18，七槽去占位后须各有至少 6 个汉字或等价词，且不与槽名或其他槽重复）。边标签、配色和加权核对在自学模式里调用同一套函数，不另写一份。守卫查不出讲解对错——验算仍按各科清单做，自检仍照下一节执行。数学式子的对错走 `modes/math-verify.md`。漏答金标的数值/区间等价可用 SymPy，不要用它给整段回复判对错。
+守卫机检红线：引导模式漏答案、报加权、输出总结标题或错题本条目；完整模式缺九段标题或本题 mermaid 图谱；边标签不是三种之一或线型用错；节点没有按概念、技能、实验、后续章节配色；人教版化学必修第一册（2019）第一章整章图缺节点或写入电石、PH₃、Cu₃P；非法难度用词；加权与五项分不一致；--no-student-answer 时出现「我的错误」。自学模式另查：非章览出现整章 mermaid（R1a）、章览缺图（R1b，WARN）、错题本条目混入拓展词（R2）、缺状态标签（E17a）、状态词不在封闭集（E17b）、节点名未命中正典显示名（E17c；正文已写「此章正典待补录」时降为 WARN）、标签和正文格式冲突（E18）。边标签、配色和加权核对在自学模式里调用同一套函数，不另写一份。守卫查不出内容对错——验算仍按各科清单做，自检仍照下一节执行。数学式子的对错走 `modes/math-verify.md`，不要把 SymPy 放进守卫。
 
 ## 自检与禁止
 

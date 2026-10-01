@@ -346,7 +346,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(stdout.splitlines()[0], "通过")
         proc = subprocess.run(
             [sys.executable, str(SCRIPTS / "verify.py"), "--expr", "-1.6e-19 == -1.6e-19"],
-            capture_output=True, text=True,
+            capture_output=True, text=True, check=False,
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(proc.stdout.splitlines()[0], "通过")
