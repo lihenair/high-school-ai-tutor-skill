@@ -3,15 +3,19 @@
 回复守卫：把要发给学生的回复先交给本脚本检查，过了再发送。
 
 用法：
-    python3 guard.py --mode socratic reply.txt     # 引导模式（苏格拉底）
-    python3 guard.py --mode full reply.txt         # 完整模式 / 总结阶段（summary 同 full）
-    python3 guard.py --mode socratic --no-student-answer reply.txt
-    python3 guard.py --mode full --subject math reply.txt   # 数学完整模式额外查机验标记
-    python3 guard.py --mode study reply.txt                 # 自学模式
+    python3 guard.py --mode socratic --gold gold.txt reply.txt
+    python3 guard.py --mode socratic --answer B --options ABCD reply.txt
+    python3 guard.py --mode socratic --answer-file gold.txt --options ABCD --stem stem.txt reply.txt
+    python3 guard.py --mode socratic --no-gold reply.txt
+    python3 guard.py --mode full reply.txt
+    python3 guard.py --mode socratic --no-student-answer --gold gold.txt reply.txt
+    python3 guard.py --mode full --subject math reply.txt
+    python3 guard.py --mode study reply.txt
     python3 guard.py --mode study --dir tests/guard-cases/self-study/
     cat reply.txt | python3 guard.py --mode full -
 
 退出码：0 = 无 ERROR（可含 WARN，仍可发送，与 SKILL.md「退出码为 0 才发送」一致）；1 存在 ERROR，按清单修改后重检；2 用法错误。
+引导模式缺金标且未加 --no-gold 时为 ERROR（退出码 1），不是 WARN。
 
 守卫只机检红线（漏答案、缺九段标题、缺本题 mermaid 图谱、边标签、人教版化学必修第一册第一章节点、非法用词、加权算错、编造「我的错误」、
 数学完整模式缺机验标记 --subject math），查不出内容对错——验算仍按各科 reference 的清单做。
@@ -20,6 +24,9 @@
 import argparse
 import re
 import sys
+import unicodedata
+
+import leak
 
 DIFFICULTY_LEVELS = ("基础", "中等", "压轴", "竞赛")
 WEIGHTS = (0.30, 0.25, 0.20, 0.15, 0.10)  # 各科五维权重相同，见各 reference
@@ -27,7 +34,7 @@ SUMMARY_HEADINGS = (
     "难度判断", "讲解", "解题思维链", "一题多解", "解法对比",
     "变式题", "错因诊断", "错题本沉淀", "总结",
 )
-RULE_GUIDED = "SKILL.md「每轮输出总则 → 引导模式本轮只输出」"
+RULE_GUIDED = "SKILL.md「每轮输出总则」「引导模式本轮只输出」"
 RULE_SUMMARY_FMT = "modes/full.md「题目完成后的总结格式」"
 RULE_DIFFICULTY = "modes/full.md「难度总则」"
 RULE_NOTEBOOK = "modes/records.md「错题本何时生成」；modes/full.md「核心规则」"
@@ -38,14 +45,6 @@ VERIFY_MARKER_HINT = " / ".join(VERIFY_MARKERS)
 # 出现「机验」二字但不是上面五句之一，视为句式漂移。
 VERIFY_LOOSE_RE = re.compile(r"机验")
 
-# 引导模式疑似给出最终结果的写法
-ANSWER_LEAK_PATTERNS = [
-    (r"答案[是为：:]\s*\S", "直接给出「答案为…」"),
-    (r"(?:所以|因此|综上|故|∴)[^。！？\n]{0,40}(?:[=≤≥<>]|等于)\s*[-+]?[\d.]", "推到具体数值/不等式"),
-    (r"(?:取值范围|解集|值域)[是为：:]\s*[{\[（(]?[-+]?[\d.]", "给出范围/解集"),
-    (r"答案?是\s*[A-D]\b", "直接报选择题选项"),
-    (r"(?<![你他她谁咱刚学生])(?:故选|选)\s*[A-D](?:[选项]|[.。、]|$)", "直接报选择题选项"),
-]
 # 引导模式不该先说破的关键公式（常见形状）
 FORMULA_PATTERNS = [
     (r"[fF]\s*=\s*m\s*a\b", "牛顿第二定律"),
@@ -56,23 +55,48 @@ FORMULA_PATTERNS = [
 ]
 BAD_DIFFICULTY_RE = re.compile(r"偏难|偏易|中等偏上|中等偏下|较难|较易|很难|太简单|太容易")
 HEADING_RE = re.compile(r"^#{2,3}\s*([0-9０-９])\s*[\.、．]\s*(\S+)")
-SCORES_RE = re.compile(r"([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*分")
+SCORE_TOKEN = r"([1-5])"
+SCORE_SEP = r"\s*[、,，/\-]\s*"
+SCORES_RE = re.compile(
+    rf"{SCORE_TOKEN}{SCORE_SEP}{SCORE_TOKEN}{SCORE_SEP}{SCORE_TOKEN}{SCORE_SEP}{SCORE_TOKEN}{SCORE_SEP}{SCORE_TOKEN}\s*分"
+)
+SCORES_SLASH_RE = re.compile(r"([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*分")
+SCORES_SPACE_RE = re.compile(r"([1-5])\s+([1-5])\s+([1-5])\s+([1-5])\s+([1-5])\s*分")
+SCORES_DASH_RE = re.compile(r"([1-5])\s*-\s*([1-5])\s*-\s*([1-5])\s*-\s*([1-5])\s*-\s*([1-5])")
+SCORES_TUPLE_RE = re.compile(
+    r"[（(]\s*([1-5])\s*[,，]\s*([1-5])\s*[,，]\s*([1-5])\s*[,，]\s*([1-5])\s*[,，]\s*([1-5])\s*[）)]"
+)
 WEIGHTED_EXPANSION_RE = re.compile(r"0\.30\s*[×x*]")
+PERCENT_ANNOT_RE = re.compile(r"[（(]\s*\d+\s*%\s*[）)]")
+DIM_SCORE_PATTERNS = (
+    (re.compile(r"知识点[^\d]{0,12}([1-5])"), 0),
+    (re.compile(r"思维[^\d]{0,12}([1-5])"), 1),
+    (re.compile(r"综合[^\d]{0,12}([1-5])"), 2),
+    (re.compile(r"(?:计算|运算)[^\d]{0,12}([1-5])"), 3),
+    (re.compile(r"(?:频率|出现)[^\d]{0,12}([1-5])"), 4),
+)
 MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
-ARROW_TOKEN = r"(?:-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
+ARROW_TOKEN = r"(?:<-->|-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
-NODE_LABEL_RE = re.compile(
-    r'\(\((?:["\']([^"\']+)["\']|([^)]+))\)\)'
-    r'|'
-    r'\((?:["\']([^"\']+)["\']|([^)]+))\)'
-    r'|'
-    r'\[(?:["\']([^"\']+)["\']|([^\]]+))\]'
-    r'|'
-    r'\{(?:["\']([^"\']+)["\']|([^}]+))\}'
+NODE_DEF_RE = re.compile(
+    r'(?:^|[\s;])'
+    r'(?P<id>[A-Za-z0-9_\u4e00-\u9fff][\w\u4e00-\u9fff-]*)'
+    r'(?:'
+    r'\[(?:/|\\)(?P<q1>["\'`])(?P<trap>.*?)(?P=q1)(?:/|\\)\]'
+    r'|[\[\(\{>]+(?P<q2>["\'`])(?P<quoted>.*?)(?P=q2)[\]\)\}]+'
+    r'|[\[\(\{>]+(?P<bare>[^\[\]\(\)\{\}"\'`\n]+)[\]\)\}]+'
+    r')'
+)
+_MERMAID_SKIP_RE = re.compile(
+    r"^\s*(?:%%|classDef\b|style\b|class\b|click\b|flowchart\b|graph\b|direction\b|subgraph\b|end\b)"
 )
 MAX_REQUIRED_NAMES_PER_NODE = 6
 MIN_REQUIRED_NODE_LABELS = 10
+NODE_TYPE_SUFFIX_RE = re.compile(r"[（(](?:概念|技能|实验)[）)]$")
+LABEL_SPLIT_RE = re.compile(r"[/／；;、，,：:\s·+]+|<br\s*/?>|\\n", re.IGNORECASE)
+AND_SPLIT_RE = re.compile(r"[与和及]")
+NAME_TYPE_SUFFIXES = ("效应", "现象", "法")
 EDGE_LABELS = {"直接前置", "同章衔接", "常考组合"}
 SOLID_LABELS = {"直接前置", "同章衔接"}
 # 只核这一册这一章的整章图。本题切片不要写这一行。
@@ -123,17 +147,83 @@ def check_summary_headings(lines):
     return [n for n in range(1, 10) if n not in found]
 
 
+def _score_line(line):
+    return PERCENT_ANNOT_RE.sub("", unicodedata.normalize("NFKC", str(line or "")))
+
+
+def _parse_weighted_number(chunk):
+    text = unicodedata.normalize("NFKC", str(chunk or ""))
+    match = re.search(r"[-+]?\d+\.\d+|[0-9]+", text)
+    if not match:
+        cn = re.search(r"[零〇一二两三四五六七八九]+点[零〇一二两三四五六七八九]+", text)
+        if not cn:
+            return None
+        whole, frac = cn.group(0).split("点", 1)
+        mapping = {"零": "0", "〇": "0", "一": "1", "二": "2", "两": "2", "三": "3",
+                   "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9"}
+        digits = "".join(mapping.get(ch, "") for ch in whole) + "." + "".join(
+            mapping.get(ch, "") for ch in frac
+        )
+        try:
+            return float(digits)
+        except ValueError:
+            return None
+    try:
+        return float(match.group(0))
+    except ValueError:
+        return None
+
+
+def _claimed_weighted(text):
+    """只取紧跟「加权/=/≈」的数；等号链取最后一个有效总数。"""
+    nfkc = unicodedata.normalize("NFKC", str(text or "")).replace("\n", " ")
+    if "加权" not in nfkc:
+        return None
+    start = nfkc.find("加权")
+    rest = nfkc[start:]
+    head = re.match(r"加权(?:分|总分)?", rest)
+    payload = rest[head.end():] if head else rest
+    payload = re.sub(r"^[为是：:\s约]*", "", payload)
+    coeffs = {round(item, 2) for item in WEIGHTS}
+    if payload.startswith(("=", "＝", "≈")) or "=" in payload or "≈" in payload:
+        chain = re.split(r"[=＝≈]", payload)
+        for chunk in reversed(chain):
+            parsed = _parse_weighted_number(chunk)
+            if parsed is None:
+                continue
+            if round(parsed, 2) in coeffs and ("*" in chunk or "×" in chunk or "x" in chunk.lower()):
+                continue
+            if round(parsed, 2) in coeffs and re.search(r"[×x*]", payload):
+                continue
+            return parsed
+        return None
+    return _parse_weighted_number(payload)
+
+
 def check_weighted(lines):
     """报了五项评分时核对加权。返回 (五项分, 账面加权, 应得加权) 或 None。"""
     scores = claimed = None
-    for line in lines:
-        m = SCORES_RE.search(line)
-        if m:
-            scores = [int(g) for g in m.groups()]
-        if "加权" in line:
-            nums = re.findall(r"[=＝为是：:]\s*([0-9]+\.[0-9]{2}|[0-9]+)", line)
-            if nums:
-                claimed = float(nums[-1])  # 展开式取最后一个等号后的总数
+    named = [None, None, None, None, None]
+    blob = "\n".join(lines)
+    for raw in lines:
+        line = _score_line(raw)
+        match = (
+            SCORES_TUPLE_RE.search(line)
+            or SCORES_RE.search(line)
+            or SCORES_SLASH_RE.search(line)
+            or SCORES_SPACE_RE.search(line)
+            or SCORES_DASH_RE.search(line)
+        )
+        if match:
+            scores = [int(group) for group in match.groups()]
+        for pattern, index in DIM_SCORE_PATTERNS:
+            hit = pattern.search(line)
+            if hit:
+                named[index] = int(hit.group(1))
+    if all(value is not None for value in named):
+        scores = named
+    if "加权" in unicodedata.normalize("NFKC", blob):
+        claimed = _claimed_weighted(blob)
     if scores is None:
         return None
     expect = round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)
@@ -206,13 +296,111 @@ def check_mermaid_style(text):
     return problems
 
 
+def _label_core(label):
+    return NODE_TYPE_SUFFIX_RE.sub("", str(label or "").strip()).strip()
+
+
+def _label_tokens(label):
+    core = _label_core(label)
+    parts = [part.strip() for part in LABEL_SPLIT_RE.split(core) if part.strip()]
+    extra = []
+    for part in parts:
+        extra.extend(bit.strip() for bit in AND_SPLIT_RE.split(part) if bit.strip())
+    return extra or ([core] if core else [])
+
+
+_CHEM_COVER_TOKENS = None
+
+
+def _chem_cover_tokens(name):
+    global _CHEM_COVER_TOKENS
+    if _CHEM_COVER_TOKENS is None:
+        import nodes
+        mapping = {item: {item} for item in PEP_CHEM_BX1_CH1_REQUIRED}
+        path = nodes.NODES_DIR / "chemistry.md"
+        entries, _problems = nodes.parse_lines("chemistry.md", path.read_text(encoding="utf-8"))
+        for standard, aliases, _chapter in entries:
+            pool = [standard, *aliases, *_label_tokens(standard)]
+            for alias in aliases:
+                pool.extend(_label_tokens(alias))
+            expanded = set()
+            for token in pool:
+                token = str(token or "").strip()
+                if not token:
+                    continue
+                expanded.add(token)
+                if token.endswith("效应"):
+                    expanded.add(token[:-2] + "现象")
+                elif token.endswith("现象"):
+                    expanded.add(token[:-2] + "效应")
+            for required in PEP_CHEM_BX1_CH1_REQUIRED:
+                if any(
+                    required == token
+                    or token.startswith(required)
+                    or required in _label_tokens(token)
+                    for token in expanded
+                ):
+                    mapping[required].update(expanded)
+                    mapping[required].add(required)
+        _CHEM_COVER_TOKENS = mapping
+    return _CHEM_COVER_TOKENS.get(name, {name})
+
+
+def _part_covers_name(part, name):
+    if not part or not name:
+        return False
+    if part == name:
+        return True
+    if part.startswith(name) and part[len(name):] in ("", *NAME_TYPE_SUFFIXES):
+        return True
+    return False
+
+
+def _label_covers_required(label, name):
+    core = _label_core(label)
+    if core == name:
+        return True
+    allowed = _chem_cover_tokens(name)
+    for part in _label_tokens(label) + [core]:
+        if _part_covers_name(part, name) or part in allowed:
+            return True
+    return False
+
+
+def _fold_chem_text(text):
+    return unicodedata.normalize("NFKC", str(text or "")).replace("₃", "3").replace("₃", "3").upper()
+
+
+def _mermaid_code_lines(block):
+    for raw in str(block or "").splitlines():
+        stripped = raw.strip()
+        if "%%" in stripped:
+            stripped = stripped.split("%%", 1)[0].strip()
+        if not stripped or _MERMAID_SKIP_RE.match(stripped):
+            continue
+        yield stripped
+
+
+def mermaid_node_entries(block):
+    """去重后的 (id, label)。忽略注释、subgraph 标题、classDef/style。"""
+    entries = []
+    seen = set()
+    for line in _mermaid_code_lines(block):
+        for match in NODE_DEF_RE.finditer(" " + line):
+            node_id = match.group("id")
+            label = (match.group("trap") or match.group("quoted") or match.group("bare") or "").strip()
+            if not node_id or not label:
+                continue
+            key = (node_id, label)
+            if key in seen:
+                continue
+            seen.add(key)
+            entries.append(key)
+    return entries
+
+
 def mermaid_node_labels(block):
-    labels = []
-    for groups in NODE_LABEL_RE.findall(block):
-        label = next((part for part in groups if part), "").strip()
-        if label:
-            labels.append(label)
-    return labels
+    return [label for _node_id, label in mermaid_node_entries(block)]
 
 
 def check_pep_chem_chapter(text):
@@ -224,19 +412,47 @@ def check_pep_chem_chapter(text):
         return ["写了人教版化学必修第一册（2019）第一章的整章图标记，但后面没有 mermaid"]
     problems = []
     labels = mermaid_node_labels(block)
-    missing = [name for name in PEP_CHEM_BX1_CH1_REQUIRED if not any(name in label for label in labels)]
+    missing = [
+        name for name in PEP_CHEM_BX1_CH1_REQUIRED
+        if not any(_label_covers_required(label, name) for label in labels)
+    ]
     if missing:
         problems.append("这一章整章图缺少节点：" + "、".join(missing))
-    stuffed = [
+    jammed = [
         label for label in labels
-        if sum(1 for name in PEP_CHEM_BX1_CH1_REQUIRED if name in label) > MAX_REQUIRED_NAMES_PER_NODE
+        if any(
+            name in _label_core(label) and not _label_covers_required(label, name)
+            for name in PEP_CHEM_BX1_CH1_REQUIRED
+        )
     ]
-    if stuffed:
+    overfull = [
+        label for label in labels
+        if sum(1 for name in PEP_CHEM_BX1_CH1_REQUIRED if _label_covers_required(label, name)) > MAX_REQUIRED_NAMES_PER_NODE
+    ]
+    if jammed or overfull:
         problems.append("整章图把过多必需节点塞进了同一个节点")
-    covering = [label for label in labels if any(name in label for name in PEP_CHEM_BX1_CH1_REQUIRED)]
+    covering = []
+    seen_cores = set()
+    for label in labels:
+        if not any(_label_covers_required(label, name) for name in PEP_CHEM_BX1_CH1_REQUIRED):
+            continue
+        core = _label_core(label)
+        if core in seen_cores:
+            continue
+        seen_cores.add(core)
+        covering.append(label)
     if covering and len(covering) < MIN_REQUIRED_NODE_LABELS:
-        problems.append("整章图把必需节点收进了过少的节点")
-    present = [name for name in PEP_CHEM_BX1_CH1_FORBIDDEN if any(name in label for label in labels)]
+        problems.append("整章图把过多必需节点塞进了过少的节点")
+    folded_labels = [_fold_chem_text(label) for label in labels]
+    present = []
+    seen_forbidden = set()
+    for name in PEP_CHEM_BX1_CH1_FORBIDDEN:
+        folded = _fold_chem_text(name)
+        if folded in seen_forbidden:
+            continue
+        if any(folded in label for label in folded_labels):
+            seen_forbidden.add(folded)
+            present.append(name)
     if present:
         problems.append("这一章整章图写入了题目物质：" + "、".join(present))
     return problems
@@ -256,6 +472,15 @@ RULE_STUDY = "modes/self-study.md"
 RULE_LABEL = "SKILL.md「全局模式」状态标签"
 
 
+MIN_SLOT_SUBSTANCE = 6
+STEP_LINE_RE = re.compile(r"^\s*Step\s*\d+\s*$", re.IGNORECASE)
+SLOT_PLACEHOLDER_RE = re.compile(
+    r"(?<![\w\u4e00-\u9fff])(?:略去|略|（略）|\(略\)|（空）|待补|TODO|N/?A|暂无|同上|xxx+|空|无)(?![\w\u4e00-\u9fff])"
+    r"|…+|⋯+|･+|·{2,}|\.{2,}|—+|-{3,}|_{3,}",
+    re.IGNORECASE,
+)
+
+
 def canon_display(name):
     """节点名落到任一科目的正典显示名时返回该显示名，否则空串。"""
     import nodes
@@ -270,11 +495,76 @@ def canon_display(name):
 
 
 def looks_like_solving(text):
-    """解题轮免标。七槽或判别自测出现时不再当成解题轮。"""
-    if "判别自测" in text or "一句话定义" in text:
+    """解题轮免标。七槽、补步或章览结构出现时不再当成解题轮。"""
+    if any(marker in text for marker in SLOT_MARKERS) or "补步" in text:
+        return False
+    if "拓扑" in text or "```mermaid" in text:
         return False
     first = next((line.strip() for line in text.splitlines() if line.strip()), "")
     return first.startswith("难度：") or first.startswith("难度:")
+
+
+def _slot_line_content(line, marker):
+    after = line.split(marker, 1)[-1]
+    after = re.sub(r"^[：:\s]+", "", after).strip()
+    return after
+
+
+def _slot_substance(text):
+    text = str(text or "").strip()
+    if text in {"？", "?", "。", "⋯", "…"}:
+        return 0
+    text = SLOT_PLACEHOLDER_RE.sub(" ", text)
+    text = re.sub(r"[\U0001F000-\U0001FAFF\U00002700-\U000027BF]", " ", text)
+    text = re.sub(r"[^\w\u4e00-\u9fff]+", " ", text, flags=re.U)
+    text = re.sub(r"(.)\1{2,}", r"\1", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if not text:
+        return 0
+    return len(re.findall(r"[\u4e00-\u9fff]", text)) + len(re.findall(r"[A-Za-z]+", text))
+
+
+def _slot_substance_key(text):
+    text = SLOT_PLACEHOLDER_RE.sub(" ", str(text or ""))
+    return re.sub(r"[^\w\u4e00-\u9fff]+", "", text, flags=re.U)
+
+
+def _slot_bodies(text):
+    lines = str(text or "").splitlines()
+    found = {}
+    for marker in SLOT_MARKERS:
+        hits_at = [index for index, line in enumerate(lines) if marker in line and not STEP_LINE_RE.match(line)]
+        if not hits_at:
+            return None
+        found[marker] = hits_at[0]
+    if len(set(found.values())) != len(SLOT_MARKERS):
+        return None
+    ordered = sorted((found[marker], marker) for marker in SLOT_MARKERS)
+    bodies = []
+    for index, (start, marker) in enumerate(ordered):
+        end = ordered[index + 1][0] if index + 1 < len(ordered) else len(lines)
+        chunks = [_slot_line_content(lines[start], marker)]
+        for line in lines[start + 1:end]:
+            if STEP_LINE_RE.match(line):
+                continue
+            chunks.append(line)
+        bodies.append((marker, "\n".join(chunks).strip()))
+    return bodies
+
+
+def _slots_ok(text):
+    bodies = _slot_bodies(text)
+    if not bodies:
+        return False
+    substances = []
+    for marker, body in bodies:
+        if _slot_substance(body) < MIN_SLOT_SUBSTANCE:
+            return False
+        core = re.sub(r"\s+", "", _slot_substance_key(body))
+        if core == re.sub(r"\s+", "", marker):
+            return False
+        substances.append(core)
+    return len(set(substances)) == len(substances)
 
 
 def question_lines(lines):
@@ -331,24 +621,6 @@ def check_study(text):
             issues.append(("ERROR", "R2", notebook_at, "错题本条目含拓展标记词（L3、拓展或延伸）",
                            "拓展只留在节点第七槽，不要写入错题本"))
 
-    slot_at = next((index for index, line in enumerate(lines, 1) if "判别自测" in line), None)
-    if slot_at:
-        end = len(lines) + 1
-        for index in range(slot_at, len(lines)):
-            if "拓展入口" in lines[index] or re.match(r"^Step\s*7\b", lines[index].strip()):
-                end = index + 1
-                break
-        block = lines[slot_at - 1:end - 1]
-        cursor = 0
-        while cursor < len(block):
-            if not QUESTION_LINE_RE.match(block[cursor]):
-                cursor += 1
-                continue
-            nxt = cursor + 1
-            while nxt < len(block) and not QUESTION_LINE_RE.match(block[nxt]):
-                nxt += 1
-            cursor = nxt
-
     if state == "章览" and "拓扑" not in text:
         issues.append(("ERROR", "E18", 1, "章览缺少拓扑学习顺序", "在整章图后写出拓扑学习顺序"))
     if state == "诊断":
@@ -364,7 +636,7 @@ def check_study(text):
                            "诊断轮须是恰一题的出题形态，或不再出题的判定形态",
                            "出题轮只留一道题；判定轮写判定、记录和下一跳，不要出新题"))
     if state == "节点":
-        has_slots = all(marker in text for marker in SLOT_MARKERS)
+        has_slots = _slots_ok(text)
         if not has_slots and "补步" not in text:
             issues.append(("ERROR", "E18", 1, "节点轮既不是七槽，也不是补步问答",
                            "按七槽输出，或在连错两次后只写补步问答"))
@@ -388,7 +660,8 @@ def check_study(text):
     return issues
 
 
-def check(mode, text, no_student_answer, subject=None):
+def check(mode, text, no_student_answer, subject=None, answers=(), options="", stem="",
+          require_gold=True):
     issues = []  # (severity, code, message, evidence lineno or None)
     text = str(text or "").lstrip("\ufeff")
 
@@ -404,9 +677,15 @@ def check(mode, text, no_student_answer, subject=None):
                        f"难度用词非法（第 {ln[0]} 行：「{ln[1][:30]}」），只能用 基础/中等/压轴/竞赛", ln[0]))
 
     if mode == "socratic":
-        for pat, why in ANSWER_LEAK_PATTERNS:
-            for ln in hits(pat, text):
-                issues.append(("ERROR", "E1", f"引导模式疑似泄露答案（{why}，第 {ln[0]} 行：「{ln[1][:36]}」）", ln[0]))
+        golds = [item for item in (answers or ()) if str(item).strip()]
+        if require_gold and not golds:
+            issues.append(("ERROR", "E1", "引导模式未提供金标答案；先写入 gold 文件再调用守卫", None))
+        elif golds:
+            for lineno, snippet in leak.leak_with_answers(text, golds, options=options, stem=stem):
+                issues.append(("ERROR", "E1", f"引导模式疑似泄露答案（第 {lineno} 行：「{snippet}」）", lineno))
+        else:
+            for lineno, snippet in leak.leak_fallback(text):
+                issues.append(("ERROR", "E1", f"引导模式疑似泄露答案（第 {lineno} 行：「{snippet}」）", lineno))
         for ln in hits(r"^#{1,6}[^\n]*(难度判断|解题思维链|一题多解|解法对比|错因诊断|错题本沉淀)", text):
             issues.append(("ERROR", "E2", f"引导模式输出了总结阶段标题（第 {ln[0]} 行：「{ln[1][:30]}」）", ln[0]))
         if hits(r"【错题本条目】", text):
@@ -507,6 +786,14 @@ def main():
                     help="上下文中没有学生作答（拦截编造「我的错误」）")
     ap.add_argument("--subject", choices=["math"],
                     help="科目；填 math 时，完整模式会额外要求第 2 节末尾出现固定机验标记")
+    ap.add_argument("--gold", default="", help="金标文件：answer:/options: 行或 JSON")
+    ap.add_argument("--answer", action="append", default=[], help="金标答案，可重复")
+    ap.add_argument("--answer-file", default="", help="金标答案文件，一行一个")
+    ap.add_argument("--options", default="", help="选项字母串，如 ABCD 或 甲乙丙丁")
+    ap.add_argument("--stem", default="", help="题干文本，逐字条件可豁免")
+    ap.add_argument("--stem-file", default="", help="题干文件")
+    ap.add_argument("--no-gold", action="store_true",
+                    help="显式无金标模式，走不低于 main 的兜底漏答规则")
     args = ap.parse_args()
 
     if args.mode == "study" and args.dir:
@@ -539,7 +826,31 @@ def main():
         sys.exit(_print_study(args.reply, check_study(text)))
 
     mode = "full" if args.mode == "summary" else args.mode
-    issues = check(mode, text, args.no_student_answer, args.subject)
+    answers = list(args.answer or [])
+    options = args.options
+    stem = args.stem
+    if args.gold:
+        from pathlib import Path
+        gold_answers, gold_options, gold_stem = leak.load_gold_file(
+            Path(args.gold).read_text(encoding="utf-8")
+        )
+        answers.extend(gold_answers)
+        options = options or gold_options
+        stem = stem or gold_stem
+    if args.answer_file:
+        from pathlib import Path
+        answers.extend(
+            line.strip() for line in Path(args.answer_file).read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        )
+    if args.stem_file:
+        from pathlib import Path
+        stem = Path(args.stem_file).read_text(encoding="utf-8")
+    issues = check(
+        mode, text, args.no_student_answer, args.subject,
+        answers=answers, options=options, stem=stem,
+        require_gold=(mode == "socratic" and not args.no_gold),
+    )
 
     errors = [i for i in issues if i[0] == "ERROR"]
     warns = [i for i in issues if i[0] == "WARN"]
