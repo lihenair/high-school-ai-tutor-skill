@@ -193,15 +193,15 @@ def main():
             fail(f"自学规则缺少用语：{bit}")
     if not (SKILL_DIR / "data" / "graph.db").exists():
         fail("缺少 skills/high-school-ai-tutor/data/graph.db")
-    explore_import = re.compile(r"(^|\n)\s*(?:import|from)\s+(?:records|notebook|profile)\b")
+    explore_import = re.compile(r"(^|\n)\s*(?:import|from)\s+(?:records|notebook|profile|student_profile)\b")
     explore_call = re.compile(
-        r"\b(?:records|notebook|profile)\s*\.\s*(?:mastery_apply|mastery_get|weak_points|add_entry|add_record)\s*\("
+        r"\b(?:records|notebook|profile|student_profile)\s*\.\s*(?:mastery_apply|mastery_get|weak_points|add_entry|add_record)\s*\("
     )
     for script in sorted((SKILL_DIR / "scripts").glob("*.py")):
         source = script.read_text(encoding="utf-8")
         if "explore_log" not in source:
             continue
-        if script.name in ("records.py", "notebook.py", "profile.py"):
+        if script.name in ("records.py", "notebook.py", "student_profile.py"):
             fail(f"{script.name} 把 explore_log 接到了掌握度、错题本或判题记录")
         if explore_import.search(source) or explore_call.search(source):
             fail(f"{script.name} 把 explore_log 接到了掌握度、错题本或判题记录")
@@ -218,6 +218,55 @@ def main():
     if not examples:
         fail("判题记录示例应有一条带 --subject 与 --node 的命令")
     print("OK 节点正典，SKILL.md 示例节点落在正典内")
+
+    file_token_re = re.compile(r"(SKILL\.md|modes/[\w.-]+\.md)|[「『]([^」』]+)[」』]")
+    hint_chunks = [
+        chunk for chunk in re.findall(
+            r'["\']([^"\']*(?:\.md|reference)[^"\']*[「『][^"\']*)["\']',
+            (SKILL_DIR / "scripts" / "guard.py").read_text(encoding="utf-8"),
+        )
+        if "\n" not in chunk
+    ]
+    cited_pairs = []
+    current_file = None
+    for chunk in hint_chunks:
+        current_file = None
+        for match in file_token_re.finditer(chunk):
+            if match.group(1):
+                current_file = match.group(1)
+            elif current_file and match.group(2):
+                cited_pairs.append((current_file, match.group(2)))
+    pointer_re = re.compile(
+        r"(SKILL\.md|modes/[\w.-]+\.md)[^。\n]{0,80}[「『]([^」』]+)[」』]"
+    )
+    for path in (SKILL_DIR / "references").glob("*.md"):
+        for match in pointer_re.finditer(path.read_text(encoding="utf-8")):
+            cited_pairs.append((match.group(1), match.group(2)))
+    headings_by_file = {}
+    missing_sections = []
+    for rel, name in cited_pairs:
+        target = SKILL_DIR / rel
+        if rel not in headings_by_file:
+            if not target.exists():
+                headings_by_file[rel] = set()
+            else:
+                text = target.read_text(encoding="utf-8")
+                headings_by_file[rel] = {
+                    match.group(1).strip()
+                    for match in re.finditer(r"^#{1,6}\s+(.+)$", text, re.MULTILINE)
+                }
+        headings = headings_by_file[rel]
+        pieces = [part.strip() for part in re.split(r"\s*→\s*|\s*；\s*", name) if part.strip()]
+        for piece in pieces:
+            core = re.sub(r"\s+\d+$", "", piece)
+            if piece in headings or core in headings:
+                continue
+            if any(heading.startswith(piece) or piece.startswith(heading) for heading in headings):
+                continue
+            missing_sections.append(f"{rel}「{piece}」")
+    if missing_sections:
+        fail("修复提示引用了不存在的章节：" + "、".join(sorted(set(missing_sections))))
+    print("OK 修复提示引用的章节名存在")
 
     print("全部通过。")
 

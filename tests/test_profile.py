@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "skills" / "high-school-ai-tutor" / "scripts"))
 
 import notebook  # noqa: E402
-import profile as student_profile  # noqa: E402
+import student_profile  # noqa: E402
 import routing  # noqa: E402
 
 
@@ -179,6 +179,52 @@ class ProfileTests(unittest.TestCase):
         self.assertTrue(loaded["grade"]["confirmed"])
         self.assertEqual(loaded["textbook_version"], {"value": "苏教版", "confirmed": True})
         self.assertEqual(loaded["exam_type"], {"value": "高考", "confirmed": True})
+
+    def test_show_bad_json_exits_two_without_traceback(self):
+        self.path.write_text("{not json", encoding="utf-8")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = student_profile.main(["show", "--file", str(self.path)])
+        self.assertEqual(code, 2)
+        self.assertTrue(err.getvalue().strip())
+        self.assertNotIn("Traceback", err.getvalue())
+
+    def test_mastery_rejects_mismatched_event_and_source(self):
+        profile = student_profile.create_from_answers({})
+        with self.assertRaises(student_profile.ProfileError):
+            student_profile.mastery_apply(profile, "kp_redox", "自测答错", "解题", "2026-09-26")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = student_profile.main([
+                "mastery", "--node", "kp_redox", "--event", "自测答错",
+                "--source", "解题", "--file", str(self.path),
+            ])
+        self.assertEqual(code, 2)
+        self.assertNotIn("Traceback", err.getvalue())
+
+    def test_mastery_infers_source_from_event_when_omitted(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = student_profile.main([
+                "mastery", "--node", "kp_redox", "--event", "解题错题",
+                "--file", str(self.path),
+            ])
+        self.assertEqual(code, 0, err.getvalue())
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = student_profile.main([
+                "mastery", "--node", "kp_redox", "--event", "诊断答对",
+                "--file", str(self.path),
+            ])
+        self.assertEqual(code, 0, err.getvalue())
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = student_profile.main([
+                "mastery", "--node", "kp_redox", "--event", "解题错题",
+                "--source", "自测", "--file", str(self.path),
+            ])
+        self.assertEqual(code, 2)
+        self.assertTrue(err.getvalue().strip())
 
 
 if __name__ == "__main__":

@@ -28,10 +28,10 @@ SUMMARY_HEADINGS = (
     "变式题", "错因诊断", "错题本沉淀", "总结",
 )
 RULE_GUIDED = "SKILL.md「每轮输出总则 → 引导模式本轮只输出」"
-RULE_SUMMARY_FMT = "SKILL.md「题目完成后的总结格式」"
-RULE_DIFFICULTY = "SKILL.md「难度总则」"
-RULE_NOTEBOOK = "SKILL.md「错题本何时生成」「核心规则 6」"
-RULE_VERIFY = "SKILL.md「数学机验」"
+RULE_SUMMARY_FMT = "modes/full.md「题目完成后的总结格式」"
+RULE_DIFFICULTY = "modes/full.md「难度总则」"
+RULE_NOTEBOOK = "modes/records.md「错题本何时生成」；modes/full.md「核心规则」"
+RULE_VERIFY = "modes/math-verify.md「数学机验」"
 # 数学完整模式第 2 节末尾只能用这五句机验标记之一，方便家长和老师按固定规则筛。
 VERIFY_MARKERS = ("已机验：通过", "未机验：无法解析", "未机验：超时", "未机验：未安装 SymPy", "此结果未通过机验")
 VERIFY_MARKER_HINT = " / ".join(VERIFY_MARKERS)
@@ -471,7 +471,7 @@ def check(mode, text, no_student_answer, subject=None):
                "E12": "modes/chapter-map.md 人教版化学必修第一册（2019）第一章",
                "E14": RULE_VERIFY,
                "W1": RULE_GUIDED, "W2": "各科 reference「苏格拉底不要先说的内容」", "W3": RULE_GUIDED,
-               "W4": "SKILL.md「核心规则 2」", "W5": "SKILL.md「错因与错题本」", "W6": RULE_DIFFICULTY}
+               "W4": "modes/full.md「核心规则」", "W5": "modes/records.md「错因与错题本」", "W6": RULE_DIFFICULTY}
     return [(sev, code, msg, rule_of.get(code, "")) for sev, code, msg, _ in issues]
 
 

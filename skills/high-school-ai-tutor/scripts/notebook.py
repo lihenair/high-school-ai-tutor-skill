@@ -338,11 +338,18 @@ def main(argv=None):
     path = args.db or default_path()
     try:
         if args.cmd == "add":
-            if args.entry == "-":
-                entry = json.load(sys.stdin)
-            else:
-                with open(args.entry, encoding="utf-8") as fh:
-                    entry = json.load(fh)
+            try:
+                if args.entry == "-":
+                    entry = json.load(sys.stdin)
+                else:
+                    with open(args.entry, encoding="utf-8") as fh:
+                        entry = json.load(fh)
+            except FileNotFoundError:
+                print(f"找不到条目文件：{args.entry}", file=sys.stderr)
+                return 2
+            except json.JSONDecodeError:
+                print("条目 JSON 无法解析", file=sys.stderr)
+                return 2
             card = add_entry(path, entry)
             print(f"已记下错题 {card['id']}：{card['subject']} · {card['node'] or '未标考点'}，下次复习 {card['due']}")
         elif args.cmd == "review":

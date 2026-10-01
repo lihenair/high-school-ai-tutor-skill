@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """学生画像。只使用标准库。默认文件在家目录，不进仓库。
 
-    python3 profile.py show --file ~/.high-school-ai-tutor/student_profile.json
-    python3 profile.py onboard --grade 高一 --exam 高考 --textbook 人教版 --file ~/.high-school-ai-tutor/student_profile.json
-    python3 profile.py progress --chapter chem-bx1-ch1 --node kp_electrolyte --file ~/.high-school-ai-tutor/student_profile.json
-    python3 profile.py mastery --node kp_redox --event 自测首次答对 --source 自测 --file ~/.high-school-ai-tutor/student_profile.json
-    python3 profile.py validate-textbook --version 苏教版 --file ~/.high-school-ai-tutor/student_profile.json
-    python3 profile.py confirm-textbook --file ~/.high-school-ai-tutor/student_profile.json
+    python3 student_profile.py show --file ~/.high-school-ai-tutor/student_profile.json
+    python3 student_profile.py onboard --grade 高一 --exam 高考 --textbook 人教版 --file ~/.high-school-ai-tutor/student_profile.json
+    python3 student_profile.py progress --chapter chem-bx1-ch1 --node kp_electrolyte --file ~/.high-school-ai-tutor/student_profile.json
+    python3 student_profile.py mastery --node kp_redox --event 自测首次答对 --source 自测 --file ~/.high-school-ai-tutor/student_profile.json
+    python3 student_profile.py validate-textbook --version 苏教版 --file ~/.high-school-ai-tutor/student_profile.json
+    python3 student_profile.py confirm-textbook --file ~/.high-school-ai-tutor/student_profile.json
 """
 
 import argparse
@@ -32,6 +32,14 @@ TEXTBOOK_NOTE = "跳过默认值，可补问一次；仅用于对齐正典章节
 SOURCES = ("自测", "解题", "诊断")
 STATES = ("未掌握", "模糊", "已掌握")
 EVENTS = ("自测首次答对", "连续两次答对", "自测答错", "解题错题", "诊断答对", "诊断答错")
+EVENT_SOURCE = {
+    "自测首次答对": "自测",
+    "连续两次答对": "自测",
+    "自测答错": "自测",
+    "解题错题": "解题",
+    "诊断答对": "诊断",
+    "诊断答错": "诊断",
+}
 
 QUESTION_FLOW = {
     "例题": {"records": False, "notebook": False, "mastery": False, "context": ""},
@@ -52,7 +60,10 @@ def load(path=None):
     path = Path(path) if path else default_path()
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ProfileError(f"画像 JSON 无法解析：{path}") from exc
 
 
 def save(profile, path=None):
@@ -163,6 +174,8 @@ def mastery_apply(profile, node_id, event, source, when=None):
         raise ProfileError("未知掌握度事件")
     if source not in SOURCES:
         raise ProfileError("掌握度来源只能是自测、解题或诊断")
+    if EVENT_SOURCE.get(event) != source:
+        raise ProfileError("掌握度事件与来源不一致")
     node_id = str(node_id or "").strip()
     if not node_id:
         raise ProfileError("节点 ID 不能为空")
@@ -379,7 +392,7 @@ def main(argv=None):
             return 0
         if args.cmd == "mastery":
             if args.event:
-                mastery_apply(profile, args.node, args.event, args.source or "自测")
+                mastery_apply(profile, args.node, args.event, args.source or EVENT_SOURCE.get(args.event, ""))
                 save(profile, path)
             state = mastery_get(profile, args.node)
             print(state or "无")

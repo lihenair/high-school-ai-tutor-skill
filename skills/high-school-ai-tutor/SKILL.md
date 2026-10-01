@@ -72,7 +72,7 @@ description: 中国初高中讲题辅导。学生或家长发题、拍照、作�
 | 无画像 + 显式自学触发 | 先做三问引导（可跳过，不阻塞），再进章览 |
 | 无画像 + 贴题 | 按 P4 解题，绝不触发引导 |
 
-三问、跳过默认值和换教材版本的确认清单见 `modes/self-study.md`。画像脚本是 `scripts/profile.py`。
+三问、跳过默认值和换教材版本的确认清单见 `modes/self-study.md`。画像脚本是 `scripts/student_profile.py`。
 
 切换只按这六条，不另发明：
 
