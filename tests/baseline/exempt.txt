@@ -5,3 +5,24 @@ g0442  # '>' shaped node wrongly blocked by main
 g0521  # fake node only in a %% comment wrongly blocked by main
 g0522  # fake node only in a %% comment wrongly blocked by main
 g0523  # fake node only in a %% comment wrongly blocked by main
+g0557  # E8: main missed whitespace form '加权 2.95'; correct total 2.95
+g0565  # E8: main missed '→ 加权 2.95'; correct total 2.95
+g0574  # E8: main missed trailing zero in '加权 2.950'; correct total 2.95
+g0577  # E8: main missed Chinese numeral '加权二点九五'; correct total 2.95
+g0578  # E8: main missed '加权 2.95（满分 5）'; correct total 2.95
+g0579  # E8: main took a later number after '；'; correct total 2.95
+g0582  # E8: main misread 0.30 from the expansion; correct total 2.95
+g0587  # E8: main missed '加权 ≈ 2.95'; correct total 2.95
+g0590  # E8: main missed '加权 2.95 分（5 分制）'; correct total 2.95
+g0591  # E8: main took a later number after the clause; correct total 2.95
+g0592  # E8: main took 0.5 from '比上题高 0.5'; correct total 2.95
+g0596  # E8: main took 14 from '加权前总分 14'; correct total 2.95
+g0597  # E8: main missed whitespace form after '评分（满分 5）'; correct total 2.95
+g0598  # E8: main missed whitespace form after '1–5 分制'; correct total 2.95
+g0602  # E8: main took a weight percent after the total; correct total 2.95
+g0605  # E8: main took 2 from '计算复杂度 2 分'; correct total 2.95
+g0608  # E8: main missed modifier '加权约 2.95'; correct total 2.95
+g0612  # E8: main missed '加权分 2.95'; correct total 2.95
+g0619  # E8: main missed the continuation line; correct total 2.95
+g0626  # E8: main took 2.5–3.5 from the grade band; correct total 2.95
+g0628  # E8: main missed '加权总分 2.95'; correct total 2.95
