@@ -29,6 +29,7 @@ import subprocess
 import sys
 import threading
 import tokenize
+import unicodedata
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
@@ -231,7 +232,8 @@ def _check_math(sympy, expr, where):
         conflict = _assignment_conflict(sympy, parsed)
         if conflict is not None:
             return conflict
-        return _substitute(sympy, claim, parsed, ulp)
+        chained = _resolve_assignment_chain(sympy, parsed)
+        return _substitute(sympy, claim, chained, ulp)
     if len(parsed) == 1 and _is_expr(sympy, claim) and _is_expr(sympy, parsed[0]):
         return _expressions_equal(sympy, claim, parsed[0])
     if len(parsed) == 1 and _is_constraint(sympy, claim) and _is_constraint(sympy, parsed[0]):
@@ -243,6 +245,15 @@ def _parse(sympy, text, bound=()):
     raw = str(text or "").strip()
     if not raw:
         return None
+    raw = (
+        raw.replace("²", "**2")
+        .replace("³", "**3")
+        .replace("¹", "**1")
+        .replace("×", "*")
+        .replace("÷", "/")
+        .replace("⋅", "*")
+    )
+    raw = unicodedata.normalize("NFKC", raw)
     raw = (
         raw.replace("≤", "<=")
         .replace("≥", ">=")
@@ -539,10 +550,40 @@ def _assignment_conflict(sympy, assignments):
     seen = {}
     for item in assignments:
         previous = seen.get(item.lhs)
-        if previous is not None and sympy.simplify(previous - item.rhs) != 0:
-            return VerifyResult("矛盾", f"条件自相矛盾：{item.lhs} 不能同时为 {previous} 与 {item.rhs}")
+        if previous is not None:
+            try:
+                if sympy.simplify(previous - item.rhs) != 0:
+                    return VerifyResult("矛盾", f"条件自相矛盾：{item.lhs} 不能同时为 {previous} 与 {item.rhs}")
+            except Exception:
+                return VerifyResult("无法解析", "条件无法解析")
         seen[item.lhs] = item.rhs
     return None
+
+
+def _resolve_assignment_chain(sympy, assignments):
+    env = {item.lhs: item.rhs for item in assignments}
+    keys = list(env)
+    for _ in range(len(keys) + 1):
+        changed = False
+        for key in keys:
+            new_rhs = env[key]
+            for other, value in env.items():
+                if other != key:
+                    new_rhs = new_rhs.subs(other, value)
+            if new_rhs != env[key]:
+                env[key] = new_rhs
+                changed = True
+        if not changed:
+            break
+    return [sympy.Eq(key, env[key], evaluate=False) for key in keys]
+
+
+def _has_undefined(sympy, expr):
+    try:
+        atoms = (sympy.zoo, sympy.nan, sympy.oo, -sympy.oo, sympy.S.ComplexInfinity)
+        return bool(expr.has(*atoms))
+    except Exception:
+        return False
 
 
 def _is_real_closed(sympy, value):
@@ -562,15 +603,20 @@ def _determined_unknown(sympy, original, replaced, assignments):
     if not isinstance(replaced, sympy.Equality):
         return False
     assigned = [item.lhs for item in assignments]
+    introduced = set()
+    for item in assignments:
+        introduced |= set(getattr(item.rhs, "free_symbols", set()))
     if not any(symbol in original.free_symbols for symbol in assigned):
         return False
     leftover = replaced.free_symbols
     if len(leftover) != 1:
         return False
     symbol = next(iter(leftover))
-    if symbol in assigned:
+    if symbol in assigned or symbol in introduced:
         return False
     if replaced.lhs != symbol or replaced.rhs.free_symbols:
+        return False
+    if _has_undefined(sympy, replaced.rhs):
         return False
     return _is_real_closed(sympy, replaced.rhs)
 
@@ -591,7 +637,15 @@ def _apply_assignments(sympy, expr, assignments):
 
 def _substitute(sympy, claim, assignments, ulp=None):
     replaced = _apply_assignments(sympy, claim, assignments)
-    status = _truth(sympy, sympy.simplify(replaced))
+    if _has_undefined(sympy, replaced):
+        return VerifyResult("无法解析", "代入后出现未定义值")
+    try:
+        simplified = sympy.simplify(replaced)
+    except Exception:
+        return VerifyResult("无法解析", "代入后仍无法判断")
+    if _has_undefined(sympy, simplified):
+        return VerifyResult("无法解析", "代入后出现未定义值")
+    status = _truth(sympy, simplified)
     if status == "通过":
         return VerifyResult("通过")
     if status == "矛盾":
@@ -677,6 +731,24 @@ EXIT_CODES = {"通过": 0, "矛盾": 1, "超时": 1, "无法解析": 3, "未安�
 STATUSES = tuple(EXIT_CODES)
 
 
+def _glue_leading_minus(argv):
+    """让 `--expr -1.6e-19` 不被 argparse 当成新开关；也可用 `--expr=`。"""
+    flags = {"--expr", "--where"}
+    out = []
+    index = 0
+    while index < len(argv):
+        token = argv[index]
+        if token in flags and index + 1 < len(argv):
+            nxt = argv[index + 1]
+            if re.match(r"^-[0-9.]", nxt):
+                out.append(f"{token}={nxt}")
+                index += 2
+                continue
+        out.append(token)
+        index += 1
+    return out
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv[:1] == ["--worker"]:
@@ -686,9 +758,9 @@ def main(argv=None):
     parser = argparse.ArgumentParser(
         description="数学机验：只判定抽好的式子。返回五态并按 通过0/矛盾1/超时1/无法解析3/未安装4 退出。",
     )
-    parser.add_argument("--expr", required=True, help="抽好的最终式，例如 'a <= 0' 或 '2 + 2 == 4'")
+    parser.add_argument("--expr", required=True, help="抽好的最终式。负数请写 --expr=-1.6e-19 或 --expr -1.6e-19")
     parser.add_argument("--where", default="", help="条件或参照式，例如 '2*a <= 0'、'a = 1'、'x**2 + 2*x + 1'")
-    args = parser.parse_args(argv)
+    args = parser.parse_args(_glue_leading_minus(argv))
 
     result = check_math(args.expr, args.where)
     print(result.status)

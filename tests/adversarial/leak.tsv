@@ -16,11 +16,11 @@
 难度：中等。学生选 A。为什么这样选？	OK		restate-student-choice
 难度：中等。你刚才选 D。	OK		restate-student-choice
 难度：中等。你们选 B 的依据？	OK		restate-student-choice
-难度：中等。题干给出「因此 x>0」。开口朝哪边？	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
+难度：中等。题干给出「答案是 B」。你怎么看条件？	E1	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-quote-contains-conclusion
 难度：中等。题目说「x>0」。先看符号。	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
-难度：中等。题干给出「答案是 B」。你怎么看条件？	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
+难度：中等。题干给出「因此 x>0」。开口朝哪边？	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
 难度：中等。题目说「a≤0」。开口朝哪边？	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
-难度：中等。题干给出「所以 x=3」。先核对条件。	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-adjacent-verbatim-quote
+难度：中等。题干给出「所以 x=3」。先核对条件。	E1	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-quote-contains-conclusion
 难度：中等。为什么答案是 B？	E1		block-concrete-regardless-of-form
 难度：中等。为什么所以 x = 3？	E1		block-concrete-regardless-of-form
 难度：中等。怎么得到所以 x=3 的？	E1		block-concrete-regardless-of-form
@@ -95,3 +95,52 @@
 难度：中等。先不要看答案是什么？	OK		redteam-open-answer-what
 难度：中等。题干给出「所以 x=3」。	E1		redteam-given-not-in-stem
 难度：中等。题目说「所以 x=3」。开口？	E1		redteam-said-no-stem
+难度：中等。Ｘ＝３。	E1		nfkc-fullwidth-eq
+难度：中等。所以 x＝３。	E1		nfkc-fullwidth-eq-cue
+难度：中等。因此 m＝５。	E1		nfkc-fullwidth-m
+难度：中等。所以 $a \le 0$。	E1		latex-le
+难度：中等。$a\leq 0$ 对吗？	E1		latex-leq-probe
+难度：中等。所以 a ⩽ 0。	E1		unicode-slanted-le
+难度：中等。可得 a∈(-∞,0]。	E1		interval-in
+难度：中等。a 的取值是 (-∞,0]。	E1		interval-value
+难度：中等。答案应该不大于 0。	E1		cn-not-greater
+难度：中等。a 不超过 0，对不对？	E1		cn-not-exceed
+难度：中等。a 属于负数和零。	E1		cn-belong-nonpos
+难度：中等。结果为二分之一。	E1		cn-fraction
+难度：中等。最终结果 12。	E1		final-result-num
+难度：中等。选乙？	E1		cn-option-yi
+难度：中等。应该选乙吧。	E1		cn-should-yi
+难度：中等。选项 B 正确。	E1		option-correct
+难度：中等。B 选项是对的吧？	E1		option-is-right
+难度：中等。答案选（B）。	E1		answer-choose-paren
+难度：中等。你选 B 是对的。	E1		student-choice-judgment
+难度：中等。排除 A、B、D 后剩下的就是正确答案。	E1		elimination
+难度：中等。The answer is B.	E1		english-answer
+难度：中等。属于哪一类？	OK		open-belong-which
+难度：中等。三个条件分别看哪一步？	OK		open-cn-numeral-not-answer
+难度：中等。至少先看定义域？	OK		open-at-least-step
+难度：中等。选哪一项更稳妥？	OK		open-which-option
+难度：中等。你选乙。理由呢？	OK		restate-cn-option
+难度：中等。最终结果怎么写？	OK		open-final-result-how
+难度：中等。题目说「x>0」。开口？	OK	已知因此 x>0，且答案是 B，a≤0，所以 x=3。	stem-quote-without-conclusion-words
+难度：中等。D 选项正确。	E1		letter-option-correct
+难度：中等。故 m＝４。	E1		redteam2-fullwidth
+难度：中等。综上 $n \ge 2$。	E1		redteam2-latex-ge
+难度：中等。可知 t⩾0。	E1		redteam2-slanted-ge
+难度：中等。b 至多等于 1。	E1		redteam2-at-most
+难度：中等。k 不小于 2 吧？	E1		redteam2-not-less
+难度：中等。答案为三分之二。	E1		redteam2-cn-frac
+难度：中等。选丙。	E1		redteam2-bing
+难度：中等。应当选丁。	E1		redteam2-ding
+难度：中等。选项 C 是对的。	E1		redteam2-c-right
+难度：中等。答案选（C）。	E1		redteam2-paren-c
+难度：中等。你选 A 正确。	E1		redteam2-you-correct
+难度：中等。THE ANSWER IS C.	E1		redteam2-en-upper
+难度：中等。结果为三。	E1		redteam2-cn-three
+难度：中等。选项差在符号还是范围？	OK		redteam2-open-option-diff
+难度：中等。先不要写最终结果。	OK		redteam2-open-dont-write
+难度：中等。你选丁。依据？	OK		redteam2-restate-ding
+难度：中等。比较时用什么符号？	OK		redteam2-open-symbol
+难度：中等。属于混合物还是纯净物，你怎么判断？	OK		redteam2-open-belong-or
+
+

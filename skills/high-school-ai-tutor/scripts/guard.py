@@ -20,6 +20,7 @@
 import argparse
 import re
 import sys
+import unicodedata
 
 DIFFICULTY_LEVELS = ("基础", "中等", "压轴", "竞赛")
 WEIGHTS = (0.30, 0.25, 0.20, 0.15, 0.10)  # 各科五维权重相同，见各 reference
@@ -49,45 +50,105 @@ FORMULA_PATTERNS = [
 ]
 BAD_DIFFICULTY_RE = re.compile(r"偏难|偏易|中等偏上|中等偏下|较难|较易|很难|太简单|太容易")
 HEADING_RE = re.compile(r"^#{2,3}\s*([0-9０-９])\s*[\.、．]\s*(\S+)")
-SCORES_RE = re.compile(r"([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*分")
+SCORE_TOKEN = r"([1-5])"
+SCORE_SEP = r"\s*[、,，/\-]\s*"
+SCORES_RE = re.compile(rf"{SCORE_TOKEN}{SCORE_SEP}{SCORE_TOKEN}{SCORE_SEP}{SCORE_TOKEN}{SCORE_SEP}{SCORE_TOKEN}{SCORE_SEP}{SCORE_TOKEN}\s*分")
 SCORES_SLASH_RE = re.compile(r"([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*分")
 SCORES_SPACE_RE = re.compile(r"([1-5])\s+([1-5])\s+([1-5])\s+([1-5])\s+([1-5])\s*分")
+SCORES_DASH_RE = re.compile(r"([1-5])\s*-\s*([1-5])\s*-\s*([1-5])\s*-\s*([1-5])\s*-\s*([1-5])")
+SCORES_TUPLE_RE = re.compile(
+    r"[（(]\s*([1-5])\s*[,，]\s*([1-5])\s*[,，]\s*([1-5])\s*[,，]\s*([1-5])\s*[,，]\s*([1-5])\s*[）)]"
+)
+SCORES_OUT_OF_RANGE_RE = re.compile(
+    r"(?:评分|五项)[^\n]{0,40}?(?:[0-9０-９]\s*[、,，/\-]\s*){4}[0-9０-９]"
+)
 WEIGHTED_EXPANSION_RE = re.compile(r"0\.30\s*[×x*]")
+WEIGHTED_NUMBER_RE = re.compile(r"[-+]?\d+(?:\.\d+)?")
+WEIGHTED_CN_RE = re.compile(r"[零〇一二两三四五六七八九]+点[零〇一二两三四五六七八九]+")
+WEIGHT_COEFFS = frozenset({0.1, 0.10, 0.15, 0.2, 0.20, 0.25, 0.3, 0.30})
+PERCENT_ANNOT_RE = re.compile(r"[（(]\s*\d+\s*%\s*[）)]")
 MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
 ARROW_TOKEN = r"(?:<-->|-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
 NODE_DEF_RE = re.compile(
-    r'(?:^|[\s;])[A-Za-z][\w-]*'
-    r'[\(\[\{>]+'
-    r'(?:(["\'])([^"\']+)\1|([^\[\]\(\)\{\}"\']+))'
-    r'[\)\]\}]+'
+    r'(?:^|[\s;])'
+    r'(?P<id>[A-Za-z0-9_\u4e00-\u9fff][\w\u4e00-\u9fff-]*)'
+    r'(?:'
+    r'\[(?:/|\\)(?P<q1>["\'`])(?P<trap>.*?)(?P=q1)(?:/|\\)\]'
+    r'|[\[\(\{>]+(?P<q2>["\'`])(?P<quoted>.*?)(?P=q2)[\]\)\}]+'
+    r'|[\[\(\{>]+(?P<bare>[^\[\]\(\)\{\}"\'`\n]+)[\]\)\}]+'
+    r')'
+)
+_MERMAID_SKIP_RE = re.compile(
+    r"^\s*(?:%%|classDef\b|style\b|class\b|click\b|flowchart\b|graph\b|direction\b|subgraph\b|end\b)"
 )
 MAX_REQUIRED_NAMES_PER_NODE = 6
 MIN_REQUIRED_NODE_LABELS = 10
-NODE_TYPE_SUFFIX_RE = re.compile(r"（(?:概念|技能|实验)）$")
-LABEL_SPLIT_RE = re.compile(r"[/；;、，,：:\s]+")
+NODE_TYPE_SUFFIX_RE = re.compile(r"[（(](?:概念|技能|实验)[）)]$")
+LABEL_SPLIT_RE = re.compile(r"[/／；;、，,：:\s]+|<br\s*/?>", re.I)
 AND_SPLIT_RE = re.compile(r"[与和及]")
-QUOTED_SPAN_RE = re.compile(r"「[^」]*」|『[^』]*』|“[^”]*”|\"[^\"]*\"")
 PROTECTED_QUOTE_RE = re.compile(r"(题目说|题干给出)(「[^」]*」|『[^』]*』|“[^”]*”|\"[^\"]*\")")
-STUDENT_CHOICE_RE = re.compile(r"(?:你|你们|学生|同学|刚才)选\s*[A-Da-d]")
+QUOTE_CONCLUSION_RE = re.compile(r"答案|故|所以|(?<![项你])选")
+STUDENT_CHOICE_RE = re.compile(
+    r"(?:你|你们|学生|同学|刚才)选\s*[A-Da-d甲乙丙丁](?!\s*(?:是对的|正确|对了|对的|对吧))"
+)
+OPTION_LETTER = r"[A-Da-d甲乙丙丁]"
 OPTION_LEAK_RE = re.compile(
-    r"(?:答案\s*[是为]|正确答案[是为]?|故选|应该选|应选|(?<![你])选)\s*[A-Da-d]"
-    r"|是不是选\s*[A-Da-d]|会不会是\s*[A-Da-d]|难道不是\s*[A-Da-d]"
+    rf"(?:答案\s*[是为选]|正确答案[是为]?|故选|应该选|应选|(?<![你])选)\s*[（(]?{OPTION_LETTER}"
+    rf"|是不是选\s*{OPTION_LETTER}|会不会是\s*{OPTION_LETTER}|难道不是\s*{OPTION_LETTER}"
+    rf"|选项\s*{OPTION_LETTER}\s*(?:正确|是对的)|{OPTION_LETTER}\s*选项(?:是对的|正确)"
+    rf"|选\s*{OPTION_LETTER}\s*(?:是对的|正确|对了|对的)"
+    r"|the\s+answer\s+is\s+[A-Da-d]"
+    rf"|排除.{{0,16}}剩下"
+    rf"|答案选\s*[（(]?{OPTION_LETTER}"
+    , re.I
 )
 ANSWER_VALUE_RE = re.compile(r"答案[是为：:]\s*(?!什么|哪|几|多少)")
 EQUALS_NUMBER_RE = re.compile(r"(?:等于|=)\s*[-+]?\d+(?:\.\d+)?(?!\s*倍的什么)")
-INEQUALITY_RE = re.compile(r"[a-zA-Z]\s*[≤≥<>]=?\s*[-+]?\d|[≤≥<>]=?\s*[-+]?\d+\s*[a-zA-Z]")
-RANGE_LEAK_RE = re.compile(r"(?:取值范围|解集|值域|范围应当是|范围是)[是为：:]?[^\n]{0,24}[≤≥<>={}\d]")
-CONCLUSION_CUE_RE = re.compile(r"(?:所以|因此|综上|故|∴|最终|换言之|也就是说|可见|于是|不难发现|显然|换句话说)")
-EMPTY_SLOT_RE = re.compile(r"^[…·.\s略]*$")
-WEIGHTED_CLAIM_RE = re.compile(r"加权[约为是＝=\s：:]*([0-9]+\.[0-9]+|[0-9]+)")
+INEQUALITY_RE = re.compile(
+    r"[a-zA-Z]\s*[≤≥<>]=?\s*[-+]?\d|[≤≥<>]=?\s*[-+]?\d+\s*[a-zA-Z]"
+    r"|[a-zA-Z]\s*[≤≥<>]=?\s*[-+]?\d|[∈∈]\s*[（(\[]"
+)
+RANGE_LEAK_RE = re.compile(
+    r"(?:取值范围|解集|值域|范围应当是|范围是|取值是)[是为：:]?[^\n]{0,32}[≤≥<>={}\d（(\[\]\-∞]"
+    r"|[（(\[]\s*[-−\-∞inf]+(?:fty)?\s*[,，]\s*[^）)\]]+[）)\]]"
+)
+CN_COMPARE_RE = re.compile(
+    r"(?:不大于|不超过|至多|至少|不小于|小于等于|大于等于)\s*[-+]?(?:\d+|零|一|二|两|三|四|五|六|七|八|九)"
+)
+CN_BELONG_RE = re.compile(r"属于(?!哪|什么|谁)(?:负数|正数|零|非负|非正|自然|[（(\[\-∞]|[A-Da-d甲乙丙丁])")
+CN_ANSWER_RE = re.compile(
+    r"(?:结果为|最终结果|答案[是为得]?|等于|得)\s*"
+    r"(?:[零〇一二三四五六七八九两十百]+(?:分之[零〇一二三四五六七八九两十]+)?|[-+]?\d+(?:\.\d+)?)"
+)
+FINAL_RESULT_RE = re.compile(r"最终结果\s*[-+]?\d+|结果为\s*[-+]?\d+")
+CONCLUSION_CUE_RE = re.compile(r"(?:所以|因此|综上|故|∴|最终|换言之|也就是说|可见|于是|不难发现|显然|换句话说|可得)")
+EMPTY_SLOT_RE = re.compile(
+    r"^(?:略。?|（略）|\(略\)|…+。?|\.{2,}。?|——+|---+|–+|待补|TODO|无|"
+    r"[。．.·•、，,；;：:\-\s…—–―─（）()【】\[\]]*)"
+    r"$",
+    re.I,
+)
+CN_DIGIT = {
+    "零": "0", "〇": "0", "一": "1", "二": "2", "两": "2", "三": "3", "四": "4",
+    "五": "5", "六": "6", "七": "7", "八": "8", "九": "9", "点": ".",
+}
+_LATEX_TO_PLAIN = (
+    (re.compile(r"\\leq\b"), "≤"),
+    (re.compile(r"\\geq\b"), "≥"),
+    (re.compile(r"\\le\b"), "≤"),
+    (re.compile(r"\\ge\b"), "≥"),
+    (re.compile(r"\\in\b"), "∈"),
+    (re.compile(r"\\infty\b"), "∞"),
+)
+_SUB_DIGITS = str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")
 DIM_SCORE_PATTERNS = (
-    (re.compile(r"知识点[^\d]{0,6}([1-5])"), 0),
-    (re.compile(r"思维[^\d]{0,6}([1-5])"), 1),
-    (re.compile(r"综合[^\d]{0,6}([1-5])"), 2),
-    (re.compile(r"(?:计算|运算)[^\d]{0,6}([1-5])"), 3),
-    (re.compile(r"(?:频率|出现)[^\d]{0,6}([1-5])"), 4),
+    (re.compile(r"知识点[^\d]{0,12}([1-5])"), 0),
+    (re.compile(r"思维[^\d]{0,12}([1-5])"), 1),
+    (re.compile(r"综合[^\d]{0,12}([1-5])"), 2),
+    (re.compile(r"(?:计算|运算)[^\d]{0,12}([1-5])"), 3),
+    (re.compile(r"(?:频率|出现)[^\d]{0,12}([1-5])"), 4),
 )
 EDGE_LABELS = {"直接前置", "同章衔接", "常考组合"}
 SOLID_LABELS = {"直接前置", "同章衔接"}
@@ -118,15 +179,28 @@ def hits(pattern, text):
     return out
 
 
+def _normalize_leak_text(text):
+    """NFKC + LaTeX 比较符，漏答检查前统一半角。"""
+    text = unicodedata.normalize("NFKC", str(text or ""))
+    text = (
+        text.replace("⩽", "≤").replace("⩾", "≥")
+        .replace("≦", "≤").replace("≧", "≥")
+        .replace("∈", "∈")
+    )
+    for pattern, repl in _LATEX_TO_PLAIN:
+        text = pattern.sub(repl, text)
+    return text.replace("$", "")
+
+
 def _strip_protected_quotes(text, stem=""):
-    """只去掉紧挨在「题目说/题干给出」后的引号，且引文须在题干里逐字出现。无题干则不剥。"""
+    """只去掉紧挨在「题目说/题干给出」后的引号；引文须在题干里逐字出现，且本身不含结论。"""
     stem = str(stem or "")
     if not stem:
         return str(text or "")
 
     def repl(match):
         inner = match.group(2)[1:-1]
-        if inner and inner in stem:
+        if inner and inner in stem and not QUOTE_CONCLUSION_RE.search(inner):
             return match.group(1)
         return match.group(0)
 
@@ -136,7 +210,9 @@ def _strip_protected_quotes(text, stem=""):
 def _has_concrete_conclusion(piece):
     """本题的具体选项、数值、不等式或范围结论。问句、设问、引号都不豁免。"""
     text = STUDENT_CHOICE_RE.sub("", str(piece or ""))
-    if OPTION_LEAK_RE.search(text) or re.search(r"(?:是|为)\s*[A-Da-d](?:[选项。．!?？，,」』\"']|$)", text):
+    if OPTION_LEAK_RE.search(text) or re.search(
+        rf"(?:是|为)\s*{OPTION_LETTER}(?:[选项。．!?？，,」』\"']|$)", text
+    ):
         return True
     if ANSWER_VALUE_RE.search(text) and re.search(r"答案[是为：:]\s*\S", text):
         rest = ANSWER_VALUE_RE.split(text, 1)[-1]
@@ -150,8 +226,15 @@ def _has_concrete_conclusion(piece):
         return True
     if INEQUALITY_RE.search(text) or RANGE_LEAK_RE.search(text):
         return True
+    if CN_COMPARE_RE.search(text) or CN_BELONG_RE.search(text):
+        return True
+    if FINAL_RESULT_RE.search(text) or CN_ANSWER_RE.search(text):
+        if re.search(r"等于\s*.{0,8}倍的什么", text):
+            return False
+        return True
     if CONCLUSION_CUE_RE.search(text) and re.search(
-        r"[≤≥<>=]|等于|选\s*[A-Da-d]|答案|(?:得|为)\s*[-+]?\d", text
+        rf"[≤≥<>=∈]|等于|选\s*{OPTION_LETTER}|答案|(?:得|为)\s*[-+]?\d|不大于|不超过|属于",
+        text,
     ):
         if re.search(r"等于\s*[-+]?\d+\s*倍的什么", text):
             return False
@@ -161,7 +244,7 @@ def _has_concrete_conclusion(piece):
 
 def _leak_issues(text, stem=""):
     """返回 [(lineno, snippet)]。fail-closed：有具体结论就拦。"""
-    source = _strip_protected_quotes(text, stem)
+    source = _strip_protected_quotes(_normalize_leak_text(text), _normalize_leak_text(stem))
     out = []
     for lineno, line in enumerate(source.splitlines(), 1):
         for sentence in re.split(r"(?<=[。！？?\n])", line):
@@ -194,24 +277,91 @@ def check_summary_headings(lines):
     return [n for n in range(1, 10) if n not in found]
 
 
+def _score_line(line):
+    line = unicodedata.normalize("NFKC", str(line or ""))
+    return PERCENT_ANNOT_RE.sub("", line)
+
+
+def _parse_cn_float(text):
+    mapped = []
+    for char in str(text or ""):
+        if char in CN_DIGIT:
+            mapped.append(CN_DIGIT[char])
+        else:
+            return None
+    if not mapped or mapped.count(".") > 1:
+        return None
+    try:
+        return float("".join(mapped))
+    except ValueError:
+        return None
+
+
+def _claimed_weighted(line):
+    nfkc = unicodedata.normalize("NFKC", str(line or ""))
+    if "加权" not in nfkc:
+        return None
+    rest = nfkc.split("加权", 1)[-1]
+    rest = re.split(r"[。！？?\n]", rest, 1)[0]
+    if "=" in rest:
+        after = rest.rsplit("=", 1)[-1]
+        number = WEIGHTED_NUMBER_RE.search(after)
+        chinese = WEIGHTED_CN_RE.search(after)
+        if chinese:
+            parsed = _parse_cn_float(chinese.group(0))
+            if parsed is not None:
+                return parsed
+        if number:
+            return float(number.group(0))
+    chinese = WEIGHTED_CN_RE.search(rest)
+    if chinese:
+        parsed = _parse_cn_float(chinese.group(0))
+        if parsed is not None:
+            return parsed
+    candidates = []
+    for match in WEIGHTED_NUMBER_RE.finditer(rest):
+        value = float(match.group(0))
+        if value in WEIGHT_COEFFS:
+            continue
+        candidates.append(value)
+    if candidates:
+        return candidates[-1]
+    return None
+
+
 def check_weighted(lines):
     """报了五项评分时核对加权。返回 (五项分, 账面加权, 应得加权) 或 None。"""
     scores = claimed = None
-    for line in lines:
-        m = SCORES_RE.search(line) or SCORES_SLASH_RE.search(line) or SCORES_SPACE_RE.search(line)
+    invalid = None
+    named = [None, None, None, None, None]
+    for raw in lines:
+        line = _score_line(raw)
+        if SCORES_OUT_OF_RANGE_RE.search(line):
+            digits = [int(ch) for ch in re.findall(r"[0-9]", line.split("加权")[0])]
+            five = digits[:5]
+            if len(five) == 5 and any(item < 1 or item > 5 for item in five):
+                invalid = five
+        m = (
+            SCORES_TUPLE_RE.search(line)
+            or SCORES_RE.search(line)
+            or SCORES_SLASH_RE.search(line)
+            or SCORES_SPACE_RE.search(line)
+            or SCORES_DASH_RE.search(line)
+        )
         if m:
             scores = [int(g) for g in m.groups()]
-        named = [None, None, None, None, None]
         for pattern, index in DIM_SCORE_PATTERNS:
             hit = pattern.search(line)
             if hit:
                 named[index] = int(hit.group(1))
-        if all(value is not None for value in named):
-            scores = named
         if "加权" in line:
-            nums = WEIGHTED_CLAIM_RE.findall(line)
-            if nums:
-                claimed = float(nums[-1])
+            parsed = _claimed_weighted(line)
+            if parsed is not None:
+                claimed = parsed
+    if all(value is not None for value in named):
+        scores = named
+    if invalid is not None:
+        return invalid, claimed, "invalid"
     if scores is None:
         return None
     expect = round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)
@@ -222,6 +372,8 @@ def check_weighted(lines):
 
 def weighted_error(scores, claimed, expect):
     """五项分已抽出时，缺加权或加权算错都要报。"""
+    if expect == "invalid":
+        return f"五项分须为 1–5：{scores}"
     if claimed is None:
         return f"报了五项分 {scores} 但没有写出加权分，应得 {expect:.2f}"
     if abs(claimed - expect) > 0.005:
@@ -271,15 +423,15 @@ def check_mermaid_style(text):
             problems.append("mermaid 缺少概念配色 classDef concept")
         if "classDef skill " not in block:
             problems.append("mermaid 缺少技能配色 classDef skill")
-        if "（实验）" in block and "classDef experiment " not in block:
+        if re.search(r"[（(]实验[）)]", block) and "classDef experiment " not in block:
             problems.append("有实验节点但缺少 classDef experiment")
         if "第二章" in block and "classDef later " not in block:
             problems.append("有后续章节节点但缺少 classDef later")
-        if "（概念）" in block and ":::concept" not in block:
+        if re.search(r"[（(]概念[）)]", block) and ":::concept" not in block:
             problems.append("概念节点未标 :::concept")
-        if "（技能）" in block and ":::skill" not in block:
+        if re.search(r"[（(]技能[）)]", block) and ":::skill" not in block:
             problems.append("技能节点未标 :::skill")
-        if "（实验）" in block and ":::experiment" not in block:
+        if re.search(r"[（(]实验[）)]", block) and ":::experiment" not in block:
             problems.append("实验节点未标 :::experiment")
     return problems
 
@@ -336,13 +488,45 @@ def _label_covers_required(label, name):
     return any(part in allowed for part in _label_tokens(label))
 
 
+def _fold_chem_text(text):
+    text = unicodedata.normalize("NFKC", str(text or "")).translate(_SUB_DIGITS)
+    return text.lower()
+
+
+def _mermaid_code_lines(block):
+    for line in str(block or "").splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if _MERMAID_SKIP_RE.match(stripped):
+            continue
+        if "%%" in stripped:
+            stripped = stripped.split("%%", 1)[0].strip()
+            if not stripped or _MERMAID_SKIP_RE.match(stripped):
+                continue
+        yield stripped
+
+
+def mermaid_node_entries(block):
+    """去重后的 (id, label)。忽略注释、subgraph 标题、classDef/style。"""
+    entries = []
+    seen = set()
+    for line in _mermaid_code_lines(block):
+        for match in NODE_DEF_RE.finditer(" " + line):
+            node_id = match.group("id")
+            label = (match.group("trap") or match.group("quoted") or match.group("bare") or "").strip()
+            if not node_id or not label:
+                continue
+            key = (node_id, label)
+            if key in seen:
+                continue
+            seen.add(key)
+            entries.append(key)
+    return entries
+
+
 def mermaid_node_labels(block):
-    labels = []
-    for _quote, quoted, bare in NODE_DEF_RE.findall(block):
-        label = (quoted or bare or "").strip()
-        if label:
-            labels.append(label)
-    return labels
+    return [label for _node_id, label in mermaid_node_entries(block)]
 
 
 def check_pep_chem_chapter(text):
@@ -373,13 +557,28 @@ def check_pep_chem_chapter(text):
     ]
     if jammed or overfull:
         problems.append("整章图把过多必需节点塞进了同一个节点")
-    covering = [
-        label for label in labels
-        if any(_label_covers_required(label, name) for name in PEP_CHEM_BX1_CH1_REQUIRED)
-    ]
+    covering = []
+    seen_cores = set()
+    for label in labels:
+        if not any(_label_covers_required(label, name) for name in PEP_CHEM_BX1_CH1_REQUIRED):
+            continue
+        core = _label_core(label)
+        if core in seen_cores:
+            continue
+        seen_cores.add(core)
+        covering.append(label)
     if covering and len(covering) < MIN_REQUIRED_NODE_LABELS:
         problems.append("整章图把过多必需节点塞进了过少的节点")
-    present = [name for name in PEP_CHEM_BX1_CH1_FORBIDDEN if any(name in label for label in labels)]
+    folded_labels = [_fold_chem_text(label) for label in labels]
+    present = []
+    seen_forbidden = set()
+    for name in PEP_CHEM_BX1_CH1_FORBIDDEN:
+        folded = _fold_chem_text(name)
+        if folded in seen_forbidden:
+            continue
+        if any(folded in label for label in folded_labels):
+            seen_forbidden.add(folded)
+            present.append(name)
     if present:
         problems.append("这一章整章图写入了题目物质：" + "、".join(present))
     return problems

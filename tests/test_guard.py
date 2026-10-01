@@ -305,7 +305,7 @@ flowchart TD
         open_range = socratic_issues("难度：中等。这个范围是什么？")
         self.assertFalse(any(item[1] == "E1" for item in open_range), open_range)
         stem_given = socratic_issues("难度：中等。题干给出「答案是 B」。开口朝哪边？", stem=stem)
-        self.assertFalse(any(item[1] == "E1" for item in stem_given), stem_given)
+        self.assertTrue(any(item[1] == "E1" for item in stem_given), stem_given)
         bare_write = socratic_issues("难度：中等。题干写「因此 x>0」。开口朝哪边？")
         self.assertTrue(any(item[1] == "E1" for item in bare_write), bare_write)
 
@@ -372,6 +372,55 @@ class AdversarialCorpusTests(unittest.TestCase):
                 self.assertTrue(problems, f"{rationale}: {name} passed")
             else:
                 self.assertEqual(problems, [], f"{rationale}: {name} {problems}")
+
+    def test_weighted_corpus(self):
+        path = ROOT / "tests" / "adversarial" / "weighted.tsv"
+        base = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
+        rows = _load_tsv(path)
+        self.assertGreaterEqual(len(rows), 8)
+        for row in rows:
+            snippet, expect, rationale = (row + ["", "", ""])[:3]
+            snippet = snippet.replace("\\n", "\n")
+            text = base.replace("本题结论是 a≤1", snippet + "本题结论是 a≤1")
+            issues = guard.check("full", text, False)
+            has_e8 = any(item[1] == "E8" for item in issues)
+            if expect == "E8":
+                self.assertTrue(has_e8, f"{rationale}: {snippet!r} {issues}")
+                if "misleading-total" in rationale:
+                    msg = " ".join(item[2] for item in issues if item[1] == "E8")
+                    self.assertIn("写的是", msg)
+                    self.assertNotIn("没有写出加权分", msg)
+            else:
+                self.assertFalse(has_e8, f"{rationale}: {snippet!r} {[i for i in issues if i[1]=='E8']}")
+
+    def test_reference_weighted_examples_pass(self):
+        base = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
+        refs = (ROOT / "skills" / "high-school-ai-tutor" / "references").glob("*.md")
+        found = 0
+        for path in refs:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                if "加权" in line and "0.30" in line and "=" in line:
+                    found += 1
+                    text = base.replace("本题结论是 a≤1", line.strip() + "本题结论是 a≤1")
+                    issues = guard.check("full", text, False)
+                    e8 = [item for item in issues if item[1] == "E8"]
+                    self.assertFalse(e8, f"{path.name}: {line!r} {e8}")
+        self.assertGreaterEqual(found, 4)
+
+    def test_slot_corpus(self):
+        path = ROOT / "tests" / "adversarial" / "slots.tsv"
+        rows = _load_tsv(path)
+        self.assertGreaterEqual(len(rows), 10)
+        for row in rows:
+            filler, expect, rationale = (row + ["", "", ""])[:3]
+            lines = ["【模式：自学 · 状态：节点 · 节点：氧化还原反应】"]
+            lines.extend(f"{marker}：{filler}" for marker in guard.SLOT_MARKERS)
+            issues = guard.check_study("\n".join(lines))
+            has_e18 = any(item[1] == "E18" for item in issues)
+            if expect == "E18":
+                self.assertTrue(has_e18, f"{rationale}: {filler!r} {issues}")
+            else:
+                self.assertFalse(has_e18, f"{rationale}: {filler!r} {issues}")
 
 
 if __name__ == "__main__":

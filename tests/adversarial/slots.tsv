@@ -1,0 +1,14 @@
+# filler	expect	rationale
+略	E18	lue
+略。	E18	lue-period
+（略）	E18	lue-paren
+…	E18	ellipsis
+——	E18	emdash
+待补	E18	placeholder
+TODO	E18	todo
+无	E18	none
+。	E18	period-only
+、，；	E18	punct-only
+……。	E18	ellipsis-then-period
+（）	E18	empty-parens
+这是一句完整定义。	OK	real-slot

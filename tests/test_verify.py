@@ -250,6 +250,19 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(assigned.detail.find("数值近似"), -1)
 
     @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_chained_where_and_undefined(self):
+        self.assertEqual(verify.check_math("x == 3", "x=y").status, "无法解析")
+        self.assertEqual(verify.check_math("x == 3", "y=2;x=y+1").status, "通过")
+        self.assertEqual(verify.check_math("x == 1/y", "y=0").status, "无法解析")
+        self.assertEqual(verify.check_math("E == F/q", "q=0").status, "无法解析")
+        self.assertEqual(verify.check_math("E == F/q", "F=6; q=0").status, "无法解析")
+        self.assertEqual(verify.check_math("2 × 3 == 6").status, "通过")
+        self.assertEqual(verify.check_math("8 ÷ 2 == 4").status, "通过")
+        self.assertEqual(verify.check_math("3² == 9").status, "通过")
+        self.assertEqual(verify.check_math("2³ == 8").status, "通过")
+        self.assertEqual(verify.check_math("1/8 == 0.13").status, "矛盾")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
     def test_concurrent_contradictions_stay_safe_under_64_workers(self):
         holder = []
 
@@ -325,6 +338,18 @@ class CliTests(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 1)
         self.assertEqual(proc.stdout.splitlines()[0], "矛盾")
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_cli_leading_minus_expr(self):
+        code, stdout = self._run_main(["--expr", "-1.6e-19 == -1.6e-19"])
+        self.assertEqual(code, 0, stdout)
+        self.assertEqual(stdout.splitlines()[0], "通过")
+        proc = subprocess.run(
+            [sys.executable, str(SCRIPTS / "verify.py"), "--expr", "-1.6e-19 == -1.6e-19"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(proc.stdout.splitlines()[0], "通过")
 
 
 class AdversarialVerifyCorpusTests(unittest.TestCase):

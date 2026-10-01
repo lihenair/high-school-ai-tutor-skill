@@ -16,3 +16,18 @@ shape-round.txt	OK	generic-node-shape
 shape-diamond.txt	OK	generic-node-shape
 shape-flag.txt	OK	generic-node-shape
 shape-stadium.txt	OK	generic-node-shape
+comment-only-required.txt	E12	required-only-in-comment
+subgraph-title-only.txt	E12	required-only-in-subgraph-title
+padding-dup-singles.txt	E12	dup-padding-still-too-few
+br-slash-label.txt	OK	br-slash-delimiter
+br-label.txt	OK	br-delimiter
+fullwidth-slash-label.txt	OK	fullwidth-slash-delimiter
+ascii-suffix.txt	OK	ascii-concept-suffix
+backtick-label.txt	OK	backtick-label
+chinese-id.txt	OK	chinese-node-id
+digit-id.txt	OK	digit-starting-id
+shape-trapezoid.txt	OK	trapezoid-shape
+shape-trapezoid-alt.txt	OK	trapezoid-alt-shape
+style-line-only.txt	E12	required-only-in-style
+forbidden-ph3-ci.txt	E12	forbidden-case-insensitive
+

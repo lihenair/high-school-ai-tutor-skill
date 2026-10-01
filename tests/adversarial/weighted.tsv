@@ -1,0 +1,19 @@
+# snippet	expect	rationale
+评分：4、3、2、2、3 分。加权 = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3 = 2.95。	OK	reference-math-formula-last-eq
+评分：３、３、４、２、２ 分。加权 = 0.30×3 + 0.25×3 + 0.20×4 + 0.15×2 + 0.10×2 = 2.95。	OK	fullwidth-digits
+评分：4-3-2-2-3。加权 2.95。	OK	dash-separated
+评分：(4, 3, 2, 2, 3)。加权 2.95。	OK	tuple-scores
+知识点层级（30%）4 思维跨度（25%）3 综合程度（20%）2 计算复杂度（15%）2 出现频率（10%）3 加权 2.95。	OK	percent-annot-not-score
+知识点层级 4\n思维跨度 3\n综合程度 2\n计算复杂度 2\n出现频率 3\n加权 2.95。	OK	one-dim-per-line
+评分：4、3、2、2、3 分。加权二点九五。	OK	cn-weighted-total
+评分：4、3、2、2、3 分。加权总分：3.95。	E8	misleading-total-must-check
+评分：4、3、2、2、6 分。加权 3.25。	E8	score-out-of-range
+评分：4、3、2、2、3 分。加权 = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3 = 3.95。	E8	wrong-last-eq
+评分：５、４、３、２、１ 分。加权 3.50。	OK	redteam2-fullwidth-ok
+评分：3-3-4-2-2。加权 2.95。	OK	redteam2-dash-bio
+评分：(3, 4, 2, 3, 3)。加权 3.05。	OK	redteam2-tuple-chem
+知识点层级（30%）3 思维跨度（25%）3 综合程度（20%）4 计算复杂度（15%）2 出现频率（10%）2 加权 2.95。	OK	redteam2-pct-bio
+评分：3、3、4、2、2 分。加权三点九五。	E8	redteam2-cn-wrong-total
+评分：4、3、2、2、0 分。加权 2.65。	E8	redteam2-zero-score
+评分：4、3、2、2、3 分。加权总分：4.00。	E8	redteam2-colon-wrong
+
