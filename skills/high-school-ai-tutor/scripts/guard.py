@@ -62,25 +62,42 @@ MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
 ARROW_TOKEN = r"(?:-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
-NODE_LABEL_RE = re.compile(
-    r'\(\((?:["\']([^"\']+)["\']|([^)]+))\)\)'
-    r'|'
-    r'\((?:["\']([^"\']+)["\']|([^)]+))\)'
-    r'|'
-    r'\[(?:["\']([^"\']+)["\']|([^\]]+))\]'
-    r'|'
-    r'\{(?:["\']([^"\']+)["\']|([^}]+))\}'
-)
-# Mermaid asymmetric / flag shape: A>label]  (must not treat --> as this).
-ASYMMETRIC_NODE_RE = re.compile(
-    r'(?:^|[\s;])[A-Za-z][A-Za-z0-9_]*>(?:["\']([^"\']+)["\']|([^\]]+))\]'
+_NODE_ID_RE = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
+# Longest Mermaid flowchart shapes first so inner brackets are not the label.
+_NODE_SHAPES = (
+    ("(((", ")))"),
+    ("((", "))"),
+    ("([", "])"),
+    ("[[", "]]"),
+    ("[(", ")]"),
+    ("{{", "}}"),
+    ("[/", "\\]"),
+    ("[\\", "/]"),
+    ("[/", "/]"),
+    ("[\\", "\\]"),
+    (">", "]"),
+    ("{", "}"),
+    ("(", ")"),
+    ("[", "]"),
 )
 NODE_DIRECTIVE_RE = re.compile(
     r"^(?:classDef|class|click|style|linkStyle|subgraph|end|flowchart|graph|direction)\b"
 )
-NODE_TYPE_SUFFIX_RE = re.compile(r"（(?:概念|技能|实验)）$")
-NODE_BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
-NODE_TOKEN_SPLIT_RE = re.compile(r"[/／、，,；;：:\s]+")
+TRAILING_PAREN_RE = re.compile(r"(?:\([^()]*\)|（[^（）]*）)+\s*$")
+HTML_BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+HTML_TAG_RE = re.compile(r"<[^>]+>")
+EMOJI_RE = re.compile(
+    "["
+    "\U0001F300-\U0001FAFF"
+    "\U00002700-\U000027BF"
+    "\U00002600-\U000026FF"
+    "\U0001F1E0-\U0001F1FF"
+    "\U0000FE0F"
+    "\U0000200D"
+    "]+"
+)
+NODE_TOKEN_SPLIT_RE = re.compile(r"[/／、，,；;：:·+\s]+")
+CANON_PART_RE = re.compile(r"[/／、，,；;：:\s与]+")
 EDGE_TEXT_RE = re.compile(r"--\s+[^-|\n]+-->")
 MAX_REQUIRED_NAMES_PER_NODE = 6
 MIN_REQUIRED_NODE_LABELS = 10
@@ -233,12 +250,41 @@ def mermaid_node_labels(block):
             continue
         line = LABELED_EDGE_RE.sub(" ", line)
         line = EDGE_TEXT_RE.sub(" ", line)
-        found = ASYMMETRIC_NODE_RE.findall(line) + NODE_LABEL_RE.findall(line)
-        for groups in found:
-            label = next((part for part in groups if part), "").strip()
-            if label:
-                labels.append(label)
+        pos = 0
+        while pos < len(line):
+            found = _NODE_ID_RE.search(line, pos)
+            if not found:
+                break
+            inner, consumed = _shape_label_at(line, found.end())
+            if inner is None:
+                pos = found.start() + 1
+                continue
+            inner = inner.strip()
+            if inner:
+                labels.append(inner)
+            pos = consumed
     return labels
+
+
+def _shape_label_at(line, start):
+    rest = line[start:]
+    for opener, closer in _NODE_SHAPES:
+        if not rest.startswith(opener):
+            continue
+        inner_at = start + len(opener)
+        if inner_at >= len(line):
+            continue
+        quote = line[inner_at] if line[inner_at] in "\"'" else ""
+        if quote:
+            end_quote = line.find(quote, inner_at + 1)
+            if end_quote < 0 or not line.startswith(closer, end_quote + 1):
+                continue
+            return line[inner_at + 1:end_quote], end_quote + 1 + len(closer)
+        close_at = line.find(closer, inner_at)
+        if close_at < 0:
+            continue
+        return line[inner_at:close_at], close_at + len(closer)
+    return None, start
 
 
 def _chem_topic_entries():
@@ -253,14 +299,13 @@ def _chem_topic_entries():
 def _allowed_labels_for_required(required, entries):
     allowed = {required}
     exact = []
-    prefixed = []
+    owned = []
     for standard, aliases, _chapter in entries:
-        names = (standard, *aliases)
-        if required in names:
+        if standard == required:
             exact.append((standard, aliases))
-        elif standard.startswith(required):
-            prefixed.append((standard, aliases))
-    chosen = exact[0] if exact else (prefixed[0] if len(prefixed) == 1 else None)
+        elif _standard_owns_required(standard, required):
+            owned.append((standard, aliases))
+    chosen = exact[0] if exact else (owned[0] if len(owned) == 1 else None)
     if chosen:
         standard, aliases = chosen
         allowed.add(standard)
@@ -272,14 +317,41 @@ def _allowed_labels_for_required(required, entries):
     return allowed
 
 
+def _standard_owns_required(standard, required):
+    if standard.startswith(required):
+        return True
+    return required in (part for part in CANON_PART_RE.split(standard) if part)
+
+
+def _normalize_label_text(label):
+    text = str(label or "").strip().strip("`")
+    text = text.replace("`", "")
+    text = HTML_BR_RE.sub("\n", text)
+    text = text.replace("\\n", "\n")
+    text = HTML_TAG_RE.sub("", text)
+    text = EMOJI_RE.sub("", text).strip()
+    while True:
+        stripped = TRAILING_PAREN_RE.sub("", text).strip()
+        if stripped == text:
+            break
+        text = stripped
+    return text
+
+
 def _label_cores(label):
-    text = NODE_BR_RE.sub("/", label).strip()
-    text = NODE_TYPE_SUFFIX_RE.sub("", text).strip()
-    cores = {text} if text else set()
-    for token in NODE_TOKEN_SPLIT_RE.split(text):
-        token = token.strip()
-        if token:
-            cores.add(token)
+    text = _normalize_label_text(label)
+    cores = set()
+    if not text:
+        return cores
+    cores.add(text)
+    for chunk in text.split("\n"):
+        chunk = chunk.strip()
+        if chunk:
+            cores.add(chunk)
+        for token in NODE_TOKEN_SPLIT_RE.split(chunk):
+            token = token.strip()
+            if token:
+                cores.add(token)
     return cores
 
 
