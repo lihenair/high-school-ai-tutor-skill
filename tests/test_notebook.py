@@ -219,6 +219,16 @@ class NotebookTests(unittest.TestCase):
         self.assertIn("JSON", err.getvalue())
         self.assertNotIn("Traceback", err.getvalue())
 
+    def test_bad_database_exits_two_without_traceback(self):
+        junk = Path(self.tmp.name) / "not-a-db.db"
+        junk.write_text("not sqlite", encoding="utf-8")
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = notebook.main(["due", "--db", str(junk)])
+        self.assertEqual(code, 2)
+        self.assertTrue(err.getvalue().strip(), err.getvalue())
+        self.assertNotIn("Traceback", err.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

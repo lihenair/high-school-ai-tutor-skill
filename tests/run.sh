@@ -19,11 +19,13 @@ run() {
   fi
 }
 
-run socratic-ok.txt    socratic 0
-run map-ok.txt         socratic 0
-run chapter-map-ok.txt socratic 0
-run problem-slice-ok.txt socratic 0
-run socratic-bad.txt   socratic 1
+run socratic-ok.txt    socratic 0 --gold tests/guard-cases/gold-dummy.txt
+run map-ok.txt         socratic 0 --gold tests/guard-cases/gold-dummy.txt
+run chapter-map-ok.txt socratic 0 --gold tests/guard-cases/gold-dummy.txt
+run problem-slice-ok.txt socratic 0 --gold tests/guard-cases/gold-dummy.txt
+run socratic-ok.txt    socratic 1
+run socratic-bad.txt   socratic 1 --gold tests/guard-cases/gold-socratic-bad.txt
+run socratic-bad.txt   socratic 1 --no-gold
 run chapter-map-bad.txt socratic 1
 run edge-bad.txt       socratic 1
 run style-bad.txt      socratic 1

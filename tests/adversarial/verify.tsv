@@ -137,4 +137,11 @@ x - 2 == 0	x**2 - 4 == 0	矛盾		lost-root
 x**2 - 4 == 0	x - 2 == 0	矛盾		extra-root
 2*a <= 0	a <= 0	通过		ineq-step-equiv
 a < 0	a <= 0	矛盾		ineq-mismatch
+6.02e23 == 6.02*10**23		通过		sci-vs-pow10
+6.02*10**23 == 6.02e23		通过		pow10-vs-sci
+1<pi<4		通过		chained-pi
+x**(-1) == 1/x		通过		negative-sup-ascii
+1/x == x**(-1)		通过		reciprocal
+x == 2	y=3; x**2 == 4	矛盾		mixed-where-lost-root
+y == 9	x=3; y == x**2	通过		mixed-where-assign-and-eq
 

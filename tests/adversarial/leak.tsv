@@ -1,0 +1,121 @@
+# expect	reply	answer	options	stem	rationale
+BLOCK	难度：中等。选 C。	C	ABCD		choice-letter-c
+BLOCK	难度：中等。故选 D。	D	ABCD		hence-select-d
+BLOCK	难度：中等。我选 A。	A	ABCD		teacher-i-pick-a
+BLOCK	难度：中等。答案是 B。	B	ABCD		answer-is-b
+BLOCK	难度：中等。选甲。	甲	甲乙丙丁		cn-jia
+BLOCK	难度：中等。故选乙。	乙	甲乙丙丁		cn-yi
+BLOCK	难度：中等。选丙。	丙	甲乙丙丁		cn-bing
+BLOCK	难度：中等。答案为丁。	丁	甲乙丙丁		cn-ding
+BLOCK	难度：中等。选①。	①	ABCD		circled-1
+BLOCK	难度：中等。选③。	C	ABCD		circled-3-as-c
+BLOCK	难度：中等。第2个选项。	B	ABCD		ordinal-2
+BLOCK	难度：中等。第二个选项。	B	ABCD		ordinal-word-2
+BLOCK	难度：中等。你选戊不对，应选 B。	B	ABCD		correct-after-student
+BLOCK	难度：中等。你选 C，没错。	C	ABCD		confirm-student-c
+BLOCK	难度：中等。你选甲，正确。	甲	甲乙丙丁		confirm-jia
+BLOCK	难度：中等。排除 A、B、D。	C	ABCD		elim-leave-c
+BLOCK	难度：中等。排除甲、乙、丁。	丙	甲乙丙丁		elim-leave-bing
+BLOCK	难度：中等。选 BD。	BD	ABCD		multi-both
+BLOCK	难度：中等。选 B。	BD	ABCD		multi-partial-b
+BLOCK	难度：中等。答案是 D。	BD	ABCD		multi-partial-d
+BLOCK	难度：中等。所以 x 等于 7。	7		x=7	numeric-7
+BLOCK	难度：中等。答案是 12。	12			numeric-12
+BLOCK	难度：中等。结果为 2/5。	2/5			frac-2-5
+BLOCK	难度：中等。答案是五分之二。	2/5			cn-frac-2-5
+BLOCK	难度：中等。答案是 50%。	1/2			percent-50
+BLOCK	难度：中等。答案是 0.5。	1/2			half-decimal
+BLOCK	难度：中等。答案为三分之四。	4/3			cn-frac-4-3
+BLOCK	难度：中等。所以 a≤0。	a≤0			ineq-le0
+BLOCK	难度：中等。范围应当是 t≥2。	t≥2			range-ge2
+BLOCK	难度：中等。取值范围是 k<5。	k<5			range-lt5
+BLOCK	难度：中等。∴ n ≥ 4	n≥4			therefore-ge
+BLOCK	难度：中等。所以 y 不大于 6。	y≤6			cn-le
+BLOCK	难度：中等。p 是非正数。	p≤0			nonpositive
+BLOCK	难度：中等。q 必为正数。	q>0			positive
+BLOCK	难度：中等。m 属于 (-∞,1]。	m≤1			interval-to-ineq
+BLOCK	难度：中等。答案是 75%。	3/4			percent-75
+BLOCK	难度：中等。所以 w 等于 八。	8			cn-numeral-8
+BLOCK	难度：中等。正确答案是②。	B	ABCD		circled-2-as-b
+BLOCK	难度：中等。我选④。	D	ABCD		circled-4-as-d
+BLOCK	难度：中等。选 A 和 C。	AC	ABCD		multi-ac
+BLOCK	难度：中等。答案为 9/2。	4.5			frac-9-2
+BLOCK	难度：中等。最终结果 0.25。	1/4			quarter
+BLOCK	难度：中等。所以 s 不超过 10。	s≤10			at-most-10
+BLOCK	难度：中等。u 不能为正。	u≤0			cannot-positive
+BLOCK	难度：中等。答案是 -3。	-3			negative
+ALLOW	难度：中等。第 3 步先看定义。开口朝哪边？	3			step-3
+ALLOW	难度：中等。第 7 行写的是条件。	7			row-7
+ALLOW	难度：中等。你选 B。说说依据？	B	ABCD		restate-b
+ALLOW	难度：中等。你选丙。哪一句有问题？	丙	甲乙丙丁		restate-bing
+ALLOW	难度：中等。所以它等于 2 倍的什么？	2			times-what
+ALLOW	难度：中等。先看 A 选项在说什么？	A	ABCD		ask-about-a
+ALLOW	难度：中等。B 选项提到了守恒吗？	B	ABCD		ask-about-b
+ALLOW	难度：中等。C 和 D 你更怀疑哪一个？	C	ABCD		ask-cd
+ALLOW	难度：中等。题目说「因此 x>0」。下一步？	x=2		已知 x>0，求最小值。因此 x>0	stem-x-gt0
+ALLOW	难度：中等。开口朝哪边？	B	ABCD		plain-question
+ALLOW	难度：中等。这题有 4 个条件。先看哪一个？	4			four-conditions
+ALLOW	难度：中等。有两种思路。你想先走哪条？	2			two-methods
+ALLOW	难度：中等。你选 A。为什么？	C	ABCD		restate-wrong-option
+ALLOW	难度：中等。我还没让你选。先看定义。	B	ABCD		no-pick
+ALLOW	难度：中等。第 12 题我们先放一放。	12			item-12
+ALLOW	难度：中等。对称轴是 2 倍的什么？	2			axis-times
+ALLOW	难度：中等。先把「a≤1」当作题设看它从哪来。	a=0		题设 a≤1	stem-condition-not-gold
+ALLOW	难度：中等。三个选项都先别下结论。	3	ABCD		three-options-no-pick
+ALLOW	难度：中等。D 只是干扰项吗？你怎么看？	A	ABCD		ask-d-when-gold-a
+ALLOW	难度：中等。你选①。依据呢？	①	ABCD		restate-circled
+ALLOW	难度：中等。先核对系数 5 有没有抄错。	B	ABCD		coeff-5-not-answer
+ALLOW	难度：中等。区间右端是 4 吗？还是别的？	4			ask-endpoint
+ALLOW	难度：中等。百分数怎么写成分数？	1/2			ask-to-convert
+ALLOW	难度：中等。排除谁之前先写出矛盾。	C	ABCD		elim-incomplete
+ALLOW	难度：中等。甲乙谁在讲守恒？	甲	甲乙丙丁		ask-jia-yi
+ALLOW	难度：中等。这一步用到第 8 条公式了吗？	8			formula-8
+ALLOW	难度：中等。请只回答开口方向。	a≤0			no-value
+ALLOW	难度：中等。你刚才写了 9，我们先不判断对错。	9			student-number-no-confirm
+ALLOW	难度：中等。BD 两个选项先对比差异。	AC	ABCD		compare-bd-gold-ac
+ALLOW	难度：中等。所以接下来看哪一个端点？	3			so-which-endpoint
+ALLOW	难度：中等。需要 3 个方程吗？	3			need-3-eqs
+ALLOW	难度：中等。先把「k≥2」抄到草稿上核对题干。	k=5		题干给出 k≥2	stem-ineq-not-gold
+ALLOW	难度：中等。①②③ 先逐条找错因。	D	ABCD		scan-circled
+ALLOW	难度：中等。加权还没到这一轮。	2.95			mention-weighted-word
+ALLOW	难度：中等。变式以后再说。	B	ABCD		variant-later
+ALLOW	难度：中等。图像开口朝上还是朝下？	-1			ask-opening
+ALLOW	难度：中等。你选丁。我们先看这句话。	丁	甲乙丙丁		restate-ding
+ALLOW	难度：中等。第 1 问先放着。	1			part-1
+ALLOW	难度：中等。50 这个数出现在题干哪一行？	50			where-is-50
+ALLOW	难度：中等。先别急着写答案。	C	ABCD		dont-answer-yet
+ALLOW	难度：中等。故我们先回到定义。	故			hence-back-to-def
+ALLOW	难度：中等。等于号两边谁是未知数？	7			ask-equals
+ALLOW	难度：中等。范围会不会被端点卡住？	a≤0			ask-range
+ALLOW	难度：中等。选完告诉我依据，不要先对答案。	B	ABCD		ask-after-student-picks
+ALLOW	难度：中等。丙选项的守恒式抄完整了吗？	丙	甲乙丙丁		ask-bing-equation
+ALLOW	难度：中等。两个端点 0 和 3 怎么比？	a≤1			compare-endpoints
+ALLOW	难度：中等。这一步叫第 4 步。	4			named-step-4
+ALLOW	难度：中等。请指出 B 里哪一个字错了。	B	ABCD		which-word-in-b
+ALLOW	难度：中等。你选 AC。两条里先查哪条？	BD	ABCD		restate-ac-gold-bd
+BLOCK	难度：中等。答案为 百分之二十五。	1/4			cn-percent-25
+BLOCK	难度：中等。选第3个选项。	C	ABCD		ordinal-3-digit
+BLOCK	难度：中等。所以 z=1/8。	0.125			eighth
+BLOCK	难度：中等。我选乙。	乙	甲乙丙丁		teacher-yi
+BLOCK	难度：中等。排除①②④。	C	ABCD		elim-circled-leave-c
+BLOCK	难度：中等。你选 D 是对的。	D	ABCD		confirm-d
+BLOCK	难度：中等。取值是 (-∞,0]。	x≤0			interval-nonpos
+BLOCK	难度：中等。答案是 20%。	1/5			percent-20
+BLOCK	难度：中等。故选 AC。	AC	ABCD		hence-ac
+BLOCK	难度：中等。所以 r 至少 15。	r≥15			at-least-15
+BLOCK	难度：中等。答案是 十一。	11			cn-eleven
+BLOCK	难度：中等。选最后那个选项。	D	ABCD		last-option
+BLOCK	难度：中等。结果为 0.2。	1/5			point-two
+BLOCK	难度：中等。h 为非负数。	h≥0			nonneg
+BLOCK	难度：中等。答案 → 7	7			arrow-7
+BLOCK	难度：中等。Correct option C	C	ABCD		en-option
+ALLOW	难度：中等。Correct 吗？先别给选项。	C	ABCD		en-correct-question
+ALLOW	难度：中等。最后一步还没到。	D	ABCD		last-step-not-option
+ALLOW	难度：中等。百分之多少要你来写。	1/4			ask-percent
+ALLOW	难度：中等。十一这个系数从哪来？	11			ask-coeff-11
+ALLOW	难度：中等。非负数是哪一类？先定义。	h≥0			ask-def-nonneg
+ALLOW	难度：中等。0.125 是题干给的时间。	9		时间 0.125 秒	stem-time
+ALLOW	难度：中等。(-∞,0] 是题设定义域吗？	x=3		定义域 (-∞,0]	stem-domain-ask
+ALLOW	难度：中等。15 出现在第几问？	r≥15			where-15
+ALLOW	难度：中等。你选最后那个选项。依据？	D	ABCD		restate-last
+ALLOW	难度：中等。AC 对比时先看主语。	B	ABCD		compare-ac-gold-b

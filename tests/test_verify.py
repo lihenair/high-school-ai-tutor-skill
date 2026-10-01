@@ -365,6 +365,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual(proc.stdout.splitlines()[0], "通过")
 
 
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_large_sci_pow10_and_chained_and_superscript_minus(self):
+        self.assertEqual(verify.check_math("6.02e23 == 6.02*10**23").status, "通过")
+        self.assertEqual(verify.check_math("1<pi<4").status, "通过")
+        self.assertEqual(verify.check_math("x⁻¹ == 1/x").status, "通过")
+        mixed = verify.check_math("x == 2", "y=3; x**2 == 4")
+        self.assertEqual(mixed.status, "矛盾", mixed)
+
+
 class AdversarialVerifyCorpusTests(unittest.TestCase):
     @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
     def test_verify_corpus(self):

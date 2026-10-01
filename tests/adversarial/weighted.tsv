@@ -1,0 +1,11 @@
+# expect	snippet	rationale
+OK	五项评分 4、3、2、2、3 分。加权 2.95。	comma-scores-ok
+OK	五项评分 5/4/3/2/1 分。加权 3.50。	slash-scores-ok
+OK	知识点 4 思维 3 综合 2 计算 2 出现频率 3。加权≈2.95。	named-approx-ok
+BLOCK	五项评分 4、3、2、2、3 分。	missing-weighted
+BLOCK	4、3、2、2、3 分。加权 1.00。	wrong-total
+BLOCK	5/4/3/2/1 分。加权 2.00。	slash-wrong
+BLOCK	(4, 3, 2, 2, 3)。加权 3.00。	tuple-wrong
+OK	4 3 2 2 3 分。加权 2.95。	space-scores-ok
+BLOCK	4-3-2-2-3。加权 0.30。	dash-took-coeff
+OK	加权 = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3 = 2.95。4、3、2、2、3 分。	expansion-last-eq

@@ -1,0 +1,7 @@
+# expect	file	rationale
+OK	ok-full.txt	canonical-seven-slots
+BLOCK	empty-def.txt	placeholder-def
+BLOCK	repeat.txt	duplicate-slot-body
+BLOCK	placeholder.txt	todo-example
+BLOCK	one-line.txt	seven-markers-one-line
+BLOCK	heading-only.txt	body-is-slot-name
