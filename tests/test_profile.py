@@ -202,6 +202,30 @@ class ProfileTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertNotIn("Traceback", err.getvalue())
 
+    def test_mastery_infers_source_from_event_when_omitted(self):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = student_profile.main([
+                "mastery", "--node", "kp_redox", "--event", "解题错题",
+                "--file", str(self.path),
+            ])
+        self.assertEqual(code, 0, err.getvalue())
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = student_profile.main([
+                "mastery", "--node", "kp_redox", "--event", "诊断答对",
+                "--file", str(self.path),
+            ])
+        self.assertEqual(code, 0, err.getvalue())
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+            code = student_profile.main([
+                "mastery", "--node", "kp_redox", "--event", "解题错题",
+                "--source", "自测", "--file", str(self.path),
+            ])
+        self.assertEqual(code, 2)
+        self.assertTrue(err.getvalue().strip())
+
 
 if __name__ == "__main__":
     unittest.main()

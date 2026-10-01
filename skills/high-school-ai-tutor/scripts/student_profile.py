@@ -392,7 +392,7 @@ def main(argv=None):
             return 0
         if args.cmd == "mastery":
             if args.event:
-                mastery_apply(profile, args.node, args.event, args.source or "自测")
+                mastery_apply(profile, args.node, args.event, args.source or EVENT_SOURCE.get(args.event, ""))
                 save(profile, path)
             state = mastery_get(profile, args.node)
             print(state or "无")
