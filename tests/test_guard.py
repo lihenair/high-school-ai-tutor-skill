@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """回复守卫：漏答案、难度误拦、mermaid 围栏与整章图节点。"""
 
 import sys
@@ -9,8 +8,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "skills" / "high-school-ai-tutor" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-import guard  # noqa: E402
-
+import guard
 
 CHAPTER_OK = (ROOT / "tests" / "guard-cases" / "chapter-map-ok.txt").read_text(encoding="utf-8")
 

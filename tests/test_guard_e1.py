@@ -117,6 +117,13 @@ class NormalizeTests(unittest.TestCase):
         self.assertIn("找不到", leak.CONCLUSION_SYNONYMS["不存在"])
         self.assertIn("成立", leak.CONCLUSION_SYNONYMS["正确"])
         self.assertIn("不成立", leak.CONCLUSION_SYNONYMS["错误"])
+        self.assertIn("减函数", leak.CONCLUSION_SYNONYMS["递减"])
+        self.assertIn("增函数", leak.CONCLUSION_SYNONYMS["递增"])
+        self.assertIn("1/2", leak.CONCLUSION_SYNONYMS["一半"])
+        spec = leak.GoldSpec(answers=["减函数"])
+        self.assertTrue(leak.find_gold_leaks("所以这是单调递减的。", spec))
+        spec2 = leak.GoldSpec(answers=["一半"])
+        self.assertTrue(leak.find_gold_leaks("概率正好是 50%。", spec2))
 
 
 class NumericEquivTests(unittest.TestCase):
@@ -170,6 +177,9 @@ class NumericEquivTests(unittest.TestCase):
             spec2 = leak.GoldSpec(answers=["k>5"])
             hits2 = leak.find_gold_leaks("k 必须大于 5 才行。", spec2)
             self.assertTrue(hits2)
+            self.assertIsNotNone(leak.parse_number_token(r"\frac{\pi}{3}"))
+            spec3 = leak.GoldSpec(answers=[r"C=\pi/3"])
+            self.assertTrue(leak.find_gold_leaks(r"C = \frac{\pi}{3}", spec3))
         finally:
             if old is None:
                 os.environ.pop(leak.FORCE_STDLIB_ENV, None)
@@ -255,6 +265,86 @@ class OptionRuleTests(unittest.TestCase):
         self.assertTrue(leak.find_gold_leaks("甲、乙、丁都有错。", spec2))
 
 
+class ReviewCategoryTests(unittest.TestCase):
+    """评审召回/误拦：通用句法，不用对抗集原句。"""
+
+    def test_option_assert_variants(self):
+        spec = leak.GoldSpec(answers=["B"], options="ABCD")
+        self.assertTrue(leak.find_gold_leaks("正确选项：Ⓑ。", spec))
+        self.assertTrue(leak.find_gold_leaks("【答案】B", spec))
+        self.assertTrue(leak.find_gold_leaks("答案 → B", spec))
+        self.assertTrue(leak.find_gold_leaks("毫无疑问选 B。", spec))
+        self.assertTrue(leak.find_gold_leaks("应该是 B 吧。", spec))
+        self.assertTrue(leak.find_gold_leaks("The correct choice is B.", spec))
+        self.assertTrue(leak.find_gold_leaks("Option B.", spec))
+        self.assertTrue(leak.find_gold_leaks("答案是Ｂ。", spec))
+        self.assertTrue(leak.find_gold_leaks("第二个选项才对。", spec))
+        spec_last = leak.GoldSpec(answers=["D"], options="ABCD")
+        self.assertTrue(leak.find_gold_leaks("最后一个选项。", spec_last))
+
+    def test_elim_and_multi_both_true(self):
+        spec = leak.GoldSpec(answers=["C"], options="ABCD")
+        self.assertTrue(leak.find_gold_leaks("A 不对，B 不对，D 也不对。", spec))
+        self.assertTrue(leak.find_gold_leaks("除了 C 其余都不对。", spec))
+        spec2 = leak.GoldSpec(answers=["BD"], options="ABCD")
+        self.assertTrue(leak.find_gold_leaks("B 和 D 都对。", spec2))
+
+    def test_student_second_person_eval_and_process(self):
+        spec = leak.GoldSpec(answers=["x=-2"])
+        self.assertTrue(leak.find_gold_leaks("你说的 -2 完全正确。", spec))
+        self.assertTrue(leak.find_gold_leaks("你的答案 -2 没错。", spec))
+        self.assertTrue(leak.find_gold_leaks("你选 x=-2，很好。", spec))
+        self.assertFalse(leak.find_gold_leaks("你说的是 x=-2，依据是什么？", spec))
+        self.assertFalse(leak.find_gold_leaks("你选了 -2，过程怎么来的？", spec))
+
+    def test_interval_synonyms(self):
+        spec = leak.GoldSpec(answers=["x≤0"])
+        self.assertTrue(leak.find_gold_leaks("x 非正。", spec))
+        self.assertTrue(leak.find_gold_leaks("取值是负数或零。", spec))
+        self.assertTrue(leak.find_gold_leaks("不能是正的。", spec))
+        self.assertTrue(leak.find_gold_leaks("-x≥0。", spec))
+        spec2 = leak.GoldSpec(answers=["x≥0"])
+        self.assertTrue(leak.find_gold_leaks("x 非负。", spec2))
+        spec3 = leak.GoldSpec(answers=["k>5"])
+        self.assertTrue(leak.find_gold_leaks("范围是 (5,∞)。", spec3))
+        spec5 = leak.GoldSpec(answers=["x≤5"])
+        self.assertTrue(leak.find_gold_leaks("x ≯ 5。", spec5))
+        spec6 = leak.GoldSpec(answers=["x≤3"])
+        self.assertTrue(leak.find_gold_leaks("最大是 3。", spec6))
+        self.assertTrue(leak.find_gold_leaks("取 3 恰好满足，再大就不行。", spec6))
+        spec7 = leak.GoldSpec(answers=["(-∞,1]∪(3,+∞)"])
+        self.assertTrue(leak.find_gold_leaks("x∉(1,3]。", spec7))
+
+    def test_number_word_forms(self):
+        spec = leak.GoldSpec(answers=["8"])
+        self.assertTrue(leak.find_gold_leaks("一共 8 种。", spec))
+        self.assertTrue(leak.find_gold_leaks("the answer is eight.", spec))
+        spec2 = leak.GoldSpec(answers=["1/2"])
+        self.assertTrue(leak.find_gold_leaks("it is one half.", spec2))
+        spec3 = leak.GoldSpec(answers=["-2"])
+        self.assertTrue(leak.find_gold_leaks("结果是 −2。", spec3))
+        spec4 = leak.GoldSpec(answers=["2"])
+        self.assertTrue(leak.find_gold_leaks("取值 ±2 里的正支。", spec4))
+
+    def test_cn_compound_and_measure_not_numeric(self):
+        spec = leak.GoldSpec(answers=["2"])
+        self.assertFalse(leak.find_gold_leaks("我们一起看这一步，最后一步怎么变形？", spec))
+        self.assertFalse(leak.find_gold_leaks("两个端点、两根线先标出来。", spec))
+        spec3 = leak.GoldSpec(answers=["x=-2"])
+        self.assertFalse(leak.find_gold_leaks("满分 2 分的小题，先写方程。", spec3))
+        self.assertFalse(leak.find_gold_leaks("用了 2 分钟，第 2 项先放放。", spec3))
+
+    def test_other_var_and_superscript_skip(self):
+        spec = leak.GoldSpec(answers=["4"])
+        self.assertFalse(leak.find_gold_leaks("Δ = 4，这只是判别式。", spec))
+        spec2 = leak.GoldSpec(answers=["2"])
+        self.assertFalse(leak.find_gold_leaks("写成 x² 再展开。", spec2))
+        spec3 = leak.GoldSpec(answers=["x=-2"])
+        self.assertTrue(leak.find_gold_leaks("解得 x=-2。", spec3))
+        spec4 = leak.GoldSpec(answers=["7/4"])
+        self.assertTrue(leak.find_gold_leaks("4n=7，所以 n=7/4。", spec4))
+
+
 class AdversarialRunnerTests(unittest.TestCase):
     """tests/adversarial/e1_cases.jsonl：block/pass 均须 100%。"""
 
@@ -293,6 +383,17 @@ class AdversarialRunnerTests(unittest.TestCase):
                         f"exit={proc.returncode}\n{proc.stdout[:400]}"
                     )
         self.assertEqual(failed, [], "\n\n".join(failed[:20]))
+
+    def test_e1_cases_jsonl_force_stdlib(self):
+        old = os.environ.get("E1_FORCE_STDLIB")
+        os.environ["E1_FORCE_STDLIB"] = "1"
+        try:
+            self.test_e1_cases_jsonl()
+        finally:
+            if old is None:
+                os.environ.pop("E1_FORCE_STDLIB", None)
+            else:
+                os.environ["E1_FORCE_STDLIB"] = old
 
 
 if __name__ == "__main__":

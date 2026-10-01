@@ -20,6 +20,8 @@ from math import pi as PI
 
 # 结论同义：只在「结论短语」比对时使用。左边是规范义项，右边是可互换写法。
 # 「不相交」仅当句中出现同平面/共面时才并入「平行」。
+# 单调性：减函数/递减/单调减互认；增函数同理。
+# 「一半」覆盖分数、百分数和汉语比例说法。
 CONCLUSION_SYNONYMS = {
     "平行": frozenset({"平行", "∥", "||"}),
     "不存在": frozenset({"不存在", "找不到", "没有这样的"}),
@@ -29,6 +31,9 @@ CONCLUSION_SYNONYMS = {
     "否": frozenset({"否"}),
     "能": frozenset({"能"}),
     "不能": frozenset({"不能"}),
+    "递减": frozenset({"递减", "单调递减", "减函数", "单调减", "decreasing"}),
+    "递增": frozenset({"递增", "单调递增", "增函数", "单调增", "increasing"}),
+    "一半": frozenset({"一半", "1/2", "二分之一", "半数", "50%"}),
 }
 # 「对」单独列出：过短，只在「是对的/完全对」这类谓语里认，不扫「对顶角」。
 CONCLUSION_YES_SHORT = frozenset({"对", "没错"})
@@ -68,6 +73,8 @@ EN_ORDINAL = {
     "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10,
 }
 CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳"
+CIRCLED_LATIN = "ⒶⒷⒸⒹⒺⒻⒼⒽⒾⒿⓀⓁⓂⓃⓄⓅⓆⓇⓈⓉⓊⓋⓌⓍⓎⓏ"
+CIRCLED_LATIN_S = "ⓐⓑⓒⓓⓔⓕⓖⓗⓘⓙⓚⓛⓜⓝⓞⓟⓠⓡⓢⓣⓤⓥⓦⓧⓨⓩ"
 JIAZI = "甲乙丙丁戊己庚辛壬癸"
 LATIN_OPTS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -83,50 +90,78 @@ VULGAR = {
 REL_REPL = [
     (r"\\leq", "<="), (r"\\le\b", "<="), (r"\\geq", ">="), (r"\\ge\b", ">="),
     (r"\\neq", "!="), (r"\\ne\b", "!="), (r"\\lt", "<"), (r"\\gt", ">"),
-    (r"\\in\b", "∈"), (r"\\cup", "∪"), (r"\\cap", "∩"), (r"\\infty", "∞"),
+    (r"\\in\b", "∈"), (r"\\notin", "∉"), (r"\\cup", "∪"), (r"\\cap", "∩"),
+    (r"\\infty", "∞"),
     (r"\\pi\b", "π"), (r"\\mid", "|"), (r"\\\{", "{"), (r"\\\}", "}"),
     ("≤", "<="), ("≥", ">="), ("≠", "!="), ("＜", "<"), ("＞", ">"),
-    ("⩽", "<="), ("⩾", ">="),
+    ("⩽", "<="), ("⩾", ">="), ("≯", "<="), ("≮", ">="),
+    ("−", "-"), ("±", "±"),
 ]
 
 STUDENT_RE = re.compile(
-    r"你(?:写的|算的|得到|选了|的结果|刚才|认为|选的)|"
+    r"你(?:写的|算的|得到|选了|的结果|刚才|认为|选的|说的|的答案|选(?!项))|"
     r"your (?:answer|result|choice)"
 )
 FIRST_PERSON_RE = re.compile(
     r"(?:我|我们|老师)(?:算出来|选|倾向于|猜|得到|会得到)|"
     r"\bI (?:choose|got|think|guess)\b"
 )
-EVAL_RE = re.compile(r"完全正确|正确|没错|就是|很好|完全(?!平方)|✓|✅|(?<![对顶])对的|(?<![对顶])对了")
-SUBST_RE = re.compile(r"代进去|代入|不妨把|plug in")
+EVAL_RE = re.compile(
+    r"完全正确|正确|没错|就是|很好|完全(?!平方)|✓|✅|"
+    r"(?<![对顶])对的|(?<![对顶])对了|不对|错了|不是"
+)
+SUBST_RE = re.compile(r"不妨把|把.{0,12}代进去|plug in")
 LEADING_RE = re.compile(
-    r"会不会是|是不是|难道不是|难道.{0,24}不|对吗|对不对|right\?|"
-    r"should be|is the (?:correct )?answer"
+    r"会不会是|是不是|难道不是|难道.{0,24}不|对吗|对不对|"
+    r"毫无疑问|无疑|应该是|应当是"
 )
 EITHER_RE = re.compile(r"还是| or ")
-ORDINAL_SKIP_RE = re.compile(
-    r"第\s*[0-9一二三四五六七八九十]+\s*(?:步|题|问|行|次|个选项|个)|"
-    r"式\s*[（(]?\s*[0-9]+\s*[)）]?|"
-    r"[0-9]+\s*(?:个|种|条)(?!选项)"
+PROCESS_RE = re.compile(r"依据|过程|怎么|为什么|讲讲|说说|哪一步|[？?]|呢(?![喃])")
+# 量词/时间/分值/日期：抽出的数字默认不和金标比，除非金标带同一量词。
+MEASURE_SKIP_RE = re.compile(
+    r"(?:分钟|\d+\s*分(?!之)|满分\s*\d+\s*分|"
+    r"第?\s*\d+\s*(?:步|项|月|日|行|次|题|问)|"
+    r"\d+\s*(?:步|项|月|日)(?!录))"
 )
-METHOD_RE = re.compile(
-    r"怎么做|如何|哪几种方法|判定.{0,8}平行|平行有哪|公式是什么|"
-    r"先把|先想|列出|形如|一般先|你会怎么|定理\？|定理?"
+ORDINAL_SKIP_RE = re.compile(
+    r"第\s*[0-9一二三四五六七八九十]+\s*(?:步|题|问|行|次|个选项|个|项)|"
+    r"式\s*[（(]?\s*[0-9]+\s*[)）]?"
+)
+# 选择/确认：句法槽（动词或引出语），不是某条用例的原句。
+CHOICE_ACT_RE = re.compile(
+    r"(?:选择|选(?!项)|答案|正确选项|正确的是|故选|应选|应填|"
+    r"【答案】|毫无疑问|无疑|应该是|应当是|直接说|"
+    r"answer\s+is|is the answer|correct\s+(?:option|choice|one)|"
+    r"\boption\s*[a-z]|"
+    r"[→⇒]|肯定要选|才是对的|\bfits\b|fill in|"
+    r"都对|都正确|都是对|是真|为真|真命题|真的|才对)",
+    re.IGNORECASE,
+)
+# 排除/判错：句法槽。
+ELIM_ACT_RE = re.compile(
+    r"排除|都是错|都有错|都不对|都不是|只剩|其余都不|"
+    r"除了.+其余|都可以排除|(?<!对)不对|错了|有错|判错"
+)
+# 中性指代：选项标签出现在读/看/对照，或「选项…里」这类名词短语，且无选择/确认/排除。
+READ_ACT_RE = re.compile(
+    r"(?:逐个看|先看|各看|看选项|对照|比较|compare|look\s+at|"
+    r"选项.{0,6}(?:里|中|对应)|对应的)"
 )
 STEM_CUE_RE = re.compile(r"(?:题目|题干|已知|条件)(?:说|写|给|里)")
-OPTION_NEUTRAL_RE = re.compile(
-    r"选项\s*.{0,4}里|逐个看|各看一遍|先看\s*[A-D甲乙丙丁①-⑩]|"
-    r"四个选项|到④逐条|compare [ab]|difference between|"
-    r"先找第一处|你最先想排除哪一个"
+PROBE_RE = re.compile(r"(?:如果|取\s*[a-zA-Z]|试试|代回|左边|相等吗)")
+# 英文数字词/分数词（封闭）。
+EN_NUM_WORDS = {
+    "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "eleven": 11, "twelve": 12, "half": Fraction(1, 2),
+    "quarter": Fraction(1, 4), "eighth": Fraction(1, 8),
+    "third": Fraction(1, 3),
+}
+# 普通词里的汉字数字，不当成数量抽。
+CN_COMPOUND_SKIP = (
+    "一下", "一起", "一步", "两步", "最后一步", "两个", "两根", "两边",
+    "一种", "一样", "一些", "一定", "一般", "一点", "一会儿",
 )
-CHOICE_ASSERT_RE = re.compile(
-    r"(?:选(?!项)\s*[A-Da-d甲乙丙丁①-⑳]|答案(?:是|应该是|：|:)|正确选项|"
-    r"正确的是|故选|应填|应选|肯定要选|才是对的|就是答案|肯定是真|是真命题|"
-    r"fits here|the correct one|option\s+[a-d].*correct|"
-    r"答案应该|做法是对的)"
-)
-ELIM_RE = re.compile(r"排除|都是错|都有错|都可以排除|都不是|只剩")
-PROBE_RE = re.compile(r"(?:如果|取|试试|代回|左边|相等吗)")
 
 FORCE_STDLIB_ENV = "E1_FORCE_STDLIB"
 
@@ -233,7 +268,9 @@ def option_labels(spec: GoldSpec):
         return list(CIRCLED[:4])
     if joined and all(ch in JIAZI for ch in joined):
         return list(JIAZI[:4])
-    if joined and all(ch.upper() in LATIN_OPTS for ch in joined if ch.isalpha()):
+    if joined and any(ch.isalpha() for ch in joined) and all(
+        ch.upper() in LATIN_OPTS for ch in joined if ch.isalpha()
+    ) and not any(ch.isdigit() for ch in joined):
         return list("ABCD")
     return []
 
@@ -266,9 +303,12 @@ def extract_labels(text, labels):
     labset = list(labels)
     # 直接标签
     for lab in labset:
-        if lab in ntext or lab.lower() in ntext.lower():
-            # 避免把函数 C= 里的 C 当选项：要求像选项的用法
+        if lab in ntext:
             found.add(_norm_label(lab))
+            continue
+        if lab.isalpha() and len(lab) == 1:
+            if re.search(rf"(?<![A-Za-z]){re.escape(lab)}(?![A-Za-z])", ntext, re.IGNORECASE):
+                found.add(_norm_label(lab))
     # 圈码 ↔ 阿拉伯
     if labset and labset[0] in CIRCLED:
         for i, ch in enumerate(CIRCLED, 1):
@@ -301,27 +341,45 @@ def extract_labels(text, labels):
         for i, jch in enumerate(JIAZI):
             if jch in ntext and i < len(labset) and labset[i] in LATIN_OPTS:
                 found.add(labset[i])
-        for ch in re.findall(r"[A-Da-d]", ntext):
+        for ch in re.findall(r"(?<![A-Za-z])[A-Da-d](?![A-Za-z])", ntext):
             u = ch.upper()
             if u in labset:
                 found.add(u)
         ntext_l = ntext.lower()
-        m = re.search(r"\boption\s+([a-d])\b", ntext_l)
+        m = re.search(r"option\s*([a-z])", ntext_l)
         if m and m.group(1).upper() in labset:
             found.add(m.group(1).upper())
-        m = re.search(r"\bthe\s+(first|second|third|fourth|fifth)\s+one\b", ntext_l)
+        m = re.search(r"\bthe\s+(first|second|third|fourth|fifth|last)\s+(?:one|option)\b", ntext_l)
         if m:
-            idx = EN_ORDINAL[m.group(1)] - 1
-            if 0 <= idx < len(labset):
-                found.add(labset[idx])
+            if m.group(1) == "last":
+                found.add(labset[-1])
+            else:
+                idx = EN_ORDINAL[m.group(1)] - 1
+                if 0 <= idx < len(labset):
+                    found.add(labset[idx])
         m = re.search(r"（\s*([A-Da-d])\s*）|\(\s*([A-Da-d])\s*\)", ntext)
         if m:
             found.add((m.group(1) or m.group(2)).upper())
-    # 序数「第四个」
+        # 带圈拉丁 Ⓐ / ⓐ
+        for i, ch in enumerate(CIRCLED_LATIN):
+            if ch in text and i < len(labset) and labset[i] in LATIN_OPTS:
+                found.add(labset[i])
+        for i, ch in enumerate(CIRCLED_LATIN_S):
+            if ch in text and i < len(labset) and labset[i] in LATIN_OPTS:
+                found.add(labset[i])
+        if re.search(r"最后(?:一个)?选项", ntext):
+            found.add(labset[-1])
+        # 圈码序号 → 第 i 个拉丁选项
+        for i, ch in enumerate(CIRCLED, 1):
+            if ch in text and i - 1 < len(labset):
+                found.add(labset[i - 1])
+        m = re.search(r"[→⇒]\s*([A-Da-d])|([A-Da-d])\s*[→⇒]", ntext)
+        if m:
+            found.add((m.group(1) or m.group(2)).upper())
+    # 序数「第四个」「第二项」
     for word, idx in CN_ORDINAL.items():
-        if word in ntext and 0 <= idx - 1 < len(labset):
-            if "选项" in ntext or "个" in ntext:
-                found.add(labset[idx - 1])
+        if word in ntext and 0 <= idx - 1 < len(labset) and re.search(r"选项|个|项", ntext):
+            found.add(labset[idx - 1])
     return {_norm_label(x) for x in found}
 
 
@@ -335,7 +393,7 @@ def _norm_label(lab):
 def _hold_circled(text):
     s = str(text or "")
     held = []
-    for i, ch in enumerate(CIRCLED):
+    for i, ch in enumerate(CIRCLED + CIRCLED_LATIN + CIRCLED_LATIN_S):
         if ch in s:
             tok = f"<<C{i}>>"
             held.append((tok, ch))
@@ -358,6 +416,7 @@ def nfkc_ws(text):
     for src, dst in VULGAR.items():
         s = s.replace(src, dst)
     s = s.replace("⁄", "/")
+    s = s.replace("−", "-")
     s = re.sub(r"\s+", "", s)
     return s
 
@@ -380,6 +439,9 @@ def compact(text):
     s = re.sub(r"\\sqrt\s*\{([^{}]+)\}", r"√(\1)", s)
     s = re.sub(r"\\sqrt\s+([0-9A-Za-zπ]+)", r"√(\1)", s)
     s = s.replace("\\", "")
+    s = re.sub(r"\((π)\)/\((\d+)\)", r"π/\2", s)
+    s = re.sub(r"\(π\)/(\d+)", r"π/\1", s)
+    s = re.sub(r"\((\d+)\)/\((π)\)", r"\1/π", s)
     s = re.sub(r"[ \t]+", "", s)
     return s
 
@@ -461,7 +523,7 @@ def parse_cn_quantity(text):
     m = re.fullmatch(r"(.+)分之(.+)", s)
     if m:
         a, b = cn_int(m.group(1)), cn_int(m.group(2))
-        # 「四分之七」= 7/4 ；分母在「分之」前
+        # 「N 分之 M」= M/N ；分母在「分之」前
         if None not in (a, b) and a:
             return ("num", sign * Fraction(b, a))
     m = re.fullmatch(r"(.+)倍根号(.+)", s)
@@ -512,11 +574,25 @@ def parse_number_token(raw):
     """把一个候选收成内部值。失败返回 None。"""
     s = compact(raw)
     s = s.replace("（", "(").replace("）", ")")
+    s = s.replace("±", "")
     while s.startswith("(") and s.endswith(")") and s.count("(") == 1:
         s = s[1:-1]
     s = re.sub(r"\((\-?[0-9.]+)\)/\((\-?[0-9.]+)\)", r"\1/\2", s)
     if not s:
         return None
+    low = s.lower()
+    if low in EN_NUM_WORDS:
+        v = EN_NUM_WORDS[low]
+        return ("num", v if isinstance(v, Fraction) else Fraction(v))
+    m = re.fullmatch(r"一共(.+)种", s)
+    if m:
+        inner = parse_cn_quantity(m.group(1))
+        if inner:
+            return inner
+        try:
+            return ("num", Fraction(m.group(1)))
+        except (ValueError, ZeroDivisionError):
+            pass
     cn = parse_cn_quantity(s)
     if cn:
         return cn
@@ -545,16 +621,17 @@ def parse_number_token(raw):
             return ("qty", val * fac, dim)
         if unit in ("°",):
             return ("qty", val, "angle-deg")
-    # π 有理倍数
+    # π 有理倍数（含 compact 后的 π/3、(π)/(3)）
     m = re.fullmatch(r"(-)?(?:(\d+)/)?π(?:/(\d+))?", s)
-    if m and "π" in s and re.fullmatch(r"-?(?:\d+/)?π(?:/\d+)?", s):
+    if m:
         sign = -1 if m.group(1) else 1
         num = int(m.group(2) or 1)
         den = int(m.group(3) or 1)
         return ("qty", Fraction(sign * num, den), "angle-pi")
-    m = re.fullmatch(r"-?\\frac\{π\}\{(\d+)\}", compact(raw))
+    m = re.fullmatch(r"(-)?(\d+)/π", s)
     if m:
-        return ("qty", Fraction(1, int(m.group(1))), "angle-pi")
+        sign = -1 if m.group(1) else 1
+        return ("qty", Fraction(sign * int(m.group(2)), 1), "angle-pi")
     # 根式 k√n 或 √n
     m = re.fullmatch(r"(-)?(?:(\d+(?:\.\d+)?))?√(?:\()?([0-9]+)(?:\))?", s)
     if m:
@@ -700,11 +777,13 @@ def parse_interval(raw):
     s = s.replace("+∞", "∞").replace("+infty", "∞").replace("infty", "∞")
     s = s.replace("-∞", "-∞").replace("-infty", "-∞")
     s = s.replace("inf", "∞")
-    # 集合 {k|k>5} / {x: ...}
     m = re.search(r"\{[a-zA-Z]\s*[|｜:：]\s*(.+)\}", s)
     if m:
         s = m.group(1)
-    parts = re.split(r"∪|或|或者", s)
+    if "∪" in s or "或者" in s or re.search(r"[<>≤≥=].{0,20}或.{0,20}[<>≤≥=]", s):
+        parts = re.split(r"∪|或者|(?<=[0-9.∞πx])或", s)
+    else:
+        parts = [s]
     ivs = []
     for p in parts:
         one = _parse_one_interval(p)
@@ -717,6 +796,11 @@ def parse_interval(raw):
 def _parse_one_interval(p):
     p = compact(p)
     p = re.sub(r"^[a-zA-Z]∈", "", p)
+    # 移项：-a>=0 → a<=0（乘 -1 翻号）
+    m = re.fullmatch(r"-([a-zA-Z])\s*(<=|>=|<|>)\s*(-?[0-9.π]+)", p)
+    if m:
+        flip = {">": "<", "<": ">", ">=": "<=", "<=": ">="}[m.group(2)]
+        return _rel_to_iv(flip, m.group(3), var_left=True)
     # 标准括号区间 (1,3]  (5,∞)
     m = re.fullmatch(r"([\(\[])([^,，]+)[,，]([^)\]\]]+)([\)\]])", p)
     if m:
@@ -807,10 +891,43 @@ def _rel_to_iv(op, bound_s, var_left=True):
 
 
 def _parse_cn_ineq(p):
-    """k必须大于5 / 大于1且不超过3 / 小于等于-1 / 大于等于3"""
+    """非正/非负、最大最小、边界口述、中文不等号。"""
     s = p
     s = s.replace("必须", "").replace("要满足", "").replace("应当是", "")
     s = s.replace("才行", "").replace("才没有实根", "")
+    compact_s = compact(s)
+    if re.search(r"非正|不能是正|不是正数|负数或零|负的或零", compact_s):
+        return Interval([(None, False, 0, True)])
+    if re.search(r"非负", compact_s):
+        return Interval([(0, True, None, False)])
+    m = re.search(r"∉(.+)", compact_s)
+    if m:
+        inner = parse_interval(m.group(1).rstrip("的集合"))
+        if inner and len(inner.parts) == 1:
+            lo, li, hi, hi_i = inner.parts[0]
+            parts = []
+            if lo is not None:
+                parts.append((None, False, lo, not li))
+            if hi is not None:
+                parts.append((hi, not hi_i, None, False))
+            if parts:
+                return Interval(parts)
+    m = re.search(r"最大(?:是|为|等于)?(.+)$", compact_s)
+    if m:
+        bound = _cn_bound_num(m.group(1))
+        if bound is not None:
+            return Interval([(None, False, bound, True)])
+    m = re.search(r"最小(?:是|为|等于)?(.+)$", compact_s)
+    if m:
+        bound = _cn_bound_num(m.group(1))
+        if bound is not None:
+            return Interval([(bound, True, None, False)])
+    if re.search(r"再大就不|恰好.{0,16}(?:满足|取到)", compact_s):
+        nums = re.findall(r"-?[0-9.]+", compact_s)
+        if len(nums) == 1:
+            b = _try_frac(nums[0])
+            if b is not None:
+                return Interval([(None, False, b, True)])
     and_parts = re.split(r"且|并且", s)
     if len(and_parts) == 2:
         a = _one_cn_rel(and_parts[0])
@@ -818,6 +935,14 @@ def _parse_cn_ineq(p):
         if a and b:
             return _intersect_iv(a, b)
     return _one_cn_rel(s)
+
+
+def _cn_bound_num(raw):
+    tok = re.split(r"[，。；、]", compact(raw))[0]
+    n = parse_cn_quantity(tok) or parse_number_token(tok)
+    if n and n[0] == "num":
+        return n[1]
+    return _try_frac(tok)
 
 
 def _one_cn_rel(s):
@@ -1034,9 +1159,19 @@ def linear_form(pair):
                     )
         except (TypeError, ValueError, AttributeError):
             pass
-    expr = left if right in {"0", "0.0"} else f"{left}-({right})"
-    expr = compact(expr).replace("−", "-")
-    expr = re.sub(r"(?<![0-9])-(?=\()", "+-(", expr)
+    expr = left if right in {"0", "0.0"} else None
+    if expr is None:
+        fl, fr = _scan_linear(left), _scan_linear(right)
+        if fl is None or fr is None:
+            return None
+        return (fl[0] - fr[0], fl[1] - fr[1], fl[2] - fr[2])
+    return _scan_linear(expr)
+
+
+def _scan_linear(side):
+    expr = compact(side).replace("−", "-")
+    if not expr:
+        return None
     if not expr.startswith(("+", "-")):
         expr = "+" + expr
     coeffs = {"x": Fraction(0), "y": Fraction(0), "c": Fraction(0)}
@@ -1239,17 +1374,38 @@ def span_inside(start, end, spans):
 
 
 def unit_context(unit, full_text, start, end, stem):
+    choosing = bool(CHOICE_ACT_RE.search(unit))
+    eliming = bool(ELIM_ACT_RE.search(unit) and not re.search(r"哪一个|哪个|[？?]", unit))
+    reading = bool(READ_ACT_RE.search(unit))
+    ordinal_pick = bool(re.search(r"最后(?:一个)?选项|第[一二三四五六七八九十](?:个选项|项|个)", unit))
+    if ordinal_pick and not reading and not re.search(r"[？?]", unit):
+        choosing = True
+    has_lab = bool(re.search(
+        r"选项|[①-⑳Ⓐ-Ⓩⓐ-ⓩ甲乙丙丁]|"
+        r"(?<![A-Za-z])[A-DＡ-Ｄ](?![A-Za-z])|"
+        r"\boption\s+[a-d]\b|第[一二三四五六七八九十](?:个选项|项|个)",
+        unit,
+        re.IGNORECASE,
+    ))
+    confirm_mark = bool("✅" in unit or "✓" in unit)
+    tail = full_text[end:end + 24] if full_text and end is not None else ""
     ctx = {
         "student": bool(STUDENT_RE.search(unit)),
         "first_person": bool(FIRST_PERSON_RE.search(unit)),
-        "eval": bool(EVAL_RE.search(unit)),
+        "eval": bool(EVAL_RE.search(unit) or EVAL_RE.search(tail)),
         "subst": bool(SUBST_RE.search(unit)),
         "leading": bool(LEADING_RE.search(unit)),
         "either": bool(EITHER_RE.search(unit)),
-        "method": bool(METHOD_RE.search(unit)) and not CHOICE_ASSERT_RE.search(unit),
+        "process": bool(PROCESS_RE.search(unit)),
+        "method": _is_method_sentence(unit),
         "ordinal": bool(ORDINAL_SKIP_RE.search(unit)),
-        "neutral_opt": bool(OPTION_NEUTRAL_RE.search(unit)) and not CHOICE_ASSERT_RE.search(unit),
+        "neutral_opt": bool(
+            has_lab and reading and not choosing and not eliming
+            and not confirm_mark
+        ),
         "probe": bool(PROBE_RE.search(unit)),
+        "choice": choosing,
+        "elim": eliming,
         "assert": False,
         "stem_quote": False,
     }
@@ -1257,31 +1413,42 @@ def unit_context(unit, full_text, start, end, stem):
     if span_inside(start, end, vq):
         ctx["stem_quote"] = True
     else:
-        # 单位整体在引号内
         for s, e in vq:
             if start >= s and end <= e:
                 ctx["stem_quote"] = True
     ctx["assert"] = bool(
-        CHOICE_ASSERT_RE.search(unit)
-        or ctx["subst"] or ctx["leading"] or ctx["either"] or ctx["first_person"]
+        choosing or ctx["subst"] or ctx["leading"] or ctx["either"]
+        or ctx["first_person"]
         or re.search(r"应当是|要满足|必须|结果是|等于|解集|取值范围|最后得|所以|因此|故", unit)
     )
     return ctx
+
+
+def _is_method_sentence(unit):
+    """方法句：问途径/判定，且没有选择、确认、排除。金标值是否抽出在主循环里再判。"""
+    if CHOICE_ACT_RE.search(unit) or LEADING_RE.search(unit):
+        return False
+    if re.search(r"所以|因此|得到|故|答案|就是", unit):
+        return False
+    return bool(re.search(r"方法|如何|怎么(?:判定|判断|做)|哪几种", unit))
 
 
 # ---------- 候选抽出 ----------
 
 NUM_TOKEN_RE = re.compile(
     r"负?[零〇一二两三四五六七八九十百]+又[零〇一二两三四五六七八九十]+分之[零〇一二两三四五六七八九十]+|"
-    r"[零〇一二两三四五六七八九十]+分之[零〇一二两三四五六七八九十]+|"
-    r"百分之[零〇一二两三四五六七八九十百]+|"
+    r"[零〇一二两三四五六七八九十0-9]+分之[零〇一二两三四五六七八九十0-9]+|"
+    r"百分之[零〇一二两三四五六七八九十百0-9]+|"
     r"[零〇一二两三四五六七八九十]+倍根号[零〇一二两三四五六七八九十]+|"
     r"根号[零〇一二两三四五六七八九十]+|"
     r"负?[零〇一二两三四五六七八九十]+度|"
-    r"负?[零〇一二两三四五六七八九十]+|"
-    r"-?\d+\.?\d*\s*%|"
-    r"-?\d+\.?\d*\s*(?:km/h|m/s²|m/s\^2|m/s|cm|km|min|kg|rad|deg|[msNhJWjg°])|"
-    r"-?\d*\.?\d*√(?:\([^)]+\)|\d+)|"
+    r"一共[零〇一二两三四五六七八九十0-9]+\s*种|"
+    r"负[零〇一二两三四五六七八九十百]+|"
+    r"(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|"
+    r"eleven|twelve|half|quarter|eighth|third)\b|"
+    r"±?-?\d+\.?\d*\s*%|"
+    r"±?-?\d+\.?\d*\s*(?:km/h|m/s²|m/s\^2|m/s|cm|km|min|kg|rad|deg|[msNhJWjg°])|"
+    r"±?-?\d*\.?\d*√(?:\([^)]+\)|\d+)|"
     r"√(?:\([^)]+\)|\d+)|"
     r"-?(?:\d+/)?π(?:/\d+)?|"
     r"\(\-?\d+\)/\(\-?\d+\)|"
@@ -1289,7 +1456,7 @@ NUM_TOKEN_RE = re.compile(
     r"\(-?\d+/-?\d+\)\s*[\^]?\s*(?:\{?\d\}?|\d)|"
     r"-?\d+\s*/\s*\d+|"
     r"-?\d+\.\d+|"
-    r"-?\d+"
+    r"±?-?\d+"
 )
 
 INEQ_TOKEN_RE = re.compile(
@@ -1301,6 +1468,7 @@ INEQ_TOKEN_RE = re.compile(
     r"(?:大于等于|小于等于|不超过|大于|小于)\s*[-+0-9.零〇一二两三四五六七八九十]+(?:且(?:不超过|不大于|小于等于|大于)\s*[-+0-9.零〇一二两三四五六七八九十]+)?|"
     r"[^{}]+∪[^{}]+|"
     r"\{[^}]+\|"
+    r"非正|非负|不能是正|负数或零|∉|"
     r"[a-zA-Z]\s*(?:<=|>=|<|>)[^。；]{0,20}(?:或|或者)[^。；]{0,20}(?:<=|>=|<|>)"
 )
 
@@ -1350,6 +1518,12 @@ def _conclusion_key(ans):
         return "平行"
     if s in {"不存在", "找不到"} or "不存在" in s:
         return "不存在"
+    for key in ("递减", "递增", "一半"):
+        syns = CONCLUSION_SYNONYMS[key]
+        if s == key or s in syns:
+            return key
+        if any(w in s for w in syns if len(str(w)) >= 2):
+            return key
     if s in {"正确", "对", "成立"}:
         return "正确"
     if s in {"错误", "不对", "不成立"}:
@@ -1383,8 +1557,8 @@ def find_gold_leaks(text, spec: GoldSpec, stem=None):
         compact_ans = compact(ans)
         if compact_ans and all(ch in CIRCLED + JIAZI + LATIN_OPTS for ch in compact_ans):
             continue
-        iv = parse_interval(ans)
-        if iv and re.search(r"[<>≤≥∈∪\[\(]|大于|小于|范围", compact(ans)):
+        iv = parse_interval(ans) or _parse_cn_ineq(compact(ans))
+        if iv:
             gold_ivs.append((ans, iv))
             continue
         eq = parse_equation(ans)
@@ -1401,6 +1575,12 @@ def find_gold_leaks(text, spec: GoldSpec, stem=None):
         n = parse_number_token(ans) or parse_cn_quantity(ans)
         if n:
             gold_nums.append((ans, n, None))
+            continue
+        mct = re.search(r"一共(.+)种", compact(ans))
+        if mct:
+            n = parse_number_token(mct.group(1)) or parse_cn_quantity(mct.group(1))
+            if n:
+                gold_nums.append((ans, n, None))
 
     for lineno, unit, a, b in iter_units(text):
         if span_inside(a, b, vq):
@@ -1418,7 +1598,7 @@ def find_gold_leaks(text, spec: GoldSpec, stem=None):
 
         # 结论
         for _ans in conclusion_hits_in(unit, spec.answers):
-            if ctx["method"] and _conclusion_key(_ans) == "平行":
+            if ctx["method"]:
                 continue
             if _allow_student(ctx, True):
                 continue
@@ -1503,29 +1683,35 @@ def find_gold_leaks(text, spec: GoldSpec, stem=None):
                     hits.append(LeakHit(lineno, "数值", snippet))
 
         # 数值（含单位、根式、百分数、汉字）
-        for m in NUM_TOKEN_RE.finditer(scan):
+        gold_vars = _gold_vars(spec)
+        gold_meas = _gold_measures(spec)
+        masked_unit = _mask_cn_compounds(unit_wo)
+        scan_num = compact(masked_unit)
+        for m in NUM_TOKEN_RE.finditer(scan_num):
             tok = m.group(0)
             if _inside_ordinal(unit, tok):
+                continue
+            if _skip_exponent_or_sub(scan_num, m.start()):
+                continue
+            if _skip_measure_token(masked_unit, tok, gold_meas):
+                continue
+            if _bound_to_other_var(unit, tok, gold_vars):
                 continue
             n = parse_number_token(tok) or parse_cn_quantity(tok)
             if n is None:
                 continue
-            # 单独的个位数若只是系数/题干数字：仍要比对金标，不等则自然不中
             hit_num = False
             for _ans, gn, _gvar in gold_nums:
                 if nums_equiv(n, gn, tok):
                     hit_num = True
-            # 根/值匹配多根金标中的一条
             gold_roots = _gold_roots(spec)
             if n[0] == "num" and gold_roots:
                 if any(abs(float(n[1]) - r) < 1e-10 for r in gold_roots):
                     hit_num = True
             if hit_num:
-                # 点落在区间金标 → 不算
                 if gold_ivs and not gold_nums:
                     continue
                 if gold_ivs and _point_in_ivs(n, gold_ivs) and not gold_eqs:
-                    # 既有区间金标又没有等式金标时，点值是试探
                     if not any(nums_equiv(n, gn, tok) for _a, gn, _v in gold_nums):
                         continue
                 if ctx["probe"] and gold_ivs:
@@ -1534,8 +1720,14 @@ def find_gold_leaks(text, spec: GoldSpec, stem=None):
                     continue
                 if ctx["neutral_opt"]:
                     continue
-                # 7 和 4 拆开不应等于 7/4：NUM_TOKEN 是分开的，nums_equiv 不会把 7 比成 7/4
                 hits.append(LeakHit(lineno, "数值", snippet))
+        for w, val in EN_NUM_WORDS.items():
+            if not re.search(rf"\b{w}s?\b", unit, re.IGNORECASE):
+                continue
+            n = ("num", val if isinstance(val, Fraction) else Fraction(val))
+            if any(nums_equiv(n, gn, w) for _a, gn, _v in gold_nums):
+                if not _allow_student(ctx, True) and not ctx["neutral_opt"]:
+                    hits.append(LeakHit(lineno, "数值", snippet))
 
         # 英语 / 中文 greater than
         if gold_ivs and re.search(r"greater than\s+\d+|必须大于|要满足", unit, re.IGNORECASE):
@@ -1553,6 +1745,82 @@ def _inside_ordinal(unit, tok):
     for m in ORDINAL_SKIP_RE.finditer(unit):
         if tok in m.group(0):
             return True
+    return False
+
+
+def _mask_cn_compounds(text):
+    s = text
+    for w in CN_COMPOUND_SKIP:
+        s = s.replace(w, "□" * len(w))
+    return s
+
+
+def _skip_exponent_or_sub(scan, start):
+    prev = scan[max(0, start - 2):start]
+    if prev.endswith(("**", "^")):
+        return True
+    return start > 0 and scan[start - 1].isascii() and scan[start - 1].isalpha()
+
+
+def _gold_vars(spec: GoldSpec):
+    vs = set()
+    for ans in spec.answers:
+        eq = parse_equation(ans)
+        if eq:
+            left = compact(eq[0])
+            if re.fullmatch(r"[a-zA-Z]", left):
+                vs.add(left)
+    return vs
+
+
+def _gold_measures(spec: GoldSpec):
+    out = set()
+    for ans in spec.answers:
+        for m in re.finditer(r"(种|个|项|步|分|分钟|月|日)", ans):
+            out.add(m.group(1))
+    return out
+
+
+def _skip_measure_token(unit, tok, gold_meas):
+    if tok.startswith("一共") and re.search(r"种", tok):
+        return False
+    core = re.sub(r"一共|种", "", tok)
+    idx = unit.find(tok)
+    if idx < 0:
+        idx = compact(unit).find(compact(tok))
+        window = compact(unit)
+        pos = window.find(compact(tok))
+        if pos < 0:
+            return False
+        after = window[pos + len(compact(tok)):pos + len(compact(tok)) + 8]
+    else:
+        after = unit[idx + len(tok):idx + len(tok) + 8]
+    m = re.match(r"\s*(分钟|满分|步|项|月|日|个|种|条|行|次|题|问|分(?!之))", after)
+    if not m:
+        if re.search(r"满分", unit) and re.search(re.escape(core), unit):
+            return "分" not in gold_meas
+        return False
+    word = m.group(1)
+    if word == "满分":
+        word = "分"
+    return word not in gold_meas
+
+
+def _bound_to_other_var(unit, tok, gold_vars):
+    for m in re.finditer(
+        r"(Δ|判别式|[a-zA-Z])\s*=\s*([^=。；\n]+)", unit,
+    ):
+        lhs, rhs = m.group(1), m.group(2)
+        if tok not in rhs and compact(tok) not in compact(rhs):
+            continue
+        if lhs in {"Δ", "判别式"}:
+            return True
+        if gold_vars and lhs not in gold_vars:
+            return True
+    if re.search(r"判别式|b\s*\*\*\s*2\s*-4|b\^2-4", unit) and tok in compact(unit):
+        if gold_vars and not any(v + "=" in compact(unit) for v in gold_vars):
+            if re.search(rf"(?:Δ|判别式).{{0,12}}{re.escape(tok)}", compact(unit)):
+                return True
     return False
 
 
@@ -1624,6 +1892,8 @@ def _allow_student(ctx, value_is_gold):
         return False
     if not ctx["student"]:
         return False
+    if ctx.get("process") and not ctx["eval"]:
+        return True
     if not value_is_gold:
         return True
     return not ctx["eval"]
@@ -1652,57 +1922,79 @@ def _option_leaks(text, spec, labels, gold_labs, contents, vq, stem):
             continue
         ctx = unit_context(unit, text, a, b, stem)
         snippet = unit.replace("\n", " ")[:36]
-        if ctx["neutral_opt"] and not CHOICE_ASSERT_RE.search(unit) and not ELIM_RE.search(unit):
+        if ctx["neutral_opt"]:
             continue
-        found = extract_labels(unit, labels) if labels else extract_labels(unit, list("ABCD") if gold_labs <= set("ABCD") else [])
-        # 内容作答
+        found = extract_labels(unit, labels) if labels else extract_labels(
+            unit, list("ABCD") if gold_labs <= set("ABCD") else [],
+        )
         for lab, body in contents.items():
             if body and compact(body) and compact(body) in compact(unit):
                 if re.search(r"就是答案|is the answer|fill in|正确答案|那个就是", unit, re.IGNORECASE):
                     found.add(_norm_label(lab))
-        # 选择断言
         choosing = bool(
-            CHOICE_ASSERT_RE.search(unit) or ctx["first_person"] or ctx["leading"]
+            ctx["choice"] or ctx["first_person"] or ctx["leading"]
             or ctx["eval"] or "✅" in unit or "✓" in unit
             or re.search(r"就是答案|is the answer|fill in|那个就是", unit, re.IGNORECASE)
         )
         if choosing and found and (found & gold_labs):
-            if ctx["student"] and not ctx["eval"] and found <= gold_labs:
-                # 学生中性复述金标选项
-                if not ctx["first_person"]:
-                    continue
-            if ctx["first_person"] or not ctx["student"] or ctx["eval"]:
-                hits.append(LeakHit(lineno, "选项", snippet))
+            if _allow_student(ctx, True) and found <= gold_labs:
                 continue
-        # 部分多选：断言金标任一标签
+            hits.append(LeakHit(lineno, "选项", snippet))
+            continue
         if choosing and found and found <= gold_labs and found:
-            if not (ctx["student"] and not ctx["eval"]):
+            if not _allow_student(ctx, True):
                 hits.append(LeakHit(lineno, "选项", snippet))
-        # 排除
-        if ELIM_RE.search(unit) and labels:
-            excluded = extract_labels(unit, labels)
-            # 「A、B、C 都可以排除」
-            remain = set(labels) - excluded
+        if labels and (ctx["elim"] or re.search(r"只剩", unit)):
+            remain, _excluded = _elim_remain(unit, labels, text)
             if remain and remain <= gold_labs and not ctx["neutral_opt"]:
                 hits.append(LeakHit(lineno, "排除", snippet))
-            # 「所以只剩一个」且前面连续点名非金标
-            if re.search(r"只剩", unit) and excluded and (set(labels) - excluded) <= gold_labs:
-                hits.append(LeakHit(lineno, "排除", snippet))
-        # 英语 B fits / Option D
         if labels and re.search(r"\bfits here\b|option\s+[a-d]\s+is", unit, re.IGNORECASE):
             found2 = extract_labels(unit, labels)
             if found2 & gold_labs:
                 hits.append(LeakHit(lineno, "选项", snippet))
-    if labels and gold_labs and ELIM_RE.search(text):
-        excluded = extract_labels(text, labels)
-        remain = {_norm_label(x) for x in labels} - excluded
-        if remain and remain <= gold_labs:
+    if labels and gold_labs:
+        remain, _excluded = _elim_remain(text, labels, text)
+        if remain and remain <= gold_labs and (
+            ELIM_ACT_RE.search(text) or re.search(r"只剩", text)
+        ):
             ln = 1
             for i, line in enumerate(text.splitlines(), 1):
-                if ELIM_RE.search(line) or extract_labels(line, labels):
+                if ELIM_ACT_RE.search(line) or extract_labels(line, labels):
                     ln = i
-            hits.append(LeakHit(ln, "排除", text.splitlines()[ln - 1][:36] if text.splitlines() else text[:36]))
+            hits.append(LeakHit(
+                ln, "排除",
+                text.splitlines()[ln - 1][:36] if text.splitlines() else text[:36],
+            ))
     return hits
+
+
+def _elim_remain(unit, labels, whole=""):
+    labset = {_norm_label(x) for x in labels}
+    m = re.search(r"除了(.+?)其余", unit)
+    if m:
+        keep = extract_labels(m.group(1), labels)
+        if keep:
+            return keep, labset - keep
+    wrong = set()
+    for lab in labels:
+        nl = _norm_label(lab)
+        if re.search(
+            rf"{re.escape(lab)}\s*(?:、|,|，)?(?:.{{0,4}})?(?:不对|错了|有错|都有错|排除|都是错)",
+            unit,
+        ):
+            wrong.add(nl)
+    if re.search(r"都有错|都可以排除|都不对|都是错", unit):
+        wrong |= extract_labels(unit, labels)
+        m2 = re.search(r"除了(.+?)都", unit)
+        if m2:
+            wrong -= extract_labels(m2.group(1), labels)
+    if re.search(r"只剩", unit) or re.search(r"只剩", whole or ""):
+        mentioned = extract_labels(unit, labels)
+        if mentioned:
+            return labset - mentioned, mentioned
+    if wrong:
+        return labset - wrong, wrong
+    return set(), set()
 
 
 def filter_regex_hits(text, items, stem):

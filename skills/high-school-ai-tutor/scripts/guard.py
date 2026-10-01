@@ -63,7 +63,7 @@ BAD_DIFFICULTY_RE = re.compile(r"偏难|偏易|中等偏上|中等偏下|较难|
 HEADING_RE = re.compile(r"^#{2,3}\s*([0-9０-９])\s*[\.、．]\s*(\S+)")
 SCORES_RE = re.compile(r"([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*分")
 WEIGHTED_EXPANSION_RE = re.compile(r"0\.30\s*[×x*]")
-MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.DOTALL)
+MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
 ARROW_TOKEN = r"(?:-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
@@ -720,7 +720,7 @@ def looks_like_solving(text):
     if "判别自测" in text or "一句话定义" in text:
         return False
     first = next((line.strip() for line in text.splitlines() if line.strip()), "")
-    return first.startswith(("难度：", "难度:"))
+    return first.startswith("难度：") or first.startswith("难度:")
 
 
 def question_lines(lines):
@@ -801,7 +801,9 @@ def check_study(text):
         bodies = lines[1:]
         count = len(question_lines(bodies))
         judged = "判定" in text
-        if (judged and count == 0) or (not judged and count == 1):
+        if judged and count == 0:
+            pass
+        elif not judged and count == 1:
             pass
         else:
             issues.append(("ERROR", "E18", 1,
