@@ -216,7 +216,7 @@ def _bound_names(where):
 
 def _check_math(sympy, expr, where):
     bound = _bound_names(where)
-    ulp = _min_decimal_ulp(f"{expr}\n{where or ''}")
+    ulp = _half_unit_limit(f"{expr}\n{where or ''}")
     claim = _parse(sympy, expr, bound)
     if claim is None:
         return VerifyResult("无法解析", "最终式无法解析")
@@ -457,6 +457,10 @@ def _is_expr(sympy, expr):
     return isinstance(expr, sympy.Expr) and not _is_relational(sympy, expr) and not isinstance(expr, sympy.And)
 
 
+def _decimal_literals(text):
+    return [match.group(1) for match in _NUMBER_LIT.finditer(str(text or "")) if "." in match.group(1)]
+
+
 def _literal_ulp(text):
     body = str(text).strip().lower()
     exp = 0
@@ -471,11 +475,11 @@ def _literal_ulp(text):
     return Decimal(10) ** exp
 
 
-def _min_decimal_ulp(text):
-    ulps = [_literal_ulp(match.group(1)) for match in _NUMBER_LIT.finditer(str(text or ""))]
+def _half_unit_limit(text):
+    ulps = [_literal_ulp(literal) for literal in _decimal_literals(text)]
     if not ulps:
         return None
-    return min(ulps)
+    return min(ulps) / 2
 
 
 def _truth(sympy, value):
@@ -541,24 +545,52 @@ def _assignment_conflict(sympy, assignments):
     return None
 
 
-def _determined_unknown(sympy, claim):
-    if not isinstance(claim, sympy.Equality):
+def _is_real_closed(sympy, value):
+    if getattr(value, "free_symbols", set()):
         return False
-    leftover = claim.free_symbols
+    try:
+        if value.is_real is False:
+            return False
+        numeric = complex(sympy.N(value, 30))
+    except Exception:
+        return False
+    return abs(numeric.imag) <= 1e-12 and math.isfinite(numeric.real)
+
+
+def _determined_unknown(sympy, original, replaced, assignments):
+    """unknown == f(given)：未知数未赋值、where 里至少有一个符号被代入、右侧为实数。"""
+    if not isinstance(replaced, sympy.Equality):
+        return False
+    assigned = [item.lhs for item in assignments]
+    if not any(symbol in original.free_symbols for symbol in assigned):
+        return False
+    leftover = replaced.free_symbols
     if len(leftover) != 1:
         return False
     symbol = next(iter(leftover))
-    if claim.lhs == symbol and not claim.rhs.free_symbols:
-        return True
-    if claim.rhs == symbol and not claim.lhs.free_symbols:
-        return True
-    return False
+    if symbol in assigned:
+        return False
+    if replaced.lhs != symbol or replaced.rhs.free_symbols:
+        return False
+    return _is_real_closed(sympy, replaced.rhs)
+
+
+def _apply_assignments(sympy, expr, assignments):
+    replaced = expr
+    for item in assignments:
+        if isinstance(replaced, sympy.Equality):
+            replaced = sympy.Eq(
+                replaced.lhs.subs(item.lhs, item.rhs),
+                replaced.rhs.subs(item.lhs, item.rhs),
+                evaluate=False,
+            )
+        else:
+            replaced = replaced.subs(item.lhs, item.rhs)
+    return replaced
 
 
 def _substitute(sympy, claim, assignments, ulp=None):
-    replaced = claim
-    for item in assignments:
-        replaced = replaced.subs(item.lhs, item.rhs)
+    replaced = _apply_assignments(sympy, claim, assignments)
     status = _truth(sympy, sympy.simplify(replaced))
     if status == "通过":
         return VerifyResult("通过")
@@ -571,7 +603,7 @@ def _substitute(sympy, claim, assignments, ulp=None):
     approx = _numeric_pass(sympy, replaced, ulp)
     if approx is not None:
         return approx
-    if _determined_unknown(sympy, replaced):
+    if _determined_unknown(sympy, claim, replaced, assignments):
         return VerifyResult("通过")
     if replaced.free_symbols:
         return VerifyResult("无法解析", "代入后仍有未赋值符号")

@@ -327,5 +327,23 @@ class CliTests(unittest.TestCase):
         self.assertEqual(proc.stdout.splitlines()[0], "矛盾")
 
 
+class AdversarialVerifyCorpusTests(unittest.TestCase):
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_verify_corpus(self):
+        path = Path(__file__).resolve().parent / "adversarial" / "verify.tsv"
+        rows = []
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            if not raw.strip() or raw.startswith("#"):
+                continue
+            rows.append(raw.split("\t"))
+        self.assertGreaterEqual(len(rows), 40)
+        for row in rows:
+            expr, where, expect, detail, rationale = (row + ["", "", "", "", ""])[:5]
+            result = verify.check_math(expr, where)
+            self.assertEqual(result.status, expect, f"{rationale}: {expr} where {where} -> {result}")
+            if detail:
+                self.assertEqual(result.detail, detail, f"{rationale}: {expr} {result}")
+
+
 if __name__ == "__main__":
     unittest.main()
