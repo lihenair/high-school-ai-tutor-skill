@@ -4,6 +4,8 @@
 
 用法：
     python3 guard.py --mode socratic reply.txt     # 引导模式（苏格拉底）
+    python3 guard.py --mode socratic --gold gold.txt [--stem-file stem.txt] reply.txt
+    python3 guard.py --mode socratic --no-gold reply.txt   # 显式无金标，E1 与 main 一致
     python3 guard.py --mode full reply.txt         # 完整模式 / 总结阶段（summary 同 full）
     python3 guard.py --mode socratic --no-student-answer reply.txt
     python3 guard.py --mode full --subject math reply.txt   # 数学完整模式额外查机验标记
@@ -21,6 +23,8 @@ import argparse
 import re
 import sys
 from decimal import ROUND_HALF_UP, Decimal
+
+import leak
 
 DIFFICULTY_LEVELS = ("基础", "中等", "压轴", "竞赛")
 WEIGHTS = (0.30, 0.25, 0.20, 0.15, 0.10)  # 各科五维权重相同，见各 reference
@@ -59,7 +63,7 @@ BAD_DIFFICULTY_RE = re.compile(r"偏难|偏易|中等偏上|中等偏下|较难|
 HEADING_RE = re.compile(r"^#{2,3}\s*([0-9０-９])\s*[\.、．]\s*(\S+)")
 SCORES_RE = re.compile(r"([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*分")
 WEIGHTED_EXPANSION_RE = re.compile(r"0\.30\s*[×x*]")
-MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
+MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.DOTALL)
 ARROW_TOKEN = r"(?:-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
@@ -716,7 +720,7 @@ def looks_like_solving(text):
     if "判别自测" in text or "一句话定义" in text:
         return False
     first = next((line.strip() for line in text.splitlines() if line.strip()), "")
-    return first.startswith("难度：") or first.startswith("难度:")
+    return first.startswith(("难度：", "难度:"))
 
 
 def question_lines(lines):
@@ -797,9 +801,7 @@ def check_study(text):
         bodies = lines[1:]
         count = len(question_lines(bodies))
         judged = "判定" in text
-        if judged and count == 0:
-            pass
-        elif not judged and count == 1:
+        if (judged and count == 0) or (not judged and count == 1):
             pass
         else:
             issues.append(("ERROR", "E18", 1,
@@ -830,7 +832,7 @@ def check_study(text):
     return issues
 
 
-def check(mode, text, no_student_answer, subject=None):
+def check(mode, text, no_student_answer, subject=None, gold=None, stem=None):
     issues = []  # (severity, code, message, evidence lineno or None)
     text = str(text or "").lstrip("\ufeff")
 
@@ -846,9 +848,25 @@ def check(mode, text, no_student_answer, subject=None):
                        f"难度用词非法（第 {ln[0]} 行：「{ln[1][:30]}」），只能用 基础/中等/压轴/竞赛", ln[0]))
 
     if mode == "socratic":
+        e1_regex = []
         for pat, why in ANSWER_LEAK_PATTERNS:
-            for ln in hits(pat, text):
-                issues.append(("ERROR", "E1", f"引导模式疑似泄露答案（{why}，第 {ln[0]} 行：「{ln[1][:36]}」）", ln[0]))
+            for lineno, line, start, end in leak.regex_hits(pat, text):
+                e1_regex.append((lineno, line, start, end, why))
+        if gold is not None:
+            e1_regex = leak.filter_regex_hits(text, e1_regex, stem)
+        for lineno, line, _start, _end, why in e1_regex:
+            issues.append((
+                "ERROR", "E1",
+                f"引导模式疑似泄露答案（{why}，第 {lineno} 行：「{line[:36]}」）",
+                lineno,
+            ))
+        if gold is not None:
+            for hit in leak.find_gold_leaks(text, gold, stem):
+                issues.append((
+                    "ERROR", "E1",
+                    f"与金标一致（{hit.category}，第 {hit.lineno} 行：「{hit.snippet}」）",
+                    hit.lineno,
+                ))
         for ln in hits(r"^#{1,6}[^\n]*(难度判断|解题思维链|一题多解|解法对比|错因诊断|错题本沉淀)", text):
             issues.append(("ERROR", "E2", f"引导模式输出了总结阶段标题（第 {ln[0]} 行：「{ln[1][:30]}」）", ln[0]))
         if hits(r"【错题本条目】", text):
@@ -949,6 +967,19 @@ def main():
                     help="上下文中没有学生作答（拦截编造「我的错误」）")
     ap.add_argument("--subject", choices=["math"],
                     help="科目；填 math 时，完整模式会额外要求第 2 节末尾出现固定机验标记")
+    gold_grp = ap.add_mutually_exclusive_group()
+    gold_grp.add_argument(
+        "--gold", metavar="FILE",
+        help="金标文件（每行 key: value；answer: 可重复；可选 options: / option 标签:）",
+    )
+    gold_grp.add_argument(
+        "--no-gold", action="store_true",
+        help="显式无金标，E1 只走现行正则，与 main 一致",
+    )
+    ap.add_argument(
+        "--stem-file", metavar="FILE",
+        help="题干原文，只用于核验「引用题干」放行",
+    )
     args = ap.parse_args()
 
     if args.mode == "study" and args.dir:
@@ -981,7 +1012,30 @@ def main():
         sys.exit(_print_study(args.reply, check_study(text)))
 
     mode = "full" if args.mode == "summary" else args.mode
-    issues = check(mode, text, args.no_student_answer, args.subject)
+    gold_spec = None
+    stem_text = None
+    if args.gold:
+        try:
+            gold_spec = leak.load_gold_file(args.gold)
+        except leak.GoldFileError as exc:
+            print(f"[ERROR] E1 金标文件无效：{exc}")
+            sys.exit(1)
+        except OSError as exc:
+            print(f"[ERROR] E1 金标文件无效：{exc}")
+            sys.exit(1)
+        except UnicodeError as exc:
+            print(f"[ERROR] E1 金标文件无效：{exc}")
+            sys.exit(1)
+    if args.stem_file:
+        try:
+            with open(args.stem_file, encoding="utf-8") as handle:
+                stem_text = handle.read()
+        except OSError:
+            stem_text = None
+    issues = check(
+        mode, text, args.no_student_answer, args.subject,
+        gold=gold_spec, stem=stem_text,
+    )
 
     errors = [i for i in issues if i[0] == "ERROR"]
     warns = [i for i in issues if i[0] == "WARN"]

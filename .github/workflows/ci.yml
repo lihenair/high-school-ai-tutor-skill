@@ -30,8 +30,11 @@ jobs:
       - name: 自学守卫
         run: python3 tests/test_guard_study.py
 
-      - name: 回复守卫
-        run: python3 tests/test_guard.py
+      - name: E1 金标守卫
+        run: |
+          pip install --quiet 'sympy==1.13.3'
+          python3 tests/test_guard_e1.py
+
 
       - name: 学生画像与开场路由
         run: python3 tests/test_profile.py

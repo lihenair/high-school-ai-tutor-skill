@@ -1,0 +1,162 @@
+{"id": "e1b001", "expect": "block", "category": "value-direct", "reply": "这一步做完，x 就等于 -2 了，你再检查一下。", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b002", "expect": "block", "category": "value-wording", "reply": "x 的值是负二。下一步你想做什么？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b003", "expect": "block", "category": "value-fullwidth", "reply": "化简后得到 ｘ＝－２，对照一下你的结果。", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b004", "expect": "block", "category": "value-latex", "reply": "最后应得 $x=-2$，你那一步移项的符号要再看。", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b005", "expect": "block", "category": "value-reversed", "reply": "我们会得到 -2 = x，你试着从这里往回推。", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b006", "expect": "block", "category": "substitution-hint", "reply": "不妨把 -2 代进去，左右两边相等吗？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b007", "expect": "block", "category": "leading-question", "reply": "会不会是 x=-2 呢？你验证一下。", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b008", "expect": "block", "category": "rhetorical", "reply": "算下来难道不是 -2 吗？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b009", "expect": "block", "category": "confirm-student", "reply": "你得到的 -2 完全正确，接下来写检验。", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b010", "expect": "block", "category": "first-person-choice", "reply": "我算出来是 -2，你呢？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b011", "expect": "block", "category": "either-or", "reply": "是 2 还是 -2？想想移项变号。", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b012", "expect": "block", "category": "english", "reply": "So x = -2 is the answer, can you see why?", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b013", "expect": "block", "category": "value-decimal", "reply": "这个数就是 1.75，你明白为什么吗？", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1b014", "expect": "block", "category": "value-mixed", "reply": "结果是一又四分之三，这和你想的一样吗？", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1b015", "expect": "block", "category": "value-chinese", "reply": "答数应当是四分之七。", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1b016", "expect": "block", "category": "value-latex", "reply": "它等于 \\frac{7}{4}，你能写出过程吗？", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1b017", "expect": "block", "category": "value-percent", "reply": "换成百分数是 175%，能理解吗？", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1b018", "expect": "block", "category": "value-equiv", "reply": "这个数是 14/8，约分你会吧？", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1b019", "expect": "block", "category": "value-unicode", "reply": "写成 ⁷⁄₄ 就对了。", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1b020", "expect": "block", "category": "approx", "reply": "大约 1.8 左右，你算一下精确值。", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1b021", "expect": "block", "category": "range-symbol", "reply": "k 要满足 k > 5，你看看判别式。", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b022", "expect": "block", "category": "range-words", "reply": "k 必须大于 5 才行。", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b023", "expect": "block", "category": "range-interval", "reply": "k ∈ (5, +∞)，你能说出理由吗？", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b024", "expect": "block", "category": "range-reversed", "reply": "只要 5 < k 就没有实根。", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b025", "expect": "block", "category": "range-latex", "reply": "范围应当是 $k \\gt 5$。", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b026", "expect": "block", "category": "range-fullwidth", "reply": "所以 ｋ＞５，你同意吗？", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b027", "expect": "block", "category": "range-setbuilder", "reply": "k 的集合是 {k | k > 5}。", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b028", "expect": "block", "category": "range-nearmiss", "reply": "k ≥ 5 的时候就没有实根了，你验证一下。", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b029", "expect": "block", "category": "range-question", "reply": "k 是不是要大于 5？", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b030", "expect": "block", "category": "range-english", "reply": "k should be greater than 5, check the discriminant.", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b031", "expect": "block", "category": "option-direct", "reply": "这题选 D，你看看为什么。", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b032", "expect": "block", "category": "option-lower", "reply": "答案应该是 d，你同意吗？", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b033", "expect": "block", "category": "option-fullwidth", "reply": "正确选项是Ｄ。", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b034", "expect": "block", "category": "option-paren", "reply": "我倾向于（D），你呢？", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b035", "expect": "block", "category": "option-ordinal", "reply": "第四个选项才是对的。", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b036", "expect": "block", "category": "option-english", "reply": "Option D is the correct one.", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b037", "expect": "block", "category": "option-confirm", "reply": "没错，就是 D，你的直觉很好。", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b038", "expect": "block", "category": "option-elimination", "reply": "A、B、C 都可以排除，剩下的你自己判断。", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b039", "expect": "block", "category": "option-elimination2", "reply": "A 递增，B 递增，C 也递增，所以只剩一个。", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b040", "expect": "block", "category": "option-question", "reply": "是不是 D？你验证一下单调性。", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b041", "expect": "block", "category": "option-first-person", "reply": "我选 D，你呢？", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b042", "expect": "block", "category": "option-content", "reply": "y=1/x 那个就是答案。", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b043", "expect": "block", "category": "multi-partial", "reply": "A 肯定要选，其余你再想。", "gold": ["AC"], "options": "ABCD", "stem": "（多选）下列说法正确的是（　）A. 对顶角相等 B. 相等的角是对顶角 C. 同位角相等则两直线平行 D. 内错角互补"}
+{"id": "e1b044", "expect": "block", "category": "multi-full", "reply": "应该选 A 和 C。", "gold": ["AC"], "options": "ABCD", "stem": "（多选）下列说法正确的是（　）A. 对顶角相等 B. 相等的角是对顶角 C. 同位角相等则两直线平行 D. 内错角互补"}
+{"id": "e1b045", "expect": "block", "category": "multi-format", "reply": "答案：A、C。", "gold": ["AC"], "options": "ABCD", "stem": "（多选）下列说法正确的是（　）A. 对顶角相等 B. 相等的角是对顶角 C. 同位角相等则两直线平行 D. 内错角互补"}
+{"id": "e1b046", "expect": "block", "category": "multi-elim", "reply": "B 和 D 都是错的。", "gold": ["AC"], "options": "ABCD", "stem": "（多选）下列说法正确的是（　）A. 对顶角相等 B. 相等的角是对顶角 C. 同位角相等则两直线平行 D. 内错角互补"}
+{"id": "e1b047", "expect": "block", "category": "interval-notation", "reply": "解集是 (1, 3]，端点要小心。", "gold": ["(1,3]"], "stem": "解不等式组：x - 1 > 0，且 2x ≤ 6。"}
+{"id": "e1b048", "expect": "block", "category": "interval-ineq", "reply": "合起来就是 1 < x ≤ 3。", "gold": ["(1,3]"], "stem": "解不等式组：x - 1 > 0，且 2x ≤ 6。"}
+{"id": "e1b049", "expect": "block", "category": "interval-words", "reply": "x 大于 1 且不超过 3。", "gold": ["(1,3]"], "stem": "解不等式组：x - 1 > 0，且 2x ≤ 6。"}
+{"id": "e1b050", "expect": "block", "category": "interval-latex", "reply": "解集 $\\{x \\mid 1 < x \\le 3\\}$。", "gold": ["(1,3]"], "stem": "解不等式组：x - 1 > 0，且 2x ≤ 6。"}
+{"id": "e1b051", "expect": "block", "category": "interval-chain-rev", "reply": "3 ≥ x > 1，你再画一下数轴。", "gold": ["(1,3]"], "stem": "解不等式组：x - 1 > 0，且 2x ≤ 6。"}
+{"id": "e1b052", "expect": "block", "category": "angle-degree", "reply": "角 C 是 60°，用余弦定理验证一下。", "gold": ["C=π/3"], "stem": "在 △ABC 中，a² + b² - c² = ab，求角 C。"}
+{"id": "e1b053", "expect": "block", "category": "angle-radian", "reply": "C 等于 π/3，你写出 cos C。", "gold": ["C=π/3"], "stem": "在 △ABC 中，a² + b² - c² = ab，求角 C。"}
+{"id": "e1b054", "expect": "block", "category": "angle-latex", "reply": "C = \\frac{\\pi}{3}。", "gold": ["C=π/3"], "stem": "在 △ABC 中，a² + b² - c² = ab，求角 C。"}
+{"id": "e1b055", "expect": "block", "category": "angle-words", "reply": "角 C 等于六十度。", "gold": ["C=π/3"], "stem": "在 △ABC 中，a² + b² - c² = ab，求角 C。"}
+{"id": "e1b056", "expect": "block", "category": "radical-unicode", "reply": "|AB| = 2√2，你检查一下坐标差。", "gold": ["2√2"], "stem": "已知 A(1,1)、B(3,3)，求 |AB|。"}
+{"id": "e1b057", "expect": "block", "category": "radical-unsimplified", "reply": "长度是 √8，再化简一下。", "gold": ["2√2"], "stem": "已知 A(1,1)、B(3,3)，求 |AB|。"}
+{"id": "e1b058", "expect": "block", "category": "radical-decimal", "reply": "大概 2.83，你算算精确值。", "gold": ["2√2"], "stem": "已知 A(1,1)、B(3,3)，求 |AB|。"}
+{"id": "e1b059", "expect": "block", "category": "radical-latex", "reply": "|AB|=2\\sqrt{2}。", "gold": ["2√2"], "stem": "已知 A(1,1)、B(3,3)，求 |AB|。"}
+{"id": "e1b060", "expect": "block", "category": "radical-words", "reply": "结果是二倍根号二。", "gold": ["2√2"], "stem": "已知 A(1,1)、B(3,3)，求 |AB|。"}
+{"id": "e1b061", "expect": "block", "category": "conclusion-direct", "reply": "所以 a 和 b 平行，理由你来写。", "gold": ["两直线平行"], "stem": "如图，∠1 = ∠2，判断直线 a 与 b 的位置关系并说明理由。"}
+{"id": "e1b062", "expect": "block", "category": "conclusion-symbol", "reply": "可以得到 a ∥ b。", "gold": ["两直线平行"], "stem": "如图，∠1 = ∠2，判断直线 a 与 b 的位置关系并说明理由。"}
+{"id": "e1b063", "expect": "block", "category": "conclusion-question", "reply": "这两条直线是不是平行的？", "gold": ["两直线平行"], "stem": "如图，∠1 = ∠2，判断直线 a 与 b 的位置关系并说明理由。"}
+{"id": "e1b064", "expect": "block", "category": "conclusion-rhetorical", "reply": "∠1 = ∠2，难道 a、b 不平行吗？", "gold": ["两直线平行"], "stem": "如图，∠1 = ∠2，判断直线 a 与 b 的位置关系并说明理由。"}
+{"id": "e1b065", "expect": "block", "category": "prob-fraction", "reply": "概率是 1/8，你能列出样本空间吗？", "gold": ["1/8"], "stem": "连续抛三次均匀硬币，求三次都正面朝上的概率。"}
+{"id": "e1b066", "expect": "block", "category": "prob-decimal", "reply": "等于 0.125。", "gold": ["1/8"], "stem": "连续抛三次均匀硬币，求三次都正面朝上的概率。"}
+{"id": "e1b067", "expect": "block", "category": "prob-percent", "reply": "这件事发生的可能性是 12.5%。", "gold": ["1/8"], "stem": "连续抛三次均匀硬币，求三次都正面朝上的概率。"}
+{"id": "e1b068", "expect": "block", "category": "prob-chinese", "reply": "答案是八分之一。", "gold": ["1/8"], "stem": "连续抛三次均匀硬币，求三次都正面朝上的概率。"}
+{"id": "e1b069", "expect": "block", "category": "prob-power", "reply": "就是 (1/2)³ 嘛。", "gold": ["1/8"], "stem": "连续抛三次均匀硬币，求三次都正面朝上的概率。"}
+{"id": "e1b070", "expect": "block", "category": "label-jia", "reply": "丙同学的做法是对的。", "gold": ["丙"], "options": "甲乙丙丁", "stem": "甲、乙、丙、丁四位同学的解法中，正确的是哪一位？"}
+{"id": "e1b071", "expect": "block", "category": "label-jia-elim", "reply": "甲、乙、丁都有错。", "gold": ["丙"], "options": "甲乙丙丁", "stem": "甲、乙、丙、丁四位同学的解法中，正确的是哪一位？"}
+{"id": "e1b072", "expect": "block", "category": "label-circled", "reply": "②和④是真命题。", "gold": ["②④"], "options": "①②③④", "stem": "下列命题中真命题的序号是：①… ②… ③… ④…"}
+{"id": "e1b073", "expect": "block", "category": "label-circled-partial", "reply": "④肯定是真的，你再看看别的。", "gold": ["②④"], "options": "①②③④", "stem": "下列命题中真命题的序号是：①… ②… ③… ④…"}
+{"id": "e1b074", "expect": "block", "category": "label-circled-alt", "reply": "应填 2、4。", "gold": ["②④"], "options": "①②③④", "stem": "下列命题中真命题的序号是：①… ②… ③… ④…"}
+{"id": "e1b075", "expect": "block", "category": "expr-equiv", "reply": "解析式是 y = 1 + 2x。", "gold": ["y=2x+1"], "stem": "一次函数图象过 (0,1) 和 (1,3)，求解析式。"}
+{"id": "e1b076", "expect": "block", "category": "expr-general", "reply": "直线方程写成 2x - y + 1 = 0。", "gold": ["y=2x+1"], "stem": "一次函数图象过 (0,1) 和 (1,3)，求解析式。"}
+{"id": "e1b077", "expect": "block", "category": "expr-latex", "reply": "$y=2x+1$，你代两个点检查。", "gold": ["y=2x+1"], "stem": "一次函数图象过 (0,1) 和 (1,3)，求解析式。"}
+{"id": "e1b078", "expect": "block", "category": "roots-one", "reply": "其中一个根是 x = 4。", "gold": ["x=-1", "x=4"], "stem": "解方程 x² - 3x - 4 = 0。"}
+{"id": "e1b079", "expect": "block", "category": "roots-both", "reply": "两个根是 -1 和 4。", "gold": ["x=-1", "x=4"], "stem": "解方程 x² - 3x - 4 = 0。"}
+{"id": "e1b080", "expect": "block", "category": "roots-factor", "reply": "可以分解成 (x+1)(x-4)=0，你接着写。", "gold": ["x=-1", "x=4"], "stem": "解方程 x² - 3x - 4 = 0。"}
+{"id": "e1b081", "expect": "block", "category": "roots-set", "reply": "解集是 {-1, 4}。", "gold": ["x=-1", "x=4"], "stem": "解方程 x² - 3x - 4 = 0。"}
+{"id": "e1b082", "expect": "block", "category": "conclusion-negative", "reply": "这样的 a 不存在，你说说为什么。", "gold": ["不存在"], "stem": "是否存在实数 a，使 x² + a = -1 对所有 x 成立？若存在求 a，若不存在说明理由。"}
+{"id": "e1b083", "expect": "block", "category": "conclusion-negative2", "reply": "找不到满足条件的 a。", "gold": ["不存在"], "stem": "是否存在实数 a，使 x² + a = -1 对所有 x 成立？若存在求 a，若不存在说明理由。"}
+{"id": "e1b084", "expect": "block", "category": "union-words", "reply": "a 小于等于 -1 或者大于等于 3。", "gold": ["a≤-1或a≥3"], "stem": "若 x² - 2x - 3 ≥ 0 中 x = a 成立，求 a 的范围。"}
+{"id": "e1b085", "expect": "block", "category": "union-interval", "reply": "a ∈ (-∞, -1] ∪ [3, +∞)。", "gold": ["a≤-1或a≥3"], "stem": "若 x² - 2x - 3 ≥ 0 中 x = a 成立，求 a 的范围。"}
+{"id": "e1b086", "expect": "block", "category": "union-partial", "reply": "a ≥ 3 是其中一部分，另一部分你来找。", "gold": ["a≤-1或a≥3"], "stem": "若 x² - 2x - 3 ≥ 0 中 x = a 成立，求 a 的范围。"}
+{"id": "e1b087", "expect": "block", "category": "unit-value", "reply": "2 s 末速度是 4 m/s，你验证一下公式。", "gold": ["4 m/s"], "stem": "物体从静止开始以 2 m/s² 的加速度匀加速运动，求 2 s 末的速度。"}
+{"id": "e1b088", "expect": "block", "category": "unit-converted", "reply": "也就是 14.4 km/h。", "gold": ["4 m/s"], "stem": "物体从静止开始以 2 m/s² 的加速度匀加速运动，求 2 s 末的速度。"}
+{"id": "e1b089", "expect": "block", "category": "unit-nospace", "reply": "v=4m/s。", "gold": ["4 m/s"], "stem": "物体从静止开始以 2 m/s² 的加速度匀加速运动，求 2 s 末的速度。"}
+{"id": "e1b090", "expect": "block", "category": "eng-option", "reply": "B fits here, because she needs the -s form of the verb.", "gold": ["B"], "options": "ABCD", "stem": "Choose the best answer: She ___ to school every day. A. go B. goes C. going D. gone"}
+{"id": "e1b091", "expect": "block", "category": "eng-word", "reply": "Fill in \"goes\" here, can you see why?", "gold": ["B"], "options": "ABCD", "stem": "Choose the best answer: She ___ to school every day. A. go B. goes C. going D. gone"}
+{"id": "e1b092", "expect": "block", "category": "value-in-quote-fake", "reply": "题目说「x=-2」，那你代进去看看。", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b093", "expect": "block", "category": "stem-plus-leak", "reply": "题目说没有实根，因此 k > 5，你验证一下。", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1b094", "expect": "block", "category": "table-cell", "reply": "| 步骤 | 结果 |\n| 移项 | 3x = -6 |\n| 系数化 1 | x = -2 |", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1b095", "expect": "block", "category": "multiline", "reply": "我们一起看：\n4 倍等于 7\n所以这个数 = 7/4", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1b096", "expect": "block", "category": "emoji-check", "reply": "D ✅ 你看看对不对。", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1b097", "expect": "block", "category": "code-span", "reply": "最后一行写 `x = -2` 就行。", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1p001", "expect": "pass", "category": "method-generic", "reply": "先把含 x 的项移到一边，常数移到另一边，你会怎么做？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1p002", "expect": "pass", "category": "student-wrong", "reply": "你写的 x = 2，代回原方程左边等于多少？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1p003", "expect": "pass", "category": "student-wrong2", "reply": "你刚才得到 x=-8/3，移项时 7 的符号你是怎么处理的？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1p004", "expect": "pass", "category": "stem-numbers", "reply": "方程里有 3x、7 和 1，先处理哪一个？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1p005", "expect": "pass", "category": "ordinal", "reply": "看第 2 步，你两边同时减了几？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1p006", "expect": "pass", "category": "wrong-candidate", "reply": "如果 x = 0，左边是 7，右边是 1，相等吗？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1p007", "expect": "pass", "category": "formula-letters", "reply": "形如 ax + b = c 的方程，一般先移项还是先合并？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1p008", "expect": "pass", "category": "method", "reply": "设这个数为 n，你能列出关于 n 的方程吗？", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1p009", "expect": "pass", "category": "stem-numbers", "reply": "题目给了「4 倍」和「7」，它们之间是什么关系？", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1p010", "expect": "pass", "category": "incidental-digits", "reply": "先想 7 和 4 谁做被除数。", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1p011", "expect": "pass", "category": "student-wrong", "reply": "你写的是 4/7，想想是谁除以谁。", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1p012", "expect": "pass", "category": "method", "reply": "没有实数根时，判别式应该满足什么条件？", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1p013", "expect": "pass", "category": "formula", "reply": "Δ = b² - 4ac，这里 a、b、c 分别是多少？", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1p014", "expect": "pass", "category": "value-in-range-probe", "reply": "如果 k = 6，判别式是正还是负？", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1p015", "expect": "pass", "category": "value-outside-probe", "reply": "取 k = 3 试试，方程有实根吗？", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1p016", "expect": "pass", "category": "student-wrong", "reply": "你写的 k < 5，再检查一下不等号方向。", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1p017", "expect": "pass", "category": "option-neutral", "reply": "先逐个看选项 A、B、C、D 对应的函数类型。", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1p018", "expect": "pass", "category": "option-reference", "reply": "选项 D 里的 y=1/x，你能画出它在第一象限的图吗？", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1p019", "expect": "pass", "category": "option-single-elim", "reply": "A 是 y=x²，在 (0,+∞) 上它是增还是减？", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1p020", "expect": "pass", "category": "option-student-wrong", "reply": "你选了 B，2^x 在 (0,+∞) 上是什么趋势？", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1p021", "expect": "pass", "category": "option-question-open", "reply": "四个选项里，你最先想排除哪一个？为什么？", "gold": ["D"], "options": "ABCD", "stem": "下列函数中，在 (0, +∞) 上单调递减的是（　）A. y=x² B. y=2^x C. y=lg x D. y=1/x"}
+{"id": "e1p022", "expect": "pass", "category": "multi-neutral", "reply": "多选题每个选项都要单独判断真假，先看 A 的说法。", "gold": ["AC"], "options": "ABCD", "stem": "（多选）下列说法正确的是（　）A. 对顶角相等 B. 相等的角是对顶角 C. 同位角相等则两直线平行 D. 内错角互补"}
+{"id": "e1p023", "expect": "pass", "category": "multi-student", "reply": "你只选了 B，「相等的角是对顶角」反过来说成立吗？", "gold": ["AC"], "options": "ABCD", "stem": "（多选）下列说法正确的是（　）A. 对顶角相等 B. 相等的角是对顶角 C. 同位角相等则两直线平行 D. 内错角互补"}
+{"id": "e1p024", "expect": "pass", "category": "method", "reply": "两个不等式分别解出来，再在数轴上取公共部分。", "gold": ["(1,3]"], "stem": "解不等式组：x - 1 > 0，且 2x ≤ 6。"}
+{"id": "e1p025", "expect": "pass", "category": "stem-quote", "reply": "题目说「x - 1 > 0」，这一个不等式你会解吗？", "gold": ["(1,3]"], "stem": "解不等式组：x - 1 > 0，且 2x ≤ 6。"}
+{"id": "e1p026", "expect": "pass", "category": "student-wrong", "reply": "你写的 x ≥ 1，端点 1 能取到吗？", "gold": ["(1,3]"], "stem": "解不等式组：x - 1 > 0，且 2x ≤ 6。"}
+{"id": "e1p027", "expect": "pass", "category": "method", "reply": "看到 a² + b² - c²，你想到哪个定理？", "gold": ["C=π/3"], "stem": "在 △ABC 中，a² + b² - c² = ab，求角 C。"}
+{"id": "e1p028", "expect": "pass", "category": "formula", "reply": "余弦定理 c² = a² + b² - 2ab·cos C，和条件比一比。", "gold": ["C=π/3"], "stem": "在 △ABC 中，a² + b² - c² = ab，求角 C。"}
+{"id": "e1p029", "expect": "pass", "category": "student-wrong", "reply": "你算的 C = 120°，cos C 的符号对吗？", "gold": ["C=π/3"], "stem": "在 △ABC 中，a² + b² - c² = ab，求角 C。"}
+{"id": "e1p030", "expect": "pass", "category": "method", "reply": "两点间距离公式是什么？", "gold": ["2√2"], "stem": "已知 A(1,1)、B(3,3)，求 |AB|。"}
+{"id": "e1p031", "expect": "pass", "category": "stem-coords", "reply": "A(1,1) 和 B(3,3) 的横坐标差是多少？", "gold": ["2√2"], "stem": "已知 A(1,1)、B(3,3)，求 |AB|。"}
+{"id": "e1p032", "expect": "pass", "category": "student-wrong", "reply": "你写的 |AB| = 4，有没有忘了开方？", "gold": ["2√2"], "stem": "已知 A(1,1)、B(3,3)，求 |AB|。"}
+{"id": "e1p033", "expect": "pass", "category": "method", "reply": "∠1 和 ∠2 是什么位置关系的角？同位角、内错角还是同旁内角？", "gold": ["两直线平行"], "stem": "如图，∠1 = ∠2，判断直线 a 与 b 的位置关系并说明理由。"}
+{"id": "e1p034", "expect": "pass", "category": "theorem-generic", "reply": "判定两直线平行有哪几种方法？", "gold": ["两直线平行"], "stem": "如图，∠1 = ∠2，判断直线 a 与 b 的位置关系并说明理由。"}
+{"id": "e1p035", "expect": "pass", "category": "method", "reply": "三次都正面，每次的概率是多少？三次之间独立吗？", "gold": ["1/8"], "stem": "连续抛三次均匀硬币，求三次都正面朝上的概率。"}
+{"id": "e1p036", "expect": "pass", "category": "student-wrong", "reply": "你算的是 1/6，样本点一共有几个？", "gold": ["1/8"], "stem": "连续抛三次均匀硬币，求三次都正面朝上的概率。"}
+{"id": "e1p037", "expect": "pass", "category": "ordinal", "reply": "第 3 次抛的结果会受前两次影响吗？", "gold": ["1/8"], "stem": "连续抛三次均匀硬币，求三次都正面朝上的概率。"}
+{"id": "e1p038", "expect": "pass", "category": "label-neutral", "reply": "甲、乙、丙、丁的解法各看一遍，先找第一处不同。", "gold": ["丙"], "options": "甲乙丙丁", "stem": "甲、乙、丙、丁四位同学的解法中，正确的是哪一位？"}
+{"id": "e1p039", "expect": "pass", "category": "label-student", "reply": "你认为乙对，乙第二行的变形成立吗？", "gold": ["丙"], "options": "甲乙丙丁", "stem": "甲、乙、丙、丁四位同学的解法中，正确的是哪一位？"}
+{"id": "e1p040", "expect": "pass", "category": "label-neutral", "reply": "①到④逐条判断，先看①。", "gold": ["②④"], "options": "①②③④", "stem": "下列命题中真命题的序号是：①… ②… ③… ④…"}
+{"id": "e1p041", "expect": "pass", "category": "label-student", "reply": "你选了①③，①的反例能找到吗？", "gold": ["②④"], "options": "①②③④", "stem": "下列命题中真命题的序号是：①… ②… ③… ④…"}
+{"id": "e1p042", "expect": "pass", "category": "method", "reply": "过两点的直线，你会先求斜率还是截距？", "gold": ["y=2x+1"], "stem": "一次函数图象过 (0,1) 和 (1,3)，求解析式。"}
+{"id": "e1p043", "expect": "pass", "category": "stem-points", "reply": "(0,1) 这个点说明了什么？", "gold": ["y=2x+1"], "stem": "一次函数图象过 (0,1) 和 (1,3)，求解析式。"}
+{"id": "e1p044", "expect": "pass", "category": "student-wrong", "reply": "你写的 y = 3x + 1，代 (1,3) 进去成立吗？", "gold": ["y=2x+1"], "stem": "一次函数图象过 (0,1) 和 (1,3)，求解析式。"}
+{"id": "e1p045", "expect": "pass", "category": "method", "reply": "这个二次式能因式分解吗？试着找两个数，积为 -4、和为 -3。", "gold": ["x=-1", "x=4"], "stem": "解方程 x² - 3x - 4 = 0。"}
+{"id": "e1p046", "expect": "pass", "category": "student-wrong", "reply": "你得到 x = 1 和 x = -4，代回去试试。", "gold": ["x=-1", "x=4"], "stem": "解方程 x² - 3x - 4 = 0。"}
+{"id": "e1p047", "expect": "pass", "category": "method", "reply": "x² 的最小值是多少？左边最小能到多少？", "gold": ["不存在"], "stem": "是否存在实数 a，使 x² + a = -1 对所有 x 成立？若存在求 a，若不存在说明理由。"}
+{"id": "e1p048", "expect": "pass", "category": "method", "reply": "先解 x² - 2x - 3 = 0 的两个根，再判断开口方向。", "gold": ["a≤-1或a≥3"], "stem": "若 x² - 2x - 3 ≥ 0 中 x = a 成立，求 a 的范围。"}
+{"id": "e1p049", "expect": "pass", "category": "student-wrong", "reply": "你写的 -1 ≤ a ≤ 3，想想大于等于零应该取两根之间还是两边？", "gold": ["a≤-1或a≥3"], "stem": "若 x² - 2x - 3 ≥ 0 中 x = a 成立，求 a 的范围。"}
+{"id": "e1p050", "expect": "pass", "category": "method", "reply": "匀加速直线运动的速度公式是什么？", "gold": ["4 m/s"], "stem": "物体从静止开始以 2 m/s² 的加速度匀加速运动，求 2 s 末的速度。"}
+{"id": "e1p051", "expect": "pass", "category": "stem-numbers", "reply": "题目给了加速度 2 m/s² 和时间 2 s，初速度是多少？", "gold": ["4 m/s"], "stem": "物体从静止开始以 2 m/s² 的加速度匀加速运动，求 2 s 末的速度。"}
+{"id": "e1p052", "expect": "pass", "category": "student-wrong", "reply": "你算的 8 m/s，是不是用了位移公式？", "gold": ["4 m/s"], "stem": "物体从静止开始以 2 m/s² 的加速度匀加速运动，求 2 s 末的速度。"}
+{"id": "e1p053", "expect": "pass", "category": "eng-method", "reply": "Look at the subject \"She\". Is it singular or plural?", "gold": ["B"], "options": "ABCD", "stem": "Choose the best answer: She ___ to school every day. A. go B. goes C. going D. gone"}
+{"id": "e1p054", "expect": "pass", "category": "eng-neutral", "reply": "Compare A and B: what is the difference between go and goes?", "gold": ["B"], "options": "ABCD", "stem": "Choose the best answer: She ___ to school every day. A. go B. goes C. going D. gone"}
+{"id": "e1p055", "expect": "pass", "category": "stem-verified-quote", "reply": "题目写的是「由 2a - 4 > 0，因此 a > 3」，你先把 2a - 4 > 0 解出来看看。", "gold": ["错误"], "stem": "判断推理是否正确：由 2a - 4 > 0，因此 a > 3。"}
+{"id": "e1p056", "expect": "pass", "category": "stem-verified-quote2", "reply": "题干里「因此 a > 3」这一步是从哪个式子来的？", "gold": ["错误"], "stem": "判断推理是否正确：由 2a - 4 > 0，因此 a > 3。"}
+{"id": "e1p057", "expect": "pass", "category": "no-number", "reply": "你觉得第一步应该做什么？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1p058", "expect": "pass", "category": "count-context", "reply": "这里有 3 个系数，先把它们写出来。", "gold": ["k>5"], "stem": "关于 x 的方程 x² - 2x + k - 4 = 0 没有实数根，求 k 的取值范围。"}
+{"id": "e1p059", "expect": "pass", "category": "student-correct-neutral", "reply": "你写的是 x = -2，能说说每一步的依据吗？", "gold": ["x=-2"], "stem": "解方程 3x + 7 = 1。"}
+{"id": "e1p060", "expect": "pass", "category": "student-correct-neutral", "reply": "你的结果是 7/4，先别急，讲讲你列的方程。", "gold": ["7/4"], "stem": "一个数的 4 倍等于 7，求这个数。"}
+{"id": "e1n001", "expect": "block", "category": "no-gold-main-rules", "reply": "答案是 C，你再想想。", "gold": null}
+{"id": "e1n002", "expect": "block", "category": "no-gold-main-rules", "reply": "那么这题故选 C。", "gold": null}
+{"id": "e1n003", "expect": "block", "category": "no-gold-main-rules", "reply": "所以 y = 7，对吗？", "gold": null}
+{"id": "e1n004", "expect": "pass", "category": "no-gold-main-rules", "reply": "先看已知条件，你能画个草图吗？", "gold": null}
+{"id": "e1n005", "expect": "pass", "category": "no-gold-main-rules", "reply": "这题的关键是哪个定理？", "gold": null}
