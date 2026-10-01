@@ -44,7 +44,7 @@ ANSWER_LEAK_PATTERNS = [
     (r"(?:所以|因此|综上|故|∴)[^。！？\n]{0,40}(?:[=≤≥<>]|等于)\s*[-+]?[\d.]", "推到具体数值/不等式"),
     (r"(?:取值范围|解集|值域|范围应当是|范围是)[是为：:是]?\s*[{\[（(]?[-+]?[\d.a-zA-Z]", "给出范围/解集"),
     (r"答案?是\s*[A-D]\b", "直接报选择题选项"),
-    (r"(?<![你他她谁咱刚学生])(?:故选|选)\s*[A-D](?:[选项]|[.。、，,]|$)", "直接报选择题选项"),
+    (r"(?<![你他她谁咱刚学生])(?:故选|选)\s*[A-D](?:[选项]|[.。、，,」』“”\"']|$)", "直接报选择题选项"),
 ]
 # 引导模式不该先说破的关键公式（常见形状）
 FORMULA_PATTERNS = [
@@ -58,26 +58,25 @@ BAD_DIFFICULTY_RE = re.compile(r"偏难|偏易|中等偏上|中等偏下|较难|
 HEADING_RE = re.compile(r"^#{2,3}\s*([0-9０-９])\s*[\.、．]\s*(\S+)")
 SCORES_RE = re.compile(r"([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*[、,，]\s*([1-5])\s*分")
 SCORES_SLASH_RE = re.compile(r"([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*/\s*([1-5])\s*分")
+SCORES_SPACE_RE = re.compile(r"([1-5])\s+([1-5])\s+([1-5])\s+([1-5])\s+([1-5])\s*分")
 WEIGHTED_EXPANSION_RE = re.compile(r"0\.30\s*[×x*]")
 MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
 ARROW_TOKEN = r"(?:<-->|-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
-NODE_LABEL_RE = re.compile(
-    r'\(\((?:["\']([^"\']+)["\']|([^)]+))\)\)'
-    r'|'
-    r'\((?:["\']([^"\']+)["\']|([^)]+))\)'
-    r'|'
-    r'\[(?:["\']([^"\']+)["\']|([^\]]+))\]'
-    r'|'
-    r'\{(?:["\']([^"\']+)["\']|([^}]+))\}'
-    r'|'
-    r'>(?:["\']([^"\']+)["\']|([^]]+))\]'
+NODE_DEF_RE = re.compile(
+    r'(?:^|[\s;])[A-Za-z][\w-]*'
+    r'[\(\[\{>]+'
+    r'(?:(["\'])([^"\']+)\1|([^\[\]\(\)\{\}"\']+))'
+    r'[\)\]\}]+'
 )
 MAX_REQUIRED_NAMES_PER_NODE = 6
 NODE_TYPE_SUFFIX_RE = re.compile(r"（(?:概念|技能|实验)）$")
+LABEL_SPLIT_RE = re.compile(r"[/；;、，,：:\s]+")
+NAME_TYPE_SUFFIXES = ("效应", "现象", "法")
 QUOTED_SPAN_RE = re.compile(r"「[^」]*」|『[^』]*』|“[^”]*”|\"[^\"]*\"")
-PROBE_ASK_RE = re.compile(r"什么|哪|几|多少|怎么|为何|吗")
+STEM_QUOTE_PREFIX_RE = re.compile(r"(?:题目说|题干(?:写|给出|说|中写|里写|里说))")
+OPEN_ASK_RE = re.compile(r"什么|哪|几|多少|怎么|为何")
 EDGE_LABELS = {"直接前置", "同章衔接", "常考组合"}
 SOLID_LABELS = {"直接前置", "同章衔接"}
 # 只核这一册这一章的整章图。本题切片不要写这一行。
@@ -108,17 +107,37 @@ def hits(pattern, text):
 
 
 def _without_quotes(text):
-    return QUOTED_SPAN_RE.sub("", str(text or ""))
+    text = str(text or "")
+
+    def keep_or_strip(match):
+        prefix = text[max(0, match.start() - 16):match.start()]
+        if STEM_QUOTE_PREFIX_RE.search(prefix):
+            return ""
+        return match.group(0)
+
+    return QUOTED_SPAN_RE.sub(keep_or_strip, text)
+
+
+def _is_open_probe(piece):
+    if not piece.endswith(("？", "?")):
+        return False
+    if not OPEN_ASK_RE.search(piece):
+        return False
+    head = re.split(r"[，,；;]", piece)[0]
+    return bool(OPEN_ASK_RE.search(head))
 
 
 def _leak_sentence_is_probe(pattern, line):
+    saw_real = False
     for sentence in re.split(r"(?<=[。！？?\n])", line):
         piece = sentence.strip()
         if not piece or not re.search(pattern, piece):
             continue
-        if piece.endswith(("？", "?")) and PROBE_ASK_RE.search(piece):
-            return True
-    return False
+        if _is_open_probe(piece):
+            continue
+        saw_real = True
+        break
+    return not saw_real
 
 
 def check_bad_difficulty(lines):
@@ -146,13 +165,13 @@ def check_weighted(lines):
     """报了五项评分时核对加权。返回 (五项分, 账面加权, 应得加权) 或 None。"""
     scores = claimed = None
     for line in lines:
-        m = SCORES_RE.search(line) or SCORES_SLASH_RE.search(line)
+        m = SCORES_RE.search(line) or SCORES_SLASH_RE.search(line) or SCORES_SPACE_RE.search(line)
         if m:
             scores = [int(g) for g in m.groups()]
         if "加权" in line:
-            nums = re.findall(r"[=＝为是：:]\s*([0-9]+\.[0-9]{2}|[0-9]+)", line)
+            nums = re.findall(r"[=＝为是：:]\s*([0-9]+\.[0-9]+|[0-9]+)", line)
             if not nums:
-                nums = re.findall(r"加权\s*([0-9]+\.[0-9]{2}|[0-9]+)", line)
+                nums = re.findall(r"加权\s*([0-9]+\.[0-9]+|[0-9]+)", line)
             if nums:
                 claimed = float(nums[-1])  # 展开式取最后一个等号后的总数
     if scores is None:
@@ -231,32 +250,86 @@ def _label_core(label):
     return NODE_TYPE_SUFFIX_RE.sub("", str(label or "").strip()).strip()
 
 
+def _label_tokens(label):
+    core = _label_core(label)
+    parts = [part.strip() for part in LABEL_SPLIT_RE.split(core) if part.strip()]
+    extra = []
+    for part in parts:
+        extra.extend(bit.strip() for bit in part.split("与") if bit.strip())
+    return extra or ([core] if core else [])
+
+
+_CHEM_COVER_TOKENS = None
+
+
+def _chem_cover_tokens(name):
+    """正典显示名、别名，以及效应/现象互换。"""
+    global _CHEM_COVER_TOKENS
+    if _CHEM_COVER_TOKENS is None:
+        import nodes
+        mapping = {item: {item} for item in PEP_CHEM_BX1_CH1_REQUIRED}
+        path = nodes.NODES_DIR / "chemistry.md"
+        entries, _problems = nodes.parse_lines("chemistry.md", path.read_text(encoding="utf-8"))
+        for standard, aliases, _chapter in entries:
+            pool = [standard, *aliases, *_label_tokens(standard)]
+            for alias in aliases:
+                pool.extend(_label_tokens(alias))
+            expanded = set()
+            for token in pool:
+                token = str(token or "").strip()
+                if not token:
+                    continue
+                expanded.add(token)
+                if token.endswith("效应"):
+                    expanded.add(token[:-2] + "现象")
+                elif token.endswith("现象"):
+                    expanded.add(token[:-2] + "效应")
+            for required in PEP_CHEM_BX1_CH1_REQUIRED:
+                if any(
+                    required == token
+                    or token.startswith(required)
+                    or required in _label_tokens(token)
+                    or required in token
+                    for token in expanded
+                ):
+                    mapping[required].update(expanded)
+                    mapping[required].add(required)
+        _CHEM_COVER_TOKENS = mapping
+    return _CHEM_COVER_TOKENS.get(name, {name})
+
+
+def _part_covers_name(part, name):
+    if not part or not name:
+        return False
+    if part == name:
+        return True
+    if part.startswith(name) and part[len(name):] in ("", *NAME_TYPE_SUFFIXES):
+        return True
+    if name in ("四种基本反应类型", "化合价") and part.startswith(name):
+        return True
+    if part.endswith(name) and len(part) > len(name):
+        prefix = part[:-len(name)]
+        if any(other != name and other in prefix for other in PEP_CHEM_BX1_CH1_REQUIRED):
+            return False
+        return True
+    return False
+
+
 def _label_covers_required(label, name):
     core = _label_core(label)
     if core == name:
         return True
-    parts = [part.strip() for part in re.split(r"[/；、：]", core) if part.strip()]
-    for part in parts:
-        if part == name:
+    allowed = _chem_cover_tokens(name)
+    for part in _label_tokens(label) + [core]:
+        if _part_covers_name(part, name) or part in allowed:
             return True
-        extra = part[len(name):] if part.startswith(name) else None
-        if extra in ("法", "效应"):
-            return True
-        if name == "四种基本反应类型" and part.startswith("四种基本反应类型"):
-            return True
-        if name == "化合价" and part.startswith("化合价"):
-            return True
-        if "与" in part:
-            bits = [bit.strip() for bit in part.split("与") if bit.strip()]
-            if name in bits:
-                return True
     return False
 
 
 def mermaid_node_labels(block):
     labels = []
-    for groups in NODE_LABEL_RE.findall(block):
-        label = next((part for part in groups if part), "").strip()
+    for _quote, quoted, bare in NODE_DEF_RE.findall(block):
+        label = (quoted or bare or "").strip()
         if label:
             labels.append(label)
     return labels
@@ -323,6 +396,11 @@ def canon_display(name):
     return ""
 
 
+def _slot_line_content(line, marker):
+    after = line.split(marker, 1)[-1]
+    return re.sub(r"^[：:\s]+", "", after).strip()
+
+
 def _slots_on_separate_lines(text):
     lines = str(text or "").splitlines()
     seen = []
@@ -331,7 +409,17 @@ def _slots_on_separate_lines(text):
         if not found:
             return False
         seen.append(found[0])
-    return len(set(seen)) == len(SLOT_MARKERS)
+    if len(set(seen)) != len(SLOT_MARKERS):
+        return False
+    ordered = sorted(zip(seen, SLOT_MARKERS))
+    for index, (start, marker) in enumerate(ordered):
+        end = ordered[index + 1][0] if index + 1 < len(ordered) else len(lines)
+        if _slot_line_content(lines[start], marker):
+            continue
+        body = "\n".join(lines[start + 1:end]).strip()
+        if not body:
+            return False
+    return True
 
 
 def question_lines(lines):

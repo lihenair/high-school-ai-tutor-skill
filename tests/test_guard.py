@@ -180,6 +180,20 @@ class StudyAndScoreTests(unittest.TestCase):
         self.assertIn("加权与五项分不一致", e8[0][2])
         self.assertNotIn("没有写出加权分", e8[0][2])
 
+    def test_space_separated_scores_and_approx_weighted_wording(self):
+        text = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
+        text = text.replace("本题结论是 a≤1", "五项评分 5 4 3 2 1 分。加权约为 2.9。本题结论是 a≤1")
+        issues = guard.check("full", text, False)
+        e8 = [item for item in issues if item[1] == "E8"]
+        self.assertTrue(e8, issues)
+        self.assertIn("加权与五项分不一致", e8[0][2])
+
+    def test_empty_seven_slot_lines_are_not_a_node_page(self):
+        lines = ["【模式：自学 · 状态：节点 · 节点：氧化还原反应】"]
+        lines.extend(f"{marker}：" for marker in guard.SLOT_MARKERS)
+        issues = guard.check_study("\n".join(lines))
+        self.assertTrue(any(item[1] == "E18" for item in issues), issues)
+
     def test_difficulty_on_first_line_still_needs_study_label(self):
         issues = guard.check_study("难度：中等。先看这章怎么学。\n拓扑学习顺序：先分类。")
         self.assertTrue(any(item[1] == "E17a" for item in issues), issues)
@@ -220,6 +234,25 @@ flowchart TD
         problems = guard.check_mermaid_edges(text)
         self.assertTrue(any("直接前置" in item or "实线" in item or "未标注" in item for item in problems), problems)
 
+    def test_generic_quoted_node_shapes_still_cover_required_names(self):
+        original = 'mix["纯净物 / 混合物（概念）"]'
+        shapes = [
+            'mix(["纯净物 / 混合物（概念）"])',
+            'mix[["纯净物 / 混合物（概念）"]]',
+            'mix[("纯净物 / 混合物（概念）")]',
+            'mix{{"纯净物 / 混合物（概念）"}}',
+            'mix((("纯净物 / 混合物（概念）")))',
+        ]
+        for wrapped in shapes:
+            problems = guard.check_pep_chem_chapter(CHAPTER_OK.replace(original, wrapped, 1))
+            self.assertEqual(problems, [], wrapped)
+
+    def test_canon_aliases_and_common_phrasing_cover_required_names(self):
+        tyndall = CHAPTER_OK.replace("丁达尔效应", "丁达尔现象")
+        self.assertEqual(guard.check_pep_chem_chapter(tyndall), [])
+        oxide = CHAPTER_OK.replace("氧化物、酸、碱、盐", "常见氧化物、酸、碱、盐")
+        self.assertEqual(guard.check_pep_chem_chapter(oxide), [])
+
     def test_asymmetric_quoted_nodes_count_as_present(self):
         lines = [
             "整章图：人教版《化学 必修 第一册》（2019）第一章",
@@ -244,6 +277,29 @@ flowchart TD
         self.assertFalse(any(item[1] == "E1" for item in quoted), quoted)
         probe = socratic_issues("难度：中等。所以它等于 2 倍的什么？")
         self.assertFalse(any(item[1] == "E1" for item in probe), probe)
+        open_range = socratic_issues("难度：中等。这个范围是什么？")
+        self.assertFalse(any(item[1] == "E1" for item in open_range), open_range)
+        stem_given = socratic_issues("难度：中等。题干给出「答案是 B」。开口朝哪边？")
+        self.assertFalse(any(item[1] == "E1" for item in stem_given), stem_given)
+
+    def test_confirmation_and_unmarked_quotes_are_still_leaks(self):
+        cases = [
+            "难度：中等。答案是 B，对吗？",
+            "难度：中等。所以 x = 3，对吗？",
+            "难度：中等。答案为 12，你算出来是多少？",
+            "难度：中等。老师觉得「答案是 B」。",
+            "难度：中等。取值范围是 a≤0，对吗？",
+            "难度：中等。故选 D，你同意吗？",
+            '难度：中等。这里"所以 x=3"。',
+            "难度：中等。你看，「故选 C」。",
+            "难度：中等。范围应当是 a≤0，你看对吗？",
+        ]
+        for text in cases:
+            issues = socratic_issues(text)
+            self.assertTrue(
+                any(item[1] == "E1" for item in issues),
+                f"expected E1 for {text!r}: {issues}",
+            )
 
     def test_fix_hints_point_at_real_sections(self):
         self.assertNotIn("SKILL.md「难度总则」", guard.RULE_DIFFICULTY)
