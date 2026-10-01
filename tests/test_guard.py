@@ -19,6 +19,39 @@ def socratic_issues(text):
     return guard.check("socratic", text, False)
 
 
+def _pep_map(labels, extra=()):
+    lines = [
+        "整章图：人教版《化学 必修 第一册》（2019）第一章",
+        "```mermaid",
+        "flowchart TD",
+        "  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A",
+        "  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A",
+        *extra,
+    ]
+    for index, label in enumerate(labels):
+        lines.append(f'  n{index}["{label}（概念）"]:::concept')
+    lines.append("```")
+    return "\n".join(lines)
+
+
+def _required_labels_replacing(target, replacement):
+    return [replacement if name == target else name for name in guard.PEP_CHEM_BX1_CH1_REQUIRED]
+
+
+def _complete_map(line_for):
+    lines = [
+        "整章图：人教版《化学 必修 第一册》（2019）第一章",
+        "```mermaid",
+        "flowchart TD",
+        "  classDef concept fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A",
+        "  classDef skill fill:#E7F6EE,stroke:#2E7D4F,color:#1A1A1A",
+    ]
+    for index, name in enumerate(guard.PEP_CHEM_BX1_CH1_REQUIRED):
+        lines.append(line_for(index, name))
+    lines.append("```")
+    return "\n".join(lines)
+
+
 class LeakAndDifficultyTests(unittest.TestCase):
     def test_choice_letter_and_therefore_are_leaks(self):
         choice = socratic_issues("难度：中等。选 C。")
@@ -153,6 +186,122 @@ flowchart TD
         rules = " ".join(item[3] for item in issues if item[1] == "E11")
         self.assertIn("chapter-map.md", rules)
         self.assertNotIn("自学知识图谱", rules)
+
+    def test_own_canon_alias_satisfies_required_node(self):
+        labels = _required_labels_replacing("分散系", "胶体")
+        self.assertEqual(guard.check_pep_chem_chapter(_pep_map(labels)), [])
+
+    def test_sibling_canon_alias_does_not_satisfy_required_node(self):
+        labels = _required_labels_replacing("丁达尔", "胶体")
+        problems = guard.check_pep_chem_chapter(_pep_map(labels))
+        self.assertTrue(any("缺少节点" in item and "丁达尔" in item for item in problems), problems)
+
+    def test_comment_text_does_not_count_as_a_node(self):
+        labels = [name for name in guard.PEP_CHEM_BX1_CH1_REQUIRED if name not in ("纯净物", "混合物")]
+        extra = ('  %% parked["纯净物（概念）"]',)
+        problems = guard.check_pep_chem_chapter(_pep_map(labels, extra=extra))
+        self.assertTrue(any("缺少节点" in item and "纯净物" in item for item in problems), problems)
+
+    def test_style_class_and_click_text_do_not_count_as_nodes(self):
+        labels = [name for name in guard.PEP_CHEM_BX1_CH1_REQUIRED if name not in ("纯净物", "混合物")]
+        extra = (
+            '  classDef deco fill:#E8F1FF,stroke:#3B6FB6,color:#1A1A1A',
+            '  style deco["纯净物（概念）"] fill:#E8F1FF',
+            '  class deco["纯净物（概念）"] concept',
+            '  click deco["纯净物（概念）"] "https://example.invalid/node"',
+        )
+        problems = guard.check_pep_chem_chapter(_pep_map(labels, extra=extra))
+        self.assertTrue(any("缺少节点" in item and "纯净物" in item for item in problems), problems)
+
+    def test_edge_label_text_does_not_count_as_a_node(self):
+        labels = [name for name in guard.PEP_CHEM_BX1_CH1_REQUIRED if name not in ("纯净物", "混合物")]
+        extra = (
+            '  src["离子方程式（概念）"] -->|["纯净物（概念）"]| dst["单质（概念）"]',
+            "  src -- 纯净物 --> dst",
+        )
+        problems = guard.check_pep_chem_chapter(_pep_map(labels, extra=extra))
+        self.assertTrue(any("缺少节点" in item and "纯净物" in item for item in problems), problems)
+
+    def test_asymmetric_node_shape_counts_as_present(self):
+        self.assertEqual(guard.check_pep_chem_chapter(_complete_map(
+            lambda i, name: f'  n{i}>"{name}（概念）"]:::concept'
+        )), [])
+
+    def test_every_flowchart_node_shape_counts_as_present(self):
+        shapes = {
+            "stadium": lambda i, name: f'  n{i}(["{name}（概念）"]):::concept',
+            "subroutine": lambda i, name: f'  n{i}[["{name}（概念）"]]:::concept',
+            "cylinder": lambda i, name: f'  n{i}[("{name}（概念）")]:::concept',
+            "hexagon": lambda i, name: f'  n{i}{{{{"{name}（概念）"}}}}:::concept',
+            "double_circle": lambda i, name: f'  n{i}((("{name}（概念）"))):::concept',
+            "parallelogram": lambda i, name: f'  n{i}[/{name}（概念）/]:::concept',
+            "inverse_parallelogram": lambda i, name: f"  n{i}[\\{name}（概念）\\]:::concept",
+            "trapezoid": lambda i, name: f"  n{i}[/{name}（概念）\\]:::concept",
+            "inverse_trapezoid": lambda i, name: f"  n{i}[\\{name}（概念）/]:::concept",
+        }
+        for shape_name, line_for in shapes.items():
+            with self.subTest(shape=shape_name):
+                self.assertEqual(guard.check_pep_chem_chapter(_complete_map(line_for)), [])
+
+    def test_halfwidth_and_annotation_suffixes_are_stripped(self):
+        self.assertEqual(guard.check_pep_chem_chapter(_complete_map(
+            lambda i, name: f'  n{i}["{name}(概念)"]:::concept'
+        )), [])
+        self.assertEqual(guard.check_pep_chem_chapter(_complete_map(
+            lambda i, name: f'  n{i}["{name}（注：课堂）"]:::concept'
+        )), [])
+
+    def test_backticks_html_and_emoji_are_normalized(self):
+        self.assertEqual(guard.check_pep_chem_chapter(_complete_map(
+            lambda i, name: f'  n{i}["`{name}`"]:::concept'
+        )), [])
+        self.assertEqual(guard.check_pep_chem_chapter(_complete_map(
+            lambda i, name: f'  n{i}["<b>{name}</b>"]:::concept'
+        )), [])
+        self.assertEqual(guard.check_pep_chem_chapter(_complete_map(
+            lambda i, name: f'  n{i}["{name}🔬"]:::concept'
+        )), [])
+
+    def test_dot_plus_br_and_newline_split_into_names(self):
+        names = list(guard.PEP_CHEM_BX1_CH1_REQUIRED)
+        rest = names[1:]
+        splits = [
+            f"{names[0]}·{names[1]}",
+            f"{names[0]}+{names[1]}",
+            f"{names[0]}・{names[1]}",
+            f"{names[0]}＋{names[1]}",
+            f"{names[0]}<br/>{names[1]}",
+            f"{names[0]}\\n{names[1]}",
+        ]
+        for combined in splits:
+            with self.subTest(combined=combined):
+                labels = [combined, *rest[1:]]
+                self.assertEqual(guard.check_pep_chem_chapter(_pep_map(labels)), [])
+
+    def test_chinese_cjk_digit_and_hyphen_node_ids_count(self):
+        cases = {
+            "chinese": lambda i, name: f'  节点{i}["{name}（概念）"]:::concept',
+            "cjk_digit": lambda i, name: f'  点{i}["{name}（概念）"]:::concept',
+            "hyphen": lambda i, name: f'  mix-{i}["{name}（概念）"]:::concept',
+        }
+        for case_name, line_for in cases.items():
+            with self.subTest(ids=case_name):
+                self.assertEqual(guard.check_pep_chem_chapter(_complete_map(line_for)), [])
+
+    def test_hyphenated_arrow_is_not_parsed_as_a_node_id(self):
+        labels = [name for name in guard.PEP_CHEM_BX1_CH1_REQUIRED if name not in ("纯净物", "混合物")]
+        extra = ('  src-->["纯净物（概念）"]',)
+        problems = guard.check_pep_chem_chapter(_pep_map(labels, extra=extra))
+        self.assertTrue(any("缺少节点" in item and "纯净物" in item for item in problems), problems)
+
+    def test_borrowed_canon_title_does_not_satisfy_alias_required_name(self):
+        labels = _required_labels_replacing("氧化物", "单质 / 化合物")
+        problems = guard.check_pep_chem_chapter(_pep_map(labels))
+        self.assertTrue(any("缺少节点" in item and "氧化物" in item for item in problems), problems)
+
+    def test_tyndall_phenomenon_alias_satisfies_required_node(self):
+        labels = _required_labels_replacing("丁达尔", "丁达尔现象")
+        self.assertEqual(guard.check_pep_chem_chapter(_pep_map(labels)), [])
 
 
 class StudyAndScoreTests(unittest.TestCase):
