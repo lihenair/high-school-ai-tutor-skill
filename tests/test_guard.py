@@ -304,6 +304,22 @@ flowchart TD
         self.assertEqual(guard.check_pep_chem_chapter(_pep_map(labels)), [])
 
 
+FULL_OK = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
+
+
+def full_reply_with_score_line(score_line):
+    """Inject a five-item score / weighted line into an otherwise valid full reply."""
+    return FULL_OK.replace(
+        "- 能力层级：掌握。\n",
+        "- 能力层级：掌握。\n" + score_line + "\n",
+        1,
+    )
+
+
+def e8_issues(issues):
+    return [item for item in issues if item[1] == "E8"]
+
+
 class StudyAndScoreTests(unittest.TestCase):
     def test_bom_does_not_hide_study_label(self):
         body = (ROOT / "tests" / "guard-cases" / "self-study" / "08-overview-ok.txt").read_text(encoding="utf-8")
@@ -315,10 +331,243 @@ class StudyAndScoreTests(unittest.TestCase):
         self.assertTrue(any(item[1] == "E17a" for item in issues), issues)
 
     def test_scores_without_weighted_total_are_an_error(self):
-        text = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
-        text = text.replace("本题结论是 a≤1", "五项评分 4、3、2、2、3 分。本题结论是 a≤1")
+        text = FULL_OK.replace("本题结论是 a≤1", "五项评分 4、3、2、2、3 分。本题结论是 a≤1")
         issues = guard.check("full", text, False)
         self.assertTrue(any(item[1] == "E8" for item in issues), issues)
+
+    def test_later_equals_after_weighted_sentence_does_not_override(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权总分 = 2.95。"
+            "跟进：若把对称轴改成 x = 1，区间还单调吗？"
+        )
+        issues = guard.check("full", text, False)
+        self.assertFalse(e8_issues(issues), issues)
+
+    def test_later_equals_on_following_question_line_does_not_override(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权分 = 2.95。\n"
+            "- 追问：令 k = 0 时图像怎么变？"
+        )
+        issues = guard.check("full", text, False)
+        self.assertFalse(e8_issues(issues), issues)
+
+    def test_wrong_weighted_value_still_blocked_despite_later_equals(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权 = 1.00。"
+            "对照：展开里某一项写成 0.30×4 = 1.20，并不改总分。"
+        )
+        issues = guard.check("full", text, False)
+        self.assertTrue(e8_issues(issues), issues)
+
+    def test_multiline_equals_continuation_uses_final_value(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权 =\n"
+            "  = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3 =\n"
+            "  = 1.20 + 0.75 + 0.40 + 0.30 + 0.30 =\n"
+            "  = 2.95"
+        )
+        issues = guard.check("full", text, False)
+        self.assertFalse(e8_issues(issues), issues)
+
+    def test_multiline_equals_continuation_wrong_final_is_blocked(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权 = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3 =\n"
+            "  = 9.99"
+        )
+        issues = guard.check("full", text, False)
+        self.assertTrue(e8_issues(issues), issues)
+
+    def test_non_equals_following_line_is_not_a_chain(self):
+        text = full_reply_with_score_line(
+            "- 五项评分 4、3、2、2、3 分。加权 = 0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3\n"
+            "合计 = 2.95，到这里才写出总数。"
+        )
+        issues = guard.check("full", text, False)
+        self.assertTrue(e8_issues(issues), issues)
+
+    def _e8(self, score_line):
+        return e8_issues(guard.check("full", full_reply_with_score_line(score_line), False))
+
+    def test_prose_weighted_mention_does_not_override_score(self):
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权总分 = 2.95。\n"
+            "- 加权后难度等级：3，只是档位不是总分。"
+        )
+        self.assertFalse(issues, issues)
+
+    def test_wrong_then_recheck_line_still_blocks(self):
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权 = 1.10。\n"
+            "- 复核加权总分 = 2.95。"
+        )
+        self.assertTrue(issues, issues)
+
+    def test_two_score_lines_any_wrong_blocks(self):
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权分 = 2.95。\n"
+            "- 加权得分 = 3.80。"
+        )
+        self.assertTrue(issues, issues)
+
+    def test_whitespace_form_without_separator_passes(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 2.95")
+        self.assertFalse(issues, issues)
+
+    def test_whitespace_form_wrong_value_blocks(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权总分 1.10")
+        self.assertTrue(issues, issues)
+
+    def test_approx_and_natural_multiline_chain_passes(self):
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权 = 1.20 + 0.75 + 0.40 + 0.30 + 0.30\n"
+            "  = 2.95"
+        )
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 ≈ 2.95")
+        self.assertFalse(issues, issues)
+
+    def test_approx_wrong_value_blocks(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 ≈ 3.10")
+        self.assertTrue(issues, issues)
+
+    def test_inconsistent_chain_blocks_even_if_final_matches(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 3.95 = 2.95")
+        self.assertTrue(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 2.95 = 3.95")
+        self.assertTrue(issues, issues)
+
+    def test_out_of_five_suffix_is_not_the_value(self):
+        for extra in (" / 5", "/5", "/5.00", "（满分 5）", "满分5"):
+            issues = self._e8(f"- 五项评分 4、3、2、2、3 分。加权：2.95{extra}")
+            self.assertFalse(issues, extra)
+
+    def test_fraction_value_not_out_of_five(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 59/20")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 21/20")
+        self.assertTrue(issues, issues)
+
+    def test_fullwidth_and_chinese_value_forms(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = ２．９５")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 两点九五")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = ３．１０")
+        self.assertTrue(issues, issues)
+
+    def test_slash_and_xiang_subscore_formats_are_checked(self):
+        ok = self._e8("- 各项：4、3、2、2、3。加权 = 2.95")
+        self.assertFalse(ok, ok)
+        bad = self._e8("- 各项：4、3、2、2、3。加权 = 1.00")
+        self.assertTrue(bad, bad)
+        expect_350 = round(5 * 0.30 + 4 * 0.25 + 3 * 0.20 + 2 * 0.15 + 1 * 0.10, 2)
+        self.assertEqual(expect_350, 3.50)
+        slash_ok = self._e8("- 评分 5/4/3/2/1。加权 = 3.50")
+        self.assertFalse(slash_ok, slash_ok)
+        slash_bad = self._e8("- 评分 5/4/3/2/1。加权 = 2.95")
+        self.assertTrue(slash_bad, slash_bad)
+
+    def test_clause_boundary_stops_same_line_equation(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 2.95，若 a = 1")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 2.95；参考 x=2")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 1.00，若 a = 2.95")
+        self.assertTrue(issues, issues)
+
+    def test_modifiers_between_keyword_and_value(self):
+        for line in (
+            "- 五项评分 4、3、2、2、3 分。加权后为 2.95",
+            "- 五项评分 4、3、2、2、3 分。加权结果：2.95",
+            "- 五项评分 4、3、2、2、3 分。加权约 2.95",
+            "- 五项评分 4、3、2、2、3 分。加权得分是 2.95",
+            "- 五项评分 4、3、2、2、3 分。加权（满分 5）：2.95",
+        ):
+            issues = self._e8(line)
+            self.assertFalse(issues, line)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权后为 1.00")
+        self.assertTrue(issues, issues)
+
+    def test_approx_rounding_of_exact_is_not_compared(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 2.95 ≈ 3")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 2.95 ≈ 3.0")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 2.95 ≈ 4")
+        self.assertTrue(issues, issues)
+
+    def test_weight_percent_line_is_not_a_score(self):
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权总分 = 2.95。\n"
+            "- 加权是 30%/25%/20%/15%/10%。"
+        )
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权是 30%/25%/20%/15%/10%。")
+        self.assertTrue(issues, issues)
+
+    def test_legend_slash_is_not_subscores_item_over_five_is(self):
+        issues = self._e8(
+            "- 评分标准：5/4/3/2/1 分锚点。五项评分 4、3、2、2、3 分。加权 = 2.95"
+        )
+        self.assertFalse(issues, issues)
+        issues = self._e8(
+            "- 评分标准：5/4/3/2/1 分锚点。五项评分 4、3、2、2、3 分。加权 = 1.00"
+        )
+        self.assertTrue(issues, issues)
+        issues = self._e8(
+            "- 知识点层级 4/5、思维跨度 3/5、综合程度 2/5、计算复杂度 2/5、出现频率 3/5。"
+            "加权 = 2.95"
+        )
+        self.assertFalse(issues, issues)
+        issues = self._e8(
+            "- 知识点层级 4/5、思维跨度 3/5、综合程度 2/5、计算复杂度 2/5、出现频率 3/5。"
+            "加权 = 1.00"
+        )
+        self.assertTrue(issues, issues)
+
+    def test_multiple_question_score_groups_are_paired(self):
+        text = full_reply_with_score_line(
+            "- 第一问：4、3、2、2、3 分。加权 = 2.95\n"
+            "- 第二问：5、4、3、2、1 分。加权 = 3.50"
+        )
+        issues = e8_issues(guard.check("full", text, False))
+        self.assertFalse(issues, issues)
+        text = full_reply_with_score_line(
+            "- 第一问：4、3、2、2、3 分。加权 = 1.00\n"
+            "- 第二问：5、4、3、2、1 分。加权 = 3.50"
+        )
+        issues = e8_issues(guard.check("full", text, False))
+        self.assertTrue(issues, issues)
+        text = full_reply_with_score_line(
+            "- 第一问：4、3、2、2、3 分。加权 = 2.95\n"
+            "- 第二问：5、4、3、2、1 分。加权 = 1.00"
+        )
+        issues = e8_issues(guard.check("full", text, False))
+        self.assertTrue(issues, issues)
+
+    def test_open_equals_line_then_expansion_then_total(self):
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权 =\n"
+            "0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3\n"
+            "= 2.95"
+        )
+        self.assertFalse(issues, issues)
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权 =\n"
+            "0.30×4 + 0.25×3 + 0.20×2 + 0.15×2 + 0.10×3\n"
+            "= 9.99"
+        )
+        self.assertTrue(issues, issues)
+
+    def test_scientific_and_n_over_five_greater_than_five(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = .295e1")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = .3e1")
+        self.assertTrue(issues, issues)
+        issues = self._e8("- 各项：1、1、2、1、1。加权 = 6/5")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 各项：1、1、2、1、1。加权 = 2.95/5")
+        self.assertTrue(issues, issues)
 
 
 if __name__ == "__main__":

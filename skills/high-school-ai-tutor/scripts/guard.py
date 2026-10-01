@@ -20,6 +20,7 @@
 import argparse
 import re
 import sys
+from decimal import ROUND_HALF_UP, Decimal
 
 DIFFICULTY_LEVELS = ("基础", "中等", "压轴", "竞赛")
 WEIGHTS = (0.30, 0.25, 0.20, 0.15, 0.10)  # 各科五维权重相同，见各 reference
@@ -151,23 +152,312 @@ def check_summary_headings(lines):
     return [n for n in range(1, 10) if n not in found]
 
 
+# 加权分抽取：只认引入关键字后的等号链，不扫回复其余部分。
+_WEIGHTED_LABEL_RE = re.compile(r"加权(?:总分|得分|分)?")
+_WEIGHTED_CONT_RE = re.compile(r"^\s*[=＝≈]")
+_WEIGHTED_FIRST_CONN_RE = re.compile(r"^(?:[=＝:：≈]|为|是)\s*")
+_WEIGHTED_SENTENCE_END_RE = re.compile(r"[。！？]")
+_WEIGHTED_MOD_RE = re.compile(r"^(后|结果|约|计算|所得|得到|出来|值|的)\s*")
+_CHAIN_OPEN_TAIL_RE = re.compile(r"[=＝≈＋+−\-×x*·/÷（(]\s*$")
+_DIGIT_1_5 = r"[1-5１-５]"
+_FIVE_COMMA_RE = re.compile(
+    rf"({_DIGIT_1_5})\s*[、,，]\s*({_DIGIT_1_5})\s*[、,，]\s*"
+    rf"({_DIGIT_1_5})\s*[、,，]\s*({_DIGIT_1_5})\s*[、,，]\s*({_DIGIT_1_5})"
+)
+_FIVE_SLASH_RE = re.compile(
+    rf"({_DIGIT_1_5})\s*/\s*({_DIGIT_1_5})\s*/\s*"
+    rf"({_DIGIT_1_5})\s*/\s*({_DIGIT_1_5})\s*/\s*({_DIGIT_1_5})"
+)
+_PER_ITEM_OVER_FIVE_RE = re.compile(rf"({_DIGIT_1_5})\s*/\s*5")
+_OUT_OF_FIVE_RE = re.compile(
+    r"(?:\s*[（(]\s*满分\s*5(?:\.0+)?\s*[)）]|\s*满分\s*5(?:\.0+)?)\s*$"
+)
+_TRAIL_FEN_RE = re.compile(r"分\s*$")
+_TRAIL_PAREN_RE = re.compile(r"[（(][^)）]*[)）]\s*$")
+_ASCII_NUM_RE = re.compile(r"^[0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?$")
+_LEAD_NUM_RE = re.compile(r"^([0-9]*\.?[0-9]+(?:[eE][+-]?[0-9]+)?)(.*)$")
+_FRAC_RE = re.compile(r"^([0-9]+(?:\.[0-9]+)?)\s*/\s*([0-9]+(?:\.[0-9]+)?)$")
+_FW_TRANS = str.maketrans("０１２３４５６７８９．", "0123456789.")
+_CN_DIGIT = {
+    "零": "0", "〇": "0", "一": "1", "二": "2", "两": "2", "三": "3",
+    "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9",
+}
+_CLAUSE_PUNCT = "，,；;"
+_CHAIN_OPS = "=＝≈"
+
+
+def _skip_paren(text):
+    if not text or text[0] not in "(（":
+        return text
+    closer = ")" if text[0] == "(" else "）"
+    idx = text.find(closer, 1)
+    if idx < 0:
+        return text[1:]
+    return text[idx + 1:]
+
+
+def _skip_modifiers(text):
+    """关键字后跳过同一小句里的短修饰词和括号，再读分隔符或数值。"""
+    s = text
+    for _ in range(8):
+        s = s.lstrip()
+        if not s:
+            return s
+        if s[0] in "(（":
+            nxt = _skip_paren(s)
+            if nxt == s:
+                return s
+            s = nxt
+            continue
+        m = _WEIGHTED_MOD_RE.match(s)
+        if m:
+            s = s[m.end():]
+            continue
+        return s
+    return s
+
+
+def _parse_five_scores(line):
+    """抽出一行里的五项 1-5 分；认顿号/逗号、5/4/3/2/1、x/5、全角数字。"""
+    if "标准" not in line:
+        m = _FIVE_SLASH_RE.search(line)
+        if m:
+            return [fullwidth_int(g) for g in m.groups()]
+        items = _PER_ITEM_OVER_FIVE_RE.findall(line)
+        if len(items) == 5:
+            return [fullwidth_int(x) for x in items]
+    m = _FIVE_COMMA_RE.search(line)
+    if m:
+        after = line[m.end():].lstrip()
+        before = line[:m.start()]
+        if after.startswith("分") or "各项" in before:
+            return [fullwidth_int(g) for g in m.groups()]
+    m = SCORES_RE.search(line)
+    if not m:
+        return None
+    return [fullwidth_int(g) for g in m.groups()]
+
+
+def _cut_clause(text):
+    """在，,；;处截断，除非其后（空白后）是 =/＝/≈。"""
+    depth = 0
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if ch in "(（":
+            depth += 1
+        elif ch in ")）":
+            depth = max(0, depth - 1)
+        elif depth == 0 and ch in _CLAUSE_PUNCT:
+            j = i + 1
+            while j < len(text) and text[j] in " \t":
+                j += 1
+            if j < len(text) and text[j] in _CHAIN_OPS:
+                i += 1
+                continue
+            return text[:i]
+        elif depth == 0 and ch in "。！？":
+            return text[:i]
+        i += 1
+    return text
+
+
+def _split_chain_segments(text):
+    parts, seps, buf, depth = [], [], [], 0
+    last_sep = ""
+    for ch in text:
+        if ch in "(（":
+            depth += 1
+            buf.append(ch)
+        elif ch in ")）":
+            depth = max(0, depth - 1)
+            buf.append(ch)
+        elif depth == 0 and ch in _CHAIN_OPS:
+            parts.append("".join(buf))
+            seps.append(last_sep)
+            buf = []
+            last_sep = ch
+        else:
+            buf.append(ch)
+    parts.append("".join(buf))
+    seps.append(last_sep)
+    return list(zip(seps, parts))
+
+
+def _parse_chinese_number(text):
+    if not text or any(ch not in _CN_DIGIT and ch != "点" for ch in text):
+        return None
+    if "点" in text:
+        left, right = text.split("点", 1)
+        if not right or (left and not all(ch in _CN_DIGIT for ch in left)):
+            return None
+        if not all(ch in _CN_DIGIT for ch in right):
+            return None
+        whole = "".join(_CN_DIGIT[ch] for ch in left) if left else "0"
+        frac = "".join(_CN_DIGIT[ch] for ch in right)
+        return float(f"{whole}.{frac}")
+    if len(text) != 1:
+        return None
+    return float(_CN_DIGIT[text])
+
+
+def _frac_or_out_of_five(num, den):
+    if den == 0:
+        return None
+    if den == 5.0 and num <= 5.0:
+        return num
+    return num / den
+
+
+def _parse_plain_number(segment):
+    """一段若整体是一个数（可带分、/5、括号注释）则返回 float，否则 None。"""
+    s = segment.strip()
+    if not s:
+        return None
+    s = _OUT_OF_FIVE_RE.sub("", s).strip()
+    s = _TRAIL_FEN_RE.sub("", s).strip()
+    s = _OUT_OF_FIVE_RE.sub("", s).strip()
+    s = _TRAIL_PAREN_RE.sub("", s).strip()
+    s = _TRAIL_FEN_RE.sub("", s).strip()
+    s = s.translate(_FW_TRANS).strip()
+    if not s:
+        return None
+    if _ASCII_NUM_RE.match(s):
+        return float(s)
+    m = _FRAC_RE.match(s)
+    if m:
+        return _frac_or_out_of_five(float(m.group(1)), float(m.group(2)))
+    cn = _parse_chinese_number(s)
+    if cn is not None:
+        return cn
+    m = _LEAD_NUM_RE.match(s)
+    if not m:
+        return None
+    rest = m.group(2).lstrip()
+    if rest and rest[0] in "+-×x*·/÷()=＝≈":
+        return None
+    return float(m.group(1))
+
+
+def _approx_places(segment):
+    s = segment.translate(_FW_TRANS)
+    m = re.search(r"\.([0-9]+)", s)
+    if m:
+        return len(m.group(1))
+    return 0
+
+
+def _round_half_up(value, places):
+    q = Decimal(1) if places <= 0 else Decimal(1).scaleb(-places)
+    return float(Decimal(str(value)).quantize(q, rounding=ROUND_HALF_UP))
+
+
+def _is_rounding_of(exact, approx, approx_seg):
+    places = _approx_places(approx_seg)
+    return abs(_round_half_up(exact, places) - approx) < 1e-9
+
+
+def _is_weight_description(text):
+    """权重/百分比说明，不是账面加权分。"""
+    plain = re.sub(r"[（(][^)）]*[)）]", "", text)
+    return bool(re.search(r"\d+\s*%", plain) or "权重" in plain)
+
+
+def _line_opens_chain(text):
+    return bool(_CHAIN_OPEN_TAIL_RE.search(_cut_clause(text).rstrip()))
+
+
+def _weighted_chain_body(lines, start, after_label):
+    head = _WEIGHTED_SENTENCE_END_RE.split(after_label, maxsplit=1)[0]
+    chunks = [head]
+    opened = _line_opens_chain(head)
+    for nxt in lines[start + 1:]:
+        if not (_WEIGHTED_CONT_RE.match(nxt) or opened):
+            break
+        piece = _WEIGHTED_SENTENCE_END_RE.split(nxt, maxsplit=1)[0]
+        chunks.append(piece)
+        opened = _line_opens_chain(piece)
+    body = "\n".join(chunks).lstrip()
+    body = _cut_clause(body)
+    return _WEIGHTED_FIRST_CONN_RE.sub("", body, count=1)
+
+
+def _claimed_from_chain(body, first_sep=""):
+    """返回 (用来核对的终值, 需核对的其它纯数字段)。无法解析则为 (None, [])。"""
+    pairs = _split_chain_segments(body)
+    while pairs and not pairs[0][1].strip():
+        pairs.pop(0)
+    if not pairs:
+        return None, []
+    if first_sep and pairs[0][0] == "":
+        pairs[0] = (first_sep, pairs[0][1])
+    parsed = [(sep, seg, _parse_plain_number(seg)) for sep, seg in pairs]
+    exact = None
+    exact_first = True
+    compare = []
+    last_val = None
+    for sep, seg, val in parsed:
+        if val is None:
+            continue
+        is_approx = sep == "≈"
+        if is_approx and exact is not None and _is_rounding_of(exact, val, seg):
+            last_val = exact
+            continue
+        if is_approx and exact is None:
+            last_val = val
+            compare.append(val)
+            if exact_first:
+                exact = val
+            continue
+        last_val = val
+        compare.append(val)
+        exact = val
+        exact_first = False
+    if last_val is None:
+        return None, []
+    plains = [v for v in compare[:-1]]
+    return last_val, plains
+
+
 def check_weighted(lines):
     """报了五项评分时核对加权。返回 (五项分, 账面加权, 应得加权) 或 None。"""
-    scores = claimed = None
-    for line in lines:
-        m = SCORES_RE.search(line)
-        if m:
-            scores = [int(g) for g in m.groups()]
-        if "加权" in line:
-            nums = re.findall(r"[=＝为是：:]\s*([0-9]+\.[0-9]{2}|[0-9]+)", line)
-            if nums:
-                claimed = float(nums[-1])  # 展开式取最后一个等号后的总数
-    if scores is None:
+    score_events = []
+    claim_events = []
+    for i, line in enumerate(lines):
+        found = _parse_five_scores(line)
+        if found:
+            score_events.append((i, found))
+        for m in _WEIGHTED_LABEL_RE.finditer(line):
+            rest = line[m.end():]
+            skipped = _skip_modifiers(rest)
+            if _is_weight_description(skipped):
+                continue
+            body = _weighted_chain_body(lines, i, skipped)
+            lead = skipped.lstrip()
+            first_sep = lead[0] if lead and lead[0] in _CHAIN_OPS else ""
+            claimed, plains = _claimed_from_chain(body, first_sep=first_sep)
+            if claimed is None:
+                continue
+            claim_events.append((i, claimed, plains))
+    if not score_events:
         return None
-    expect = round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)
-    if claimed is None:
-        return scores, None, expect
-    return scores, claimed, expect
+    for gi, (si, scores) in enumerate(score_events):
+        next_si = score_events[gi + 1][0] if gi + 1 < len(score_events) else None
+        expect = round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)
+        window = [
+            (c, p) for (ci, c, p) in claim_events
+            if ci >= si and (next_si is None or ci < next_si)
+        ]
+        if not window:
+            return scores, None, expect
+        for claimed, plains in window:
+            for value in (claimed, *plains):
+                if abs(value - expect) > 0.005:
+                    return scores, value, expect
+    last_scores = score_events[-1][1]
+    last_claim = window[-1][0]
+    expect = round(sum(s * w for s, w in zip(last_scores, WEIGHTS)), 2)
+    return last_scores, last_claim, expect
 
 
 def weighted_error(scores, claimed, expect):
