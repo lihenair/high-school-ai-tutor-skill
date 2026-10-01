@@ -53,5 +53,13 @@ run self-study/14-diagnosis-judge.txt study 0
 run self-study/15-repair-step.txt study 0
 run self-study/16-solve-unlabeled.txt study 0
 
+echo "--- guard regression baseline ---"
+if python3 tests/baseline/run_baseline.py; then
+  pass=$((pass + 1))
+else
+  fail=$((fail + 1))
+  echo "FAIL tests/baseline/run_baseline.py"
+fi
+
 echo "通过 $pass / $((pass + fail))"
 [ "$fail" -eq 0 ]
