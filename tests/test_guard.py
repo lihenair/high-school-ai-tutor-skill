@@ -385,6 +385,88 @@ class StudyAndScoreTests(unittest.TestCase):
         issues = guard.check("full", text, False)
         self.assertTrue(e8_issues(issues), issues)
 
+    def _e8(self, score_line):
+        return e8_issues(guard.check("full", full_reply_with_score_line(score_line), False))
+
+    def test_prose_weighted_mention_does_not_override_score(self):
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权总分 = 2.95。\n"
+            "- 加权后难度等级：3，只是档位不是总分。"
+        )
+        self.assertFalse(issues, issues)
+
+    def test_wrong_then_recheck_line_still_blocks(self):
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权 = 1.10。\n"
+            "- 复核加权总分 = 2.95。"
+        )
+        self.assertTrue(issues, issues)
+
+    def test_two_score_lines_any_wrong_blocks(self):
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权分 = 2.95。\n"
+            "- 加权得分 = 3.80。"
+        )
+        self.assertTrue(issues, issues)
+
+    def test_whitespace_form_without_separator_passes(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 2.95")
+        self.assertFalse(issues, issues)
+
+    def test_whitespace_form_wrong_value_blocks(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权总分 1.10")
+        self.assertTrue(issues, issues)
+
+    def test_approx_and_natural_multiline_chain_passes(self):
+        issues = self._e8(
+            "- 五项评分 4、3、2、2、3 分。加权 = 1.20 + 0.75 + 0.40 + 0.30 + 0.30\n"
+            "  = 2.95"
+        )
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 ≈ 2.95")
+        self.assertFalse(issues, issues)
+
+    def test_approx_wrong_value_blocks(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 ≈ 3.10")
+        self.assertTrue(issues, issues)
+
+    def test_inconsistent_chain_blocks_even_if_final_matches(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 3.95 = 2.95")
+        self.assertTrue(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 2.95 = 3.95")
+        self.assertTrue(issues, issues)
+
+    def test_out_of_five_suffix_is_not_the_value(self):
+        for extra in (" / 5", "/5", "/5.00", "（满分 5）", "满分5"):
+            issues = self._e8(f"- 五项评分 4、3、2、2、3 分。加权：2.95{extra}")
+            self.assertFalse(issues, extra)
+
+    def test_fraction_value_not_out_of_five(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 59/20")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 21/20")
+        self.assertTrue(issues, issues)
+
+    def test_fullwidth_and_chinese_value_forms(self):
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = ２．９５")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = 两点九五")
+        self.assertFalse(issues, issues)
+        issues = self._e8("- 五项评分 4、3、2、2、3 分。加权 = ３．１０")
+        self.assertTrue(issues, issues)
+
+    def test_slash_and_xiang_subscore_formats_are_checked(self):
+        ok = self._e8("- 各项：4、3、2、2、3。加权 = 2.95")
+        self.assertFalse(ok, ok)
+        bad = self._e8("- 各项：4、3、2、2、3。加权 = 1.00")
+        self.assertTrue(bad, bad)
+        expect_350 = round(5 * 0.30 + 4 * 0.25 + 3 * 0.20 + 2 * 0.15 + 1 * 0.10, 2)
+        self.assertEqual(expect_350, 3.50)
+        slash_ok = self._e8("- 评分 5/4/3/2/1。加权 = 3.50")
+        self.assertFalse(slash_ok, slash_ok)
+        slash_bad = self._e8("- 评分 5/4/3/2/1。加权 = 2.95")
+        self.assertTrue(slash_bad, slash_bad)
+
 
 if __name__ == "__main__":
     unittest.main()

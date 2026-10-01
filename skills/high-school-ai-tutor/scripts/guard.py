@@ -151,82 +151,184 @@ def check_summary_headings(lines):
     return [n for n in range(1, 10) if n not in found]
 
 
-# 加权引入句上的链式运算符（与原先同一组）；续行只认行首的 = / ＝。
-_WEIGHTED_CHAIN_OP_RE = re.compile(r"[=＝为是：:]")
-_WEIGHTED_CONT_RE = re.compile(r"^\s*[=＝]")
-_WEIGHTED_NUM_RE = re.compile(r"[0-9]+(?:\.[0-9]+)?")
+# 加权分抽取：只认引入关键字后的等号链，不扫回复其余部分。
+_WEIGHTED_LABEL_RE = re.compile(r"加权(?:总分|得分|分)?")
+_WEIGHTED_CONT_RE = re.compile(r"^\s*[=＝≈]")
+_WEIGHTED_FIRST_CONN_RE = re.compile(r"^(?:[=＝:：≈]|为|是)\s*")
 _WEIGHTED_SENTENCE_END_RE = re.compile(r"[。！？]")
-_WEIGHTED_ARITH = set("+-×x*·/÷()")
+_DIGIT_1_5 = r"[1-5１-５]"
+_FIVE_COMMA_RE = re.compile(
+    rf"({_DIGIT_1_5})\s*[、,，]\s*({_DIGIT_1_5})\s*[、,，]\s*"
+    rf"({_DIGIT_1_5})\s*[、,，]\s*({_DIGIT_1_5})\s*[、,，]\s*({_DIGIT_1_5})"
+)
+_FIVE_SLASH_RE = re.compile(
+    rf"({_DIGIT_1_5})\s*/\s*({_DIGIT_1_5})\s*/\s*"
+    rf"({_DIGIT_1_5})\s*/\s*({_DIGIT_1_5})\s*/\s*({_DIGIT_1_5})"
+)
+_OUT_OF_FIVE_RE = re.compile(
+    r"(?:\s*/\s*5(?:\.0+)?|\s*[（(]\s*满分\s*5(?:\.0+)?\s*[)）]|\s*满分\s*5(?:\.0+)?)\s*$"
+)
+_TRAIL_FEN_RE = re.compile(r"分\s*$")
+_TRAIL_PAREN_RE = re.compile(r"[（(][^)）]*[)）]\s*$")
+_ASCII_NUM_RE = re.compile(r"^[0-9]+(?:\.[0-9]+)?$")
+_FRAC_RE = re.compile(r"^([0-9]+)\s*/\s*([0-9]+(?:\.[0-9]+)?)$")
+_FW_TRANS = str.maketrans("０１２３４５６７８９．", "0123456789.")
+_CN_DIGIT = {
+    "零": "0", "〇": "0", "一": "1", "二": "2", "两": "2", "三": "3",
+    "四": "4", "五": "5", "六": "6", "七": "7", "八": "8", "九": "9",
+}
 
 
-def _chain_still_open(text):
-    """上一截以 = / ＝ 收尾时，等号链才接到下一行。"""
-    stripped = text.rstrip()
-    return bool(stripped) and stripped[-1] in "=＝"
+def _starts_weighted_value(text):
+    stripped = text.lstrip()
+    if not stripped:
+        return True
+    if stripped.startswith(("为", "是")):
+        return True
+    ch = stripped[0]
+    return ch in "=＝:：≈" or ch.isdigit() or ch in _CN_DIGIT
 
 
-def _weighted_chain_text(lines, start):
-    """引入行从「加权」起到句末，加上随后以 = 开头的续行。不扫回复其余部分。"""
-    line = lines[start]
-    label = line.find("加权")
-    rest = line[label + len("加权"):] if label >= 0 else line
-    rest = _WEIGHTED_SENTENCE_END_RE.split(rest, maxsplit=1)[0]
-    chunks = [rest]
-    acc = rest
-    for nxt in lines[start + 1:]:
-        if not _WEIGHTED_CONT_RE.match(nxt) or not _chain_still_open(acc):
-            break
-        piece = _WEIGHTED_SENTENCE_END_RE.split(nxt, maxsplit=1)[0]
-        chunks.append(piece)
-        acc += piece
-    return "\n".join(chunks)
-
-
-def _final_chain_number(chain):
-    """等号链的终值：仅当某段是独立数字（其后不再接运算）才采纳，并在此处截断。"""
-    m = _WEIGHTED_CHAIN_OP_RE.search(chain)
+def _parse_five_scores(line):
+    """抽出一行里的五项 1-5 分；认顿号/逗号、5/4/3/2/1、全角数字。"""
+    m = _FIVE_SLASH_RE.search(line)
+    if m:
+        return [fullwidth_int(g) for g in m.groups()]
+    m = _FIVE_COMMA_RE.search(line)
+    if m:
+        after = line[m.end():].lstrip()
+        before = line[:m.start()]
+        if after.startswith("分") or "各项" in before:
+            return [fullwidth_int(g) for g in m.groups()]
+    m = SCORES_RE.search(line)
     if not m:
         return None
-    pos = m.start()
-    while pos < len(chain):
-        op = _WEIGHTED_CHAIN_OP_RE.search(chain, pos)
-        if not op:
+    return [fullwidth_int(g) for g in m.groups()]
+
+
+def _split_chain_segments(text):
+    parts, buf, depth = [], [], 0
+    for ch in text:
+        if ch in "(（":
+            depth += 1
+            buf.append(ch)
+        elif ch in ")）":
+            depth = max(0, depth - 1)
+            buf.append(ch)
+        elif depth == 0 and ch in "=＝≈":
+            parts.append("".join(buf))
+            buf = []
+        else:
+            buf.append(ch)
+    parts.append("".join(buf))
+    return parts
+
+
+def _parse_chinese_number(text):
+    if not text or any(ch not in _CN_DIGIT and ch != "点" for ch in text):
+        return None
+    if "点" in text:
+        left, right = text.split("点", 1)
+        if not right or (left and not all(ch in _CN_DIGIT for ch in left)):
             return None
-        k = op.end()
-        while k < len(chain) and chain[k] in " \t\r\n":
-            k += 1
-        num = _WEIGHTED_NUM_RE.match(chain, k)
-        if num is None:
-            pos = op.end() + 1
-            continue
-        j = num.end()
-        while j < len(chain) and chain[j] in " \t\r\n":
-            j += 1
-        if j < len(chain) and chain[j] in _WEIGHTED_ARITH:
-            pos = j
-            continue
-        return float(num.group(0))
-    return None
+        if not all(ch in _CN_DIGIT for ch in right):
+            return None
+        whole = "".join(_CN_DIGIT[ch] for ch in left) if left else "0"
+        frac = "".join(_CN_DIGIT[ch] for ch in right)
+        return float(f"{whole}.{frac}")
+    if len(text) != 1:
+        return None
+    return float(_CN_DIGIT[text])
+
+
+def _parse_plain_number(segment):
+    """一段若整体是一个数（可带分、/5、括号注释）则返回 float，否则 None。"""
+    s = segment.strip()
+    if not s:
+        return None
+    s = _OUT_OF_FIVE_RE.sub("", s).strip()
+    s = _TRAIL_FEN_RE.sub("", s).strip()
+    s = _OUT_OF_FIVE_RE.sub("", s).strip()
+    s = _TRAIL_PAREN_RE.sub("", s).strip()
+    s = _TRAIL_FEN_RE.sub("", s).strip()
+    s = s.translate(_FW_TRANS).strip()
+    if not s:
+        return None
+    if _ASCII_NUM_RE.match(s):
+        return float(s)
+    m = _FRAC_RE.match(s)
+    if m:
+        num, den = float(m.group(1)), float(m.group(2))
+        if den == 5.0:
+            return num
+        if den == 0:
+            return None
+        return num / den
+    cn = _parse_chinese_number(s)
+    if cn is not None:
+        return cn
+    m = re.match(r"^([0-9]+(?:\.[0-9]+)?)(.*)$", s)
+    if not m:
+        return None
+    rest = m.group(2).lstrip()
+    if rest and rest[0] in "+-×x*·/÷()=＝≈":
+        return None
+    return float(m.group(1))
+
+
+def _weighted_chain_body(lines, start, after_label):
+    head = _WEIGHTED_SENTENCE_END_RE.split(after_label, maxsplit=1)[0]
+    chunks = [head]
+    for nxt in lines[start + 1:]:
+        if not _WEIGHTED_CONT_RE.match(nxt):
+            break
+        chunks.append(_WEIGHTED_SENTENCE_END_RE.split(nxt, maxsplit=1)[0])
+    body = "\n".join(chunks).lstrip()
+    return _WEIGHTED_FIRST_CONN_RE.sub("", body, count=1)
+
+
+def _claimed_from_chain(body):
+    """返回 (终值, 链上其它纯数字段)。终值无法解析则为 (None, [])。"""
+    segments = [seg.strip() for seg in _split_chain_segments(body)]
+    while segments and not segments[0]:
+        segments.pop(0)
+    if not segments:
+        return None, []
+    values = [_parse_plain_number(seg) for seg in segments]
+    final = values[-1]
+    if final is None:
+        return None, []
+    plains = [v for v in values[:-1] if v is not None]
+    return final, plains
 
 
 def check_weighted(lines):
     """报了五项评分时核对加权。返回 (五项分, 账面加权, 应得加权) 或 None。"""
-    scores = claimed = None
+    scores = None
+    claims = []
     for i, line in enumerate(lines):
-        m = SCORES_RE.search(line)
-        if m:
-            scores = [int(g) for g in m.groups()]
-        if "加权" not in line:
-            continue
-        parsed = _final_chain_number(_weighted_chain_text(lines, i))
-        if parsed is not None:
-            claimed = parsed
+        found = _parse_five_scores(line)
+        if found:
+            scores = found
+        for m in _WEIGHTED_LABEL_RE.finditer(line):
+            rest = line[m.end():]
+            if not _starts_weighted_value(rest):
+                continue
+            body = _weighted_chain_body(lines, i, rest)
+            claimed, plains = _claimed_from_chain(body)
+            if claimed is None:
+                continue
+            claims.append((claimed, plains))
     if scores is None:
         return None
     expect = round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)
-    if claimed is None:
+    if not claims:
         return scores, None, expect
-    return scores, claimed, expect
+    for claimed, plains in claims:
+        for value in (claimed, *plains):
+            if abs(value - expect) > 0.005:
+                return scores, value, expect
+    return scores, claims[0][0], expect
 
 
 def weighted_error(scores, claimed, expect):
