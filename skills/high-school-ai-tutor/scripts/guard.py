@@ -24,6 +24,8 @@ import unicodedata
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
+from zh_t2s import _T2S_TRANS
+
 DIFFICULTY_LEVELS = ("基础", "中等", "压轴", "竞赛")
 WEIGHTS = (0.30, 0.25, 0.20, 0.15, 0.10)  # 未点名维度时按位置；点名时用各科 reference 表
 _REF_DIR = Path(__file__).resolve().parent.parent / "references"
@@ -125,6 +127,14 @@ PEP_CHEM_FORBIDDEN_NEEDLES = (
     ("PH₃", ("ph3", "磷化氢")),
     ("Cu₃P", ("cu3p", "磷化亚铜", "磷化铜")),
 )
+_ASCII_FORMULA_NEEDLES = frozenset(
+    needle for _display, needles in PEP_CHEM_FORBIDDEN_NEEDLES for needle in needles
+    if needle.isascii()
+)
+_ASCII_FORMULA_RE = {
+    needle: re.compile(rf"(?<![0-9a-z]){re.escape(needle)}(?![0-9a-z])")
+    for needle in _ASCII_FORMULA_NEEDLES
+}
 _PH_ACIDITY_RE = re.compile(r"pH")
 _PH_VALUE_RE = re.compile(r"PH\s*(?:值|=)")
 _SUBSUP_TRANS = str.maketrans({
@@ -1076,8 +1086,9 @@ def _unique_coverage_labels(labels):
 
 
 def _normalize_forbidden_text(text):
-    """NFKC, drop pH acidity spellings, strip markup, then compact lowercase."""
+    """NFKC, unify CJK glyphs, drop pH acidity spellings, strip markup, compact lowercase."""
     text = unicodedata.normalize("NFKC", str(text or ""))
+    text = text.translate(_T2S_TRANS)
     text = _PH_ACIDITY_RE.sub("\ue000", text)
     text = _PH_VALUE_RE.sub("\ue001", text)
     text = HTML_TAG_RE.sub("", text)
@@ -1088,6 +1099,12 @@ def _normalize_forbidden_text(text):
     return text.lower()
 
 
+def _needle_in_normalized(norm, needle):
+    if needle in _ASCII_FORMULA_RE:
+        return _ASCII_FORMULA_RE[needle].search(norm) is not None
+    return needle in norm
+
+
 def _forbidden_present(texts):
     found = []
     seen = set()
@@ -1096,7 +1113,7 @@ def _forbidden_present(texts):
         for display, needles in PEP_CHEM_FORBIDDEN_NEEDLES:
             if display in seen:
                 continue
-            if any(needle in norm for needle in needles):
+            if any(_needle_in_normalized(norm, needle) for needle in needles):
                 found.append(display)
                 seen.add(display)
     return found

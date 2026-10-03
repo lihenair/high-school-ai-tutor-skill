@@ -12,12 +12,13 @@ sys.path.insert(0, str(SCRIPTS))
 import guard
 
 CASES_PATH = ROOT / "tests" / "adversarial" / "e12_cases.jsonl"
+REVIEW_PATH = ROOT / "tests" / "adversarial" / "e12_review.jsonl"
 WATCH_CODES = {"E11", "E12", "E13"}
 
 
-def _load_cases():
+def _load_cases(path=CASES_PATH):
     cases = []
-    with CASES_PATH.open(encoding="utf-8") as fh:
+    with path.open(encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
             if line:
@@ -37,7 +38,13 @@ class E12AdversarialTests(unittest.TestCase):
         self.assertEqual(sum(1 for case in cases if case["expect"] == "pass"), 12)
 
     def test_each_case_matches_expect(self):
-        for case in _load_cases():
+        self._assert_cases(_load_cases())
+
+    def test_review_cases_match_expect(self):
+        self._assert_cases(_load_cases(REVIEW_PATH))
+
+    def _assert_cases(self, cases):
+        for case in cases:
             with self.subTest(id=case["id"], why=case["why"]):
                 codes = _error_codes(case["input"])
                 watched = codes & WATCH_CODES
