@@ -303,6 +303,33 @@ flowchart TD
         labels = _required_labels_replacing("丁达尔", "丁达尔现象")
         self.assertEqual(guard.check_pep_chem_chapter(_pep_map(labels)), [])
 
+    def test_traditional_forbidden_names_are_blocked(self):
+        names = ("電石", "碳化鈣", "磷化氫", "磷化亞銅", "磷化銅")
+        for name in names:
+            with self.subTest(name=name):
+                extra = (f'  bad["{name}（概念）"]:::concept',)
+                problems = guard.check_pep_chem_chapter(
+                    _pep_map(list(guard.PEP_CHEM_BX1_CH1_REQUIRED), extra=extra)
+                )
+                self.assertTrue(any("题目物质" in item for item in problems), (name, problems))
+
+    def test_ascii_formula_inside_longer_token_is_not_forbidden(self):
+        labels = ("graph3", "alphaph3x", "xcac2y", "cu3px", "ph30")
+        for label in labels:
+            with self.subTest(label=label):
+                extra = (f'  ok["{label}（概念）"]:::concept',)
+                problems = guard.check_pep_chem_chapter(
+                    _pep_map(list(guard.PEP_CHEM_BX1_CH1_REQUIRED), extra=extra)
+                )
+                self.assertFalse(any("题目物质" in item for item in problems), (label, problems))
+
+    def test_standalone_ascii_formula_is_still_forbidden(self):
+        extra = ('  bad["cu3p（概念）"]:::concept',)
+        problems = guard.check_pep_chem_chapter(
+            _pep_map(list(guard.PEP_CHEM_BX1_CH1_REQUIRED), extra=extra)
+        )
+        self.assertTrue(any("题目物质" in item for item in problems), problems)
+
 
 FULL_OK = (ROOT / "tests" / "guard-cases" / "full-ok.txt").read_text(encoding="utf-8")
 
