@@ -30,6 +30,9 @@ jobs:
       - name: 自学守卫
         run: python3 tests/test_guard_study.py
 
+      - name: E18 对抗用例
+        run: python3 tests/test_e18_adversarial.py
+
       - name: 回复守卫
         run: python3 tests/test_guard.py
 

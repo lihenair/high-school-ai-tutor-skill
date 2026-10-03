@@ -54,15 +54,18 @@ class StudyGuardTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("E17a", result.stdout)
 
-    def test_chapter_one_pages_have_no_study_errors(self):
-        folder = ROOT / "skills" / "high-school-ai-tutor" / "references" / "study-pages" / "chem-bx1-ch1"
-        for path in sorted(folder.glob("*.md")):
+    def test_all_study_pages_have_no_study_errors(self):
+        folder = ROOT / "skills" / "high-school-ai-tutor" / "references" / "study-pages"
+        pages = sorted(folder.glob("**/*.md"))
+        self.assertGreaterEqual(len(pages), 130, "study-pages 数量不足")
+        for path in pages:
             result = subprocess.run(
                 [sys.executable, str(GUARD), "--mode", "study", str(path)],
                 capture_output=True, text=True, encoding="utf-8",
             )
-            self.assertEqual(result.returncode, 0, path.name + "\n" + result.stdout + result.stderr)
-            self.assertNotIn("[ERROR]", result.stdout, path.name + "\n" + result.stdout)
+            rel = path.relative_to(folder)
+            self.assertEqual(result.returncode, 0, str(rel) + "\n" + result.stdout + result.stderr)
+            self.assertNotIn("[ERROR]", result.stdout, str(rel) + "\n" + result.stdout)
 
 
 if __name__ == "__main__":
