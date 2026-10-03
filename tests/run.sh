@@ -85,5 +85,13 @@ else
   echo "FAIL tests/baseline/run_baseline.py"
 fi
 
+echo "--- guard dead code ---"
+if python3 tests/adversarial/guard_dead_code.py .; then
+  pass=$((pass + 1))
+else
+  fail=$((fail + 1))
+  echo "FAIL tests/adversarial/guard_dead_code.py"
+fi
+
 echo "通过 $pass / $((pass + fail))"
 [ "$fail" -eq 0 ]

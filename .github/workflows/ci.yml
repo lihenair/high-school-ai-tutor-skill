@@ -68,8 +68,14 @@ jobs:
 
       - name: 数学机验
         run: |
-          pip install --quiet 'sympy==1.13.3'
+          pip install --quiet pytest 'sympy==1.13.3' openpyxl
           python3 tests/test_verify.py
+
+      - name: 函数名对抗集与 guard 死代码
+        run: |
+          pip install --quiet pytest 'sympy==1.13.3' openpyxl
+          python3 -m pytest tests/test_verify.py tests/test_guard_dead_code.py -q
+          python3 tests/adversarial/guard_dead_code.py .
 
       - name: 错题本脚本冒烟测试
         run: |

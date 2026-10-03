@@ -120,7 +120,6 @@ PEP_CHEM_BX1_CH1_REQUIRED = (
     "电解质", "电离", "离子方程式", "离子反应发生的条件",
     "化合价", "氧化剂", "还原剂", "四种基本反应类型",
 )
-PEP_CHEM_BX1_CH1_FORBIDDEN = ("电石", "PH₃", "PH3", "Cu₃P", "Cu3P")
 # Canonical display name -> needles in _normalize_forbidden_text output.
 PEP_CHEM_FORBIDDEN_NEEDLES = (
     ("电石", ("电石", "碳化钙", "cac2")),
@@ -306,16 +305,6 @@ _RESP_HEAD_RE = re.compile(r"^(?:分别为|分别是)\s*[：:]?\s*")
 _RESP_SPLIT_RE = re.compile(r"\s*(?:和|与|、|,|，)\s*")
 
 
-def _skip_paren(text):
-    if not text or text[0] not in "(（":
-        return text
-    closer = ")" if text[0] == "(" else "）"
-    idx = text.find(closer, 1)
-    if idx < 0:
-        return text[1:]
-    return text[idx + 1:]
-
-
 def _split_paren(text):
     if not text or text[0] not in "(（":
         return None, text
@@ -413,12 +402,6 @@ def _try_named_chunk(hits):
     scores = [h[3] for h in hits]
     weights = tuple(table[n] for n in names)
     return scores, weights, hits[0][0], hits[-1][1]
-
-
-def _parse_five_scores(line):
-    """抽出一行里的五项 1-5 分；认顿号/逗号、5/4/3/2/1、x/5、全角数字。"""
-    groups = _positional_spans(line, occupied=[])
-    return groups[0][2] if groups else None
 
 
 def _positional_spans(line, occupied):
@@ -1199,8 +1182,6 @@ TOPO_PLACEHOLDERS = ("略", "待补", "之后再说")
 EXTEND_MARK_RE = re.compile(r"L3|拓展|延伸")
 NOTEBOOK_HEADING = "【错题本条目】"
 UNCOVERED_MARK = "此章正典待补录"
-RULE_STUDY = "modes/self-study.md"
-RULE_LABEL = "SKILL.md「全局模式」状态标签"
 
 
 def canon_display(name):

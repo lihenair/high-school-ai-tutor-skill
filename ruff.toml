@@ -1,0 +1,4 @@
+[lint.per-file-ignores]
+"tests/adversarial/*.jsonl" = ["ALL"]
+"tests/adversarial/guard_dead_code.py" = ["ALL"]
+"tests/adversarial/nb_cases.py" = ["ALL"]
