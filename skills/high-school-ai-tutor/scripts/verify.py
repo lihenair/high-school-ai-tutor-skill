@@ -405,17 +405,27 @@ def _canonical_func(name):
     return _FUNC_CANON_BY_LOWER.get(str(name).lower())
 
 
-def _bare_arg(digits, letter, only_digits, only_letter, func_token=""):
-    if func_token.isupper():
-        if letter:
-            letter = letter.lower()
-        if only_letter:
-            only_letter = only_letter.lower()
+def _bare_arg(digits, letter, only_digits, only_letter):
     if digits and letter:
         return f"{digits}*{letter}"
     if only_digits:
         return only_digits
     return only_letter
+
+
+def _glued_arg_unclear(func_token, letter, only_letter):
+    """Casefold applies to the function name only; glued args keep their case.
+
+    All-caps glue such as SINE/COSE/COSHX, or title-case words such as Sine,
+    does not make the trailing letter's intent clear, so the rewrite must fail
+    rather than lowercase the argument (E must never become the constant e).
+    """
+    arg = letter or only_letter or ""
+    if not arg:
+        return False
+    if func_token.isupper() and arg.isupper():
+        return True
+    return arg == "e" and func_token[:1].isupper()
 
 
 def _rewrite_bare_calls(text):
@@ -425,7 +435,9 @@ def _rewrite_bare_calls(text):
         digits, letter, only_digits, only_letter = match.group(2, 3, 4, 5)
         if name == "log" and only_digits and not letter:
             return match.group(0)
-        return f"{name}({_bare_arg(digits, letter, only_digits, only_letter, token)})"
+        if _glued_arg_unclear(token, letter, only_letter):
+            raise ValueError("unclear glued argument")
+        return f"{name}({_bare_arg(digits, letter, only_digits, only_letter)})"
 
     def letter_repl(match):
         coeff = match.group(1)
@@ -434,7 +446,9 @@ def _rewrite_bare_calls(text):
         digits, letter, only_digits, only_letter = match.group(3, 4, 5, 6)
         if name == "log" and only_digits and not letter:
             return match.group(0)
-        return f"{coeff}*{name}({_bare_arg(digits, letter, only_digits, only_letter, token)})"
+        if _glued_arg_unclear(token, letter, only_letter):
+            raise ValueError("unclear glued argument")
+        return f"{coeff}*{name}({_bare_arg(digits, letter, only_digits, only_letter)})"
 
     text = _BARE_CALL.sub(repl, text)
     return _LETTER_FUNC_CALL.sub(letter_repl, text)
@@ -452,7 +466,10 @@ def _parse(sympy, text, bound=()):
     if _bare_equals(raw):
         left, right = raw.split("=", 1)
         raw = f"Eq({left.strip()}, {right.strip()})"
-    raw = _rewrite_bare_calls(raw)
+    try:
+        raw = _rewrite_bare_calls(raw)
+    except ValueError:
+        return None
     if _LOG_GLUED_DIGITS.search(raw):
         return None
     raw = _NUMBER_LIT.sub(lambda match: f'Rational("{match.group(1)}")', raw)
@@ -1081,7 +1098,10 @@ def _ambiguous_elementary_charge(sympy, expr, where, claim):
 
 
 def _has_unresolved_func_ident(text):
-    raw = _rewrite_bare_calls(_normalize_math_text(text).replace("^", "**"))
+    try:
+        raw = _rewrite_bare_calls(_normalize_math_text(text).replace("^", "**"))
+    except ValueError:
+        return True
     try:
         tokens = tokenize.generate_tokens(io.StringIO(raw).readline)
     except tokenize.TokenError:

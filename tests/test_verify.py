@@ -423,7 +423,7 @@ class AdversarialVerifyFuncCasefoldJsonlTests(unittest.TestCase):
             if not raw.strip():
                 continue
             rows.append(json.loads(raw))
-        self.assertEqual(len(rows), 20)
+        self.assertEqual(len(rows), 36)
         for case in rows:
             result = verify.check_math(case["expr"], case.get("where") or "")
             self.assertIn(

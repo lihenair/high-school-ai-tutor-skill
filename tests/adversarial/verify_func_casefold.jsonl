@@ -1,7 +1,7 @@
-{"id": "u01", "expr": "SINx == sin(x)", "where": "", "expect": ["通过"], "why": "全大写函数名紧贴字母，按 sin(x)"}
-{"id": "u02", "expr": "Sinx == sin(x)", "where": "", "expect": ["通过"], "why": "首字母大写函数名紧贴字母"}
-{"id": "u03", "expr": "ABSx == abs(x)", "where": "", "expect": ["通过"], "why": "ABS 紧贴 x 是 abs(x)，不是独立符号"}
-{"id": "u04", "expr": "COSHX == cosh(x)", "where": "", "expect": ["通过"], "why": "最长匹配：COSH 而不是 COS"}
+{"id": "u01", "expr": "SINx == sin(x)", "where": "", "expect": ["通过"], "why": "全大写函数名紧贴小写字母，按 sin(x)"}
+{"id": "u02", "expr": "Sinx == sin(x)", "where": "", "expect": ["通过"], "why": "首字母大写函数名紧贴小写字母"}
+{"id": "u03", "expr": "ABSx == abs(x)", "where": "", "expect": ["通过"], "why": "ABS 紧贴小写 x 是 abs(x)，不是独立符号"}
+{"id": "u04", "expr": "COSHX == cosh(x)", "where": "", "expect": ["无法解析"], "why": "全大写粘连分不清 X 是否为 x，不得转小写后判通过"}
 {"id": "u05", "expr": "COSH(0) == 1", "where": "", "expect": ["通过"], "why": "全大写双曲余弦带括号"}
 {"id": "u06", "expr": "SIN(0) == 0", "where": "", "expect": ["通过"], "why": "全大写 sin 带括号，不得当成 SIN*0"}
 {"id": "u07", "expr": "ABS(-2) == 2", "where": "", "expect": ["通过"], "why": "全大写 abs 带括号"}
@@ -9,7 +9,7 @@
 {"id": "u09", "expr": "MAXAB == b", "where": "a = 3; b = 2", "expect": ["无法解析"], "why": "两参函数紧贴：不得当未知数判通过"}
 {"id": "u10", "expr": "SQRTAB == ab", "where": "a = 4; b = 9", "expect": ["无法解析", "矛盾"], "why": "不得把 SQRTAB 当未知数判通过"}
 {"id": "u11", "expr": "SINxy == sin(x*y)", "where": "", "expect": ["通过", "无法解析"], "why": "多字母尾巴有歧义，不得判矛盾"}
-{"id": "u12", "expr": "2SINx == 2*sin(x)", "where": "", "expect": ["通过"], "why": "数字系数 + 全大写紧贴"}
+{"id": "u12", "expr": "2SINx == 2*sin(x)", "where": "", "expect": ["通过"], "why": "数字系数 + 全大写函数名紧贴小写字母"}
 {"id": "u13", "expr": "LOG_2(8) == 3", "where": "", "expect": ["通过"], "why": "全大写 log 下划线底数"}
 {"id": "u14", "expr": "Abs(-3) == 3", "where": "", "expect": ["通过"], "why": "回归：合法 Abs"}
 {"id": "u15", "expr": "Max(2, 3) == 3", "where": "", "expect": ["通过"], "why": "回归：合法 Max"}
@@ -18,3 +18,19 @@
 {"id": "u18", "expr": "F == q*E", "where": "q = 1.6e-19; E = 2e4", "expect": ["通过"], "why": "回归：大写 E 是变量"}
 {"id": "u19", "expr": "SIN == 0", "where": "", "expect": ["无法解析"], "why": "孤立函数名"}
 {"id": "u20", "expr": "SINx == 1", "where": "x = 0", "expect": ["矛盾"], "why": "真不等仍要判矛盾"}
+{"id": "u21", "expr": "COSHX == cosh(X)", "where": "", "expect": ["无法解析"], "why": "全大写粘连对照大写自变量，不得转小写后判矛盾"}
+{"id": "u22", "expr": "SINE == 0", "where": "E = 0", "expect": ["无法解析"], "why": "SINE 像单词；不得把 E 转成 e 后因 where 未代入而判矛盾"}
+{"id": "u23", "expr": "SINE == sin(E)", "where": "", "expect": ["无法解析"], "why": "SINE 分不清 SIN(E) 还是单词"}
+{"id": "u24", "expr": "SINE == sin(e)", "where": "", "expect": ["无法解析"], "why": "不得把紧贴的 E 转成自然常数后判通过"}
+{"id": "u25", "expr": "Sine == sin(e)", "where": "", "expect": ["无法解析"], "why": "Sine 像单词，不得按 sin(e) 判通过"}
+{"id": "u26", "expr": "Sine == 0", "where": "E = 0", "expect": ["无法解析"], "why": "Sine 紧贴 e 时不得当自然常数；where 的 E 对不上"}
+{"id": "u27", "expr": "COSE == cos(E)", "where": "", "expect": ["无法解析"], "why": "COSE 像单词，不得判通过或矛盾"}
+{"id": "u28", "expr": "ABSX == abs(X)", "where": "", "expect": ["无法解析"], "why": "全大写紧贴 X，对照 abs(X) 不得因转小写判矛盾"}
+{"id": "u29", "expr": "ABSX == abs(x)", "where": "", "expect": ["无法解析"], "why": "全大写紧贴 X，不得转小写后对 abs(x) 判通过"}
+{"id": "u30", "expr": "SINA == sin(A)", "where": "", "expect": ["无法解析"], "why": "全大写紧贴 A，对照 sin(A) 不得转小写后判矛盾"}
+{"id": "u31", "expr": "ABSE == 0", "where": "E = 0", "expect": ["无法解析"], "why": "紧贴大写 E 不得转成 e；where 给 E 赋值也不得据此判矛盾"}
+{"id": "u32", "expr": "SINX == 0", "where": "X = 0", "expect": ["无法解析"], "why": "全大写 SINX 分不清自变量，不得判通过或矛盾"}
+{"id": "u33", "expr": "Lnx == ln(x)", "where": "", "expect": ["通过"], "why": "回归：Lnx 仍求值"}
+{"id": "u34", "expr": "LOG₂8 == 3", "where": "", "expect": ["通过"], "why": "回归：LOG₂8 仍求值"}
+{"id": "u35", "expr": "1.6E-19 == 1.6e-19", "where": "", "expect": ["通过"], "why": "科学计数法 E 不受函数名大小写规则影响"}
+{"id": "u36", "expr": "Min(-1, 4) == -1", "where": "", "expect": ["通过"], "why": "回归：合法 Min"}
