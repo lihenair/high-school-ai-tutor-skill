@@ -390,6 +390,28 @@ class AdversarialVerifyNotationJsonlTests(unittest.TestCase):
                 self.assertNotIn("E", result.detail.replace("detail:", ""))
 
 
+class AdversarialVerifyFuncJsonlTests(unittest.TestCase):
+    """tests/adversarial/verify_func_cases.jsonl：函数名紧贴自变量对抗集。"""
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_verify_func_cases_jsonl(self):
+        path = Path(__file__).resolve().parent / "adversarial" / "verify_func_cases.jsonl"
+        rows = []
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            if not raw.strip():
+                continue
+            rows.append(json.loads(raw))
+        self.assertEqual(len(rows), 65)
+        for case in rows:
+            result = verify.check_math(case["expr"], case.get("where") or "")
+            self.assertIn(
+                result.status,
+                case["expect"],
+                f"{case['id']}: {case['expr']} where {case.get('where')!r} "
+                f"-> {result.status} detail={result.detail!r} expect={case['expect']}",
+            )
+
+
 class AdversarialVerifyCorpusTests(unittest.TestCase):
     @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
     def test_verify_corpus(self):
