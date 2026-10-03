@@ -33,6 +33,9 @@ jobs:
       - name: 回复守卫
         run: python3 tests/test_guard.py
 
+      - name: E8 加权对抗集
+        run: python3 tests/test_e8_adversarial.py
+
       - name: 学生画像与开场路由
         run: python3 tests/test_profile.py
 

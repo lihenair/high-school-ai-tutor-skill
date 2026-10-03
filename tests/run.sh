@@ -53,6 +53,14 @@ run self-study/14-diagnosis-judge.txt study 0
 run self-study/15-repair-step.txt study 0
 run self-study/16-solve-unlabeled.txt study 0
 
+echo "--- E8 adversarial ---"
+if python3 tests/test_e8_adversarial.py; then
+  pass=$((pass + 1))
+else
+  fail=$((fail + 1))
+  echo "FAIL tests/test_e8_adversarial.py"
+fi
+
 echo "--- guard regression baseline ---"
 if python3 tests/baseline/run_baseline.py; then
   pass=$((pass + 1))
