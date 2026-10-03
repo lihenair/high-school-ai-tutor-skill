@@ -412,6 +412,28 @@ class AdversarialVerifyFuncJsonlTests(unittest.TestCase):
             )
 
 
+class AdversarialVerifyFuncCasefoldJsonlTests(unittest.TestCase):
+    """tests/adversarial/verify_func_casefold.jsonl：函数名大小写不敏感。"""
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_verify_func_casefold_jsonl(self):
+        path = Path(__file__).resolve().parent / "adversarial" / "verify_func_casefold.jsonl"
+        rows = []
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            if not raw.strip():
+                continue
+            rows.append(json.loads(raw))
+        self.assertEqual(len(rows), 20)
+        for case in rows:
+            result = verify.check_math(case["expr"], case.get("where") or "")
+            self.assertIn(
+                result.status,
+                case["expect"],
+                f"{case['id']}: {case['expr']} where {case.get('where')!r} "
+                f"-> {result.status} detail={result.detail!r} expect={case['expect']}",
+            )
+
+
 class AdversarialVerifyCorpusTests(unittest.TestCase):
     @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
     def test_verify_corpus(self):

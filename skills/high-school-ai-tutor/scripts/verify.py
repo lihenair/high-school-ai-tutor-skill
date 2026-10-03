@@ -84,8 +84,11 @@ _FUNCTIONS = {
 }
 _CALLABLE_NAMES = frozenset({"Eq", "Rational", *_FUNCTIONS})
 _KEEP_IDENTIFIERS = _CALLABLE_NAMES | {"pi", "e", "oo", "zoo", "nan", "inf"}
+_FUNC_CANON_BY_LOWER = {}
+for _func_key in _FUNCTIONS:
+    _FUNC_CANON_BY_LOWER.setdefault(_func_key.lower(), _func_key)
 _LETTER_JUXTAPOSE = re.compile(r"^[a-z]{2,3}$")
-_TWO_ARG_FUNCS = ("Max", "Min", "max", "min")
+_TWO_ARG_FUNCS = ("max", "min")
 _FUNC_BARE = (
     "factorial",
     "ceiling",
@@ -101,7 +104,6 @@ _FUNC_BARE = (
     "exp",
     "log",
     "abs",
-    "Abs",
     "sin",
     "cos",
     "tan",
@@ -131,23 +133,27 @@ _BARE_CALL = re.compile(
     + _FUNC_NAME_ALT
     + r")(?!\s*\()(?:\s*)"
     + _BARE_ATOM
-    + r"(?![A-Za-z])"
+    + r"(?![A-Za-z])",
+    re.IGNORECASE,
 )
 _LETTER_FUNC_CALL = re.compile(
     r"(?<![A-Za-z0-9_])([A-Za-z])("
     + _FUNC_NAME_ALT
     + r")(?!\s*\()(?:\s*)"
     + _BARE_ATOM
-    + r"(?![A-Za-z])"
+    + r"(?![A-Za-z])",
+    re.IGNORECASE,
 )
 _SUB_DIGITS = str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")
 _LOG_SUB_BASE = re.compile(
-    r"log([₀₁₂₃₄₅₆₇₈₉]+)\s*(?:\(([^()]*)\)|(\d+(?:\.\d+)?)|([A-Za-z]))"
+    r"log([₀₁₂₃₄₅₆₇₈₉]+)\s*(?:\(([^()]*)\)|(\d+(?:\.\d+)?)|([A-Za-z]))",
+    re.IGNORECASE,
 )
 _LOG_UNDERSCORE_BASE = re.compile(
-    r"log_(?:\{(\d+)\}|(\d+))\s*(?:\(([^()]*)\)|(\d+(?:\.\d+)?)|([A-Za-z]))"
+    r"log_(?:\{(\d+)\}|(\d+))\s*(?:\(([^()]*)\)|(\d+(?:\.\d+)?)|([A-Za-z]))",
+    re.IGNORECASE,
 )
-_LOG_GLUED_DIGITS = re.compile(r"(?<![A-Za-z0-9_])log\d")
+_LOG_GLUED_DIGITS = re.compile(r"(?<![A-Za-z0-9_])log\d", re.IGNORECASE)
 _extra_callables_cache = None
 _SCI_E_LIT = re.compile(r"(?<![A-Za-z0-9_])(\d+(?:\.\d+)?|\.\d+)[eE]([+-]?\d+)")
 _SCI_TEN_LIT = re.compile(
@@ -393,7 +399,18 @@ def _normalize_math_text(text):
     return raw
 
 
-def _bare_arg(digits, letter, only_digits, only_letter):
+def _canonical_func(name):
+    if name in _FUNCTIONS:
+        return name
+    return _FUNC_CANON_BY_LOWER.get(str(name).lower())
+
+
+def _bare_arg(digits, letter, only_digits, only_letter, func_token=""):
+    if func_token.isupper():
+        if letter:
+            letter = letter.lower()
+        if only_letter:
+            only_letter = only_letter.lower()
     if digits and letter:
         return f"{digits}*{letter}"
     if only_digits:
@@ -403,19 +420,21 @@ def _bare_arg(digits, letter, only_digits, only_letter):
 
 def _rewrite_bare_calls(text):
     def repl(match):
-        name = match.group(1)
+        token = match.group(1)
+        name = _canonical_func(token)
         digits, letter, only_digits, only_letter = match.group(2, 3, 4, 5)
         if name == "log" and only_digits and not letter:
             return match.group(0)
-        return f"{name}({_bare_arg(digits, letter, only_digits, only_letter)})"
+        return f"{name}({_bare_arg(digits, letter, only_digits, only_letter, token)})"
 
     def letter_repl(match):
         coeff = match.group(1)
-        name = match.group(2)
+        token = match.group(2)
+        name = _canonical_func(token)
         digits, letter, only_digits, only_letter = match.group(3, 4, 5, 6)
         if name == "log" and only_digits and not letter:
             return match.group(0)
-        return f"{coeff}*{name}({_bare_arg(digits, letter, only_digits, only_letter)})"
+        return f"{coeff}*{name}({_bare_arg(digits, letter, only_digits, only_letter, token)})"
 
     text = _BARE_CALL.sub(repl, text)
     return _LETTER_FUNC_CALL.sub(letter_repl, text)
@@ -482,9 +501,10 @@ def _insert_implicit_mul(text, extra_callables=frozenset()):
 
 
 def _named_prefix(name, candidates):
+    lower = str(name).lower()
     for func in candidates:
-        if name.startswith(func):
-            return func
+        if lower.startswith(func.lower()):
+            return func.lower()
     return None
 
 
@@ -501,17 +521,21 @@ def _expand_identifier(name):
         return [name]
     two = _two_arg_prefix(name)
     if two:
-        if name != two:
+        if name.lower() != two:
             raise ValueError("glued max/min")
-        return [name]
+        return [_canonical_func(name) or name]
     prefix = _func_prefix(name)
     if prefix:
-        if name != prefix:
+        if name.lower() != prefix:
             raise ValueError("unresolved function glue")
-        return [name]
+        return [_canonical_func(name) or name]
     if _LETTER_JUXTAPOSE.fullmatch(name):
         return list(name)
     return [name]
+
+
+def _is_call_name(name, extra_callables=frozenset()):
+    return name in _CALLABLE_NAMES or name in extra_callables or _canonical_func(name) is not None
 
 
 def _needs_mul(prev, curr, extra_callables=frozenset()):
@@ -519,8 +543,7 @@ def _needs_mul(prev, curr, extra_callables=frozenset()):
     curr_value = curr.type == tokenize.NUMBER or curr.type == tokenize.NAME or curr.string == "("
     if not prev_value or not curr_value:
         return False
-    callables = _CALLABLE_NAMES | extra_callables
-    if prev.type == tokenize.NAME and prev.string in callables and curr.string == "(":
+    if prev.type == tokenize.NAME and _is_call_name(prev.string, extra_callables) and curr.string == "(":
         return False
     return True
 
@@ -627,7 +650,8 @@ def _from_ast(sympy, node, bound=()):
             return _rational_literal(sympy, args[0])
         if node.func.id == "lg" and len(args) == 1:
             return sympy.log(args[0], 10)
-        fn_name = _FUNCTIONS.get(node.func.id)
+        canon = _canonical_func(node.func.id)
+        fn_name = _FUNCTIONS.get(canon) if canon else None
         if fn_name is not None and args:
             return getattr(sympy, fn_name)(*args)
         extra = _extra_callables(sympy)
@@ -1066,7 +1090,7 @@ def _has_unresolved_func_ident(text):
         if tok.type != tokenize.NAME:
             continue
         prefix = _func_prefix(tok.string)
-        if prefix and tok.string not in _KEEP_IDENTIFIERS:
+        if prefix and tok.string not in _KEEP_IDENTIFIERS and tok.string.lower() != prefix:
             return True
     return False
 
