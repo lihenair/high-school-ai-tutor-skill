@@ -21,9 +21,12 @@ import argparse
 import re
 import sys
 from decimal import ROUND_HALF_UP, Decimal
+from pathlib import Path
 
 DIFFICULTY_LEVELS = ("基础", "中等", "压轴", "竞赛")
-WEIGHTS = (0.30, 0.25, 0.20, 0.15, 0.10)  # 各科五维权重相同，见各 reference
+WEIGHTS = (0.30, 0.25, 0.20, 0.15, 0.10)  # 未点名维度时按位置；点名时用各科 reference 表
+_REF_DIR = Path(__file__).resolve().parent.parent / "references"
+_DIM_REF_FILES = ("math.md", "physics.md", "chemistry.md", "biology.md", "humanities.md")
 SUMMARY_HEADINGS = (
     "难度判断", "讲解", "解题思维链", "一题多解", "解法对比",
     "变式题", "错因诊断", "错题本沉淀", "总结",
@@ -152,8 +155,75 @@ def check_summary_headings(lines):
     return [n for n in range(1, 10) if n not in found]
 
 
+def parse_dimension_tables(md_text):
+    """从 reference markdown 抽出「维度 | 权重」表，每张表是 [(名, 权重), ...]。"""
+    tables = []
+    rows = []
+    header_ok = False
+    for raw in md_text.splitlines():
+        line = raw.strip()
+        if not line.startswith("|"):
+            if header_ok and len(rows) == 5:
+                tables.append(rows)
+            rows = []
+            header_ok = False
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if not cells:
+            continue
+        if all(re.fullmatch(r":?-{3,}:?", c.replace(" ", "") or "-") for c in cells):
+            continue
+        if cells[0] == "维度" and len(cells) >= 2 and "权重" in cells[1]:
+            header_ok = True
+            rows = []
+            continue
+        if header_ok and len(cells) >= 2:
+            m = re.match(r"(\d+(?:\.\d+)?)\s*%", cells[1])
+            if m:
+                rows.append((cells[0], float(m.group(1)) / 100.0))
+    if header_ok and len(rows) == 5:
+        tables.append(rows)
+    return tables
+
+
+def load_dimension_tables(ref_dir=None):
+    root = Path(ref_dir) if ref_dir else _REF_DIR
+    out = []
+    for name in _DIM_REF_FILES:
+        path = root / name
+        if not path.is_file():
+            continue
+        for rows in parse_dimension_tables(path.read_text(encoding="utf-8")):
+            out.append({k: v for k, v in rows})
+    return out
+
+
+DIMENSION_TABLES = load_dimension_tables()
+
+
+def _compile_dim_score_re(tables):
+    names = sorted({n for t in tables for n in t}, key=len, reverse=True)
+    if not names:
+        return None
+    alt = "|".join(re.escape(n) for n in names)
+    return re.compile(
+        rf"({alt})"
+        rf"(?:\s*[（(][^)）]*[)）])?"
+        rf"\s*[：:]?\s*"
+        rf"({_DIGIT_1_5})(?:\s*/\s*5)?(?:\s*分)?"
+    )
+
+
+def _table_for_names(names):
+    key = frozenset(names)
+    hits = [t for t in DIMENSION_TABLES if frozenset(t) == key]
+    if len(hits) != 1:
+        return None
+    return hits[0]
+
+
 # 加权分抽取：只认引入关键字后的等号链，不扫回复其余部分。
-_WEIGHTED_LABEL_RE = re.compile(r"加权(?:总分|得分|分)?")
+_WEIGHTED_LABEL_RE = re.compile(r"加权(?:总分|得分|分(?!别))?")
 _WEIGHTED_CONT_RE = re.compile(r"^\s*[=＝≈]")
 _WEIGHTED_FIRST_CONN_RE = re.compile(r"^(?:[=＝:：≈]|为|是)\s*")
 _WEIGHTED_SENTENCE_END_RE = re.compile(r"[。！？]")
@@ -184,6 +254,26 @@ _CN_DIGIT = {
 }
 _CLAUSE_PUNCT = "，,；;"
 _CHAIN_OPS = "=＝≈"
+_DIM_SCORE_RE = _compile_dim_score_re(DIMENSION_TABLES)
+_RUBRIC_HINT_RE = re.compile(r"档位|档|锚点|依次|分别表示|越高越|为中位")
+_GRADE_INTERVAL_RE = re.compile(
+    r"等级区间|[≤＜<＞>]\s*\d+\.\d+|\d+\.\d+\s*[–\-]\s*\d+\.\d+"
+)
+_ANCHOR_EQ_RE = re.compile(r"[1-5１-５]\s*分\s*[=＝]")
+_ANCHOR_PAREN_RE = re.compile(r"[1-5１-５]\s*分\s*[（(]")
+_LEGEND_TABLE_RE = re.compile(r"\|\s*[1-5１-５]\s*分")
+_WEIGHTED_SKIP_HEAD_RE = re.compile(
+    r"^(?:"
+    r"也就是|约等于|"
+    r"得到|得出|后得|算得|所得|"
+    r"等于|"
+    r"得|计|为|是|即|约|"
+    r"后|结果|计算|出来|值|的|"
+    r"[,，:：]"
+    r")\s*"
+)
+_RESP_HEAD_RE = re.compile(r"^(?:分别为|分别是)\s*[：:]?\s*")
+_RESP_SPLIT_RE = re.compile(r"\s*(?:和|与|、|,|，)\s*")
 
 
 def _skip_paren(text):
@@ -196,18 +286,46 @@ def _skip_paren(text):
     return text[idx + 1:]
 
 
+def _split_paren(text):
+    if not text or text[0] not in "(（":
+        return None, text
+    closer = ")" if text[0] == "(" else "）"
+    idx = text.find(closer, 1)
+    if idx < 0:
+        return text[1:], ""
+    return text[1:idx], text[idx + 1:]
+
+
+def _paren_unwrap_value(inner):
+    """括号里只有一个数（可带 = / 即）时返回可解析文本，否则 None。"""
+    s = inner.strip()
+    if not s or re.search(r"满分|权重", s):
+        return None
+    s = re.sub(r"^(?:[=＝≈]|即)\s*", "", s).strip()
+    if _parse_plain_number(s) is None:
+        return None
+    return s
+
+
 def _skip_modifiers(text):
     """关键字后跳过同一小句里的短修饰词和括号，再读分隔符或数值。"""
     s = text
-    for _ in range(8):
+    for _ in range(12):
         s = s.lstrip()
         if not s:
             return s
         if s[0] in "(（":
-            nxt = _skip_paren(s)
-            if nxt == s:
+            inner, after = _split_paren(s)
+            if inner is None:
                 return s
-            s = nxt
+            unwrapped = _paren_unwrap_value(inner)
+            if unwrapped is not None:
+                return unwrapped + after
+            s = after
+            continue
+        m = _WEIGHTED_SKIP_HEAD_RE.match(s)
+        if m:
+            s = s[m.end():]
             continue
         m = _WEIGHTED_MOD_RE.match(s)
         if m:
@@ -217,25 +335,212 @@ def _skip_modifiers(text):
     return s
 
 
+def _span_end_with_fen(line, end):
+    after = line[end:]
+    stripped = after.lstrip()
+    if stripped.startswith("分"):
+        return end + len(after) - len(stripped) + 1
+    return end
+
+
+def _overlaps(a0, a1, b0, b1):
+    return a0 < b1 and b0 < a1
+
+
+def _is_scale_legend_scores(scores):
+    return set(scores) == {1, 2, 3, 4, 5} and len(scores) == 5
+
+
+def _line_has_rubric_hint(line):
+    return bool(
+        _RUBRIC_HINT_RE.search(line)
+        or _ANCHOR_EQ_RE.search(line)
+        or _ANCHOR_PAREN_RE.search(line)
+        or ("|" in line and _LEGEND_TABLE_RE.search(line) and re.search(r"5\s*分", line))
+    )
+
+
+def _skip_positional_span(line, scores):
+    return _line_has_rubric_hint(line) and _is_scale_legend_scores(scores)
+
+
+def _named_hits_on_line(line):
+    if not _DIM_SCORE_RE:
+        return []
+    out = []
+    for m in _DIM_SCORE_RE.finditer(line):
+        out.append((m.start(), m.end(), m.group(1), fullwidth_int(m.group(2))))
+    return out
+
+
+def _try_named_chunk(hits):
+    if len(hits) != 5:
+        return None
+    names = [h[2] for h in hits]
+    table = _table_for_names(names)
+    if table is None:
+        return "reject"
+    scores = [h[3] for h in hits]
+    weights = tuple(table[n] for n in names)
+    return scores, weights, hits[0][0], hits[-1][1]
+
+
 def _parse_five_scores(line):
     """抽出一行里的五项 1-5 分；认顿号/逗号、5/4/3/2/1、x/5、全角数字。"""
+    groups = _positional_spans(line, occupied=[])
+    return groups[0][2] if groups else None
+
+
+def _positional_spans(line, occupied):
+    """返回 [(start, end, scores), ...]，避开 occupied 区间。"""
+    found = []
+
+    def take(start, end, scores):
+        if any(_overlaps(start, end, a, b) for a, b in occupied):
+            return
+        if any(_overlaps(start, end, a, b) for a, b, _ in found):
+            return
+        if _skip_positional_span(line, scores):
+            return
+        found.append((start, _span_end_with_fen(line, end), scores))
+
     if "标准" not in line:
-        m = _FIVE_SLASH_RE.search(line)
-        if m:
-            return [fullwidth_int(g) for g in m.groups()]
-        items = _PER_ITEM_OVER_FIVE_RE.findall(line)
+        for m in _FIVE_SLASH_RE.finditer(line):
+            take(m.start(), m.end(), [fullwidth_int(g) for g in m.groups()])
+        items = list(_PER_ITEM_OVER_FIVE_RE.finditer(line))
         if len(items) == 5:
-            return [fullwidth_int(x) for x in items]
-    m = _FIVE_COMMA_RE.search(line)
-    if m:
+            take(items[0].start(), items[-1].end(), [fullwidth_int(m.group(1)) for m in items])
+    for m in _FIVE_COMMA_RE.finditer(line):
         after = line[m.end():].lstrip()
         before = line[:m.start()]
         if after.startswith("分") or "各项" in before:
-            return [fullwidth_int(g) for g in m.groups()]
-    m = SCORES_RE.search(line)
-    if not m:
+            take(m.start(), m.end(), [fullwidth_int(g) for g in m.groups()])
+    for m in SCORES_RE.finditer(line):
+        take(m.start(), m.end(), [fullwidth_int(g) for g in m.groups()])
+    found.sort(key=lambda x: x[0])
+    return found
+
+
+def _collect_score_groups(lines):
+    """按出现位置列出五项分组：(pos, end_pos, scores, weights)。"""
+    groups = []
+    occupied = [[] for _ in lines]
+    i = 0
+    n = len(lines)
+    while i < n:
+        line = lines[i]
+        if _GRADE_INTERVAL_RE.search(line) and "加权" not in line:
+            i += 1
+            continue
+        hits = _named_hits_on_line(line)
+        if len(hits) >= 5:
+            j = 0
+            consumed = False
+            while j + 5 <= len(hits):
+                chunk = hits[j:j + 5]
+                result = _try_named_chunk(chunk)
+                if result == "reject":
+                    for h in chunk:
+                        occupied[i].append((h[0], h[1]))
+                    j += 5
+                    consumed = True
+                    continue
+                if result:
+                    scores, weights, start, end = result
+                    groups.append(((i, start), (i, end), scores, weights))
+                    occupied[i].append((start, end))
+                    j += 5
+                    consumed = True
+                    continue
+                j += 1
+            if consumed:
+                for start, end, scores in _positional_spans(line, occupied[i]):
+                    groups.append(((i, start), (i, end), scores, WEIGHTS))
+                    occupied[i].append((start, end))
+                i += 1
+                continue
+        if len(hits) == 1:
+            run = [(i, hits[0])]
+            k = i + 1
+            while k < n and len(run) < 5:
+                nxt = lines[k]
+                if not nxt.strip() or HEADING_RE.match(nxt):
+                    break
+                more = _named_hits_on_line(nxt)
+                if len(more) != 1:
+                    break
+                run.append((k, more[0]))
+                k += 1
+            if len(run) == 5:
+                chunk = [h for _, h in run]
+                result = _try_named_chunk(chunk)
+                if result == "reject":
+                    for li, h in run:
+                        occupied[li].append((h[0], h[1]))
+                    i = run[-1][0] + 1
+                    continue
+                if result:
+                    scores, weights, _, _ = result
+                    start_li, start_h = run[0]
+                    end_li, end_h = run[-1]
+                    groups.append((
+                        (start_li, start_h[0]),
+                        (end_li, end_h[1]),
+                        scores,
+                        weights,
+                    ))
+                    for li, h in run:
+                        occupied[li].append((h[0], h[1]))
+                    i = end_li + 1
+                    continue
+        for start, end, scores in _positional_spans(line, occupied[i]):
+            groups.append(((i, start), (i, end), scores, WEIGHTS))
+            occupied[i].append((start, end))
+        i += 1
+    groups.sort(key=lambda g: g[0])
+    return groups
+
+
+def _expect_weighted(scores, weights):
+    return round(sum(s * w for s, w in zip(scores, weights)), 2)
+
+
+def _leading_respectively(text):
+    s = text.lstrip()
+    for _ in range(6):
+        s = s.lstrip()
+        if not s:
+            return None
+        if s[0] in "，,、；;：:":
+            s = s[1:]
+            continue
+        m = _RESP_HEAD_RE.match(s)
+        if m:
+            return s[m.end():]
         return None
-    return [fullwidth_int(g) for g in m.groups()]
+    return None
+
+
+def _parse_resp_values(body):
+    clipped = re.sub(r"^[\s:：=＝≈]+", "", _cut_clause(body))
+    parts = [p.strip() for p in _RESP_SPLIT_RE.split(clipped) if p.strip()]
+    values = []
+    for part in parts:
+        val = _parse_plain_number(part)
+        if val is None:
+            return []
+        values.append(val)
+    return values
+
+
+def _paragraph_bounds(lines, line_i):
+    start = line_i
+    while start > 0 and lines[start - 1].strip() and not HEADING_RE.match(lines[start - 1]):
+        start -= 1
+    end = line_i + 1
+    while end < len(lines) and lines[end].strip() and not HEADING_RE.match(lines[end]):
+        end += 1
+    return start, end
 
 
 def _cut_clause(text):
@@ -421,14 +726,23 @@ def _claimed_from_chain(body, first_sep=""):
 
 def check_weighted(lines):
     """报了五项评分时核对加权。返回 (五项分, 账面加权, 应得加权) 或 None。"""
-    score_events = []
+    score_events = _collect_score_groups(lines)
     claim_events = []
+    resp_events = []
     for i, line in enumerate(lines):
-        found = _parse_five_scores(line)
-        if found:
-            score_events.append((i, found))
+        if _GRADE_INTERVAL_RE.search(line) and not _WEIGHTED_LABEL_RE.search(line):
+            continue
         for m in _WEIGHTED_LABEL_RE.finditer(line):
             rest = line[m.end():]
+            pos = (i, m.start())
+            resp_rest = _leading_respectively(rest)
+            if resp_rest is not None:
+                body = _weighted_chain_body(lines, i, resp_rest)
+                values = _parse_resp_values(body)
+                if not values:
+                    continue
+                resp_events.append((pos, values))
+                continue
             skipped = _skip_modifiers(rest)
             if _is_weight_description(skipped):
                 continue
@@ -438,26 +752,48 @@ def check_weighted(lines):
             claimed, plains = _claimed_from_chain(body, first_sep=first_sep)
             if claimed is None:
                 continue
-            claim_events.append((i, claimed, plains))
+            claim_events.append((pos, claimed, plains))
     if not score_events:
         return None
-    for gi, (si, scores) in enumerate(score_events):
-        next_si = score_events[gi + 1][0] if gi + 1 < len(score_events) else None
-        expect = round(sum(s * w for s, w in zip(scores, WEIGHTS)), 2)
-        window = [
-            (c, p) for (ci, c, p) in claim_events
-            if ci >= si and (next_si is None or ci < next_si)
+    assigned = {gi: [] for gi in range(len(score_events))}
+    for pos, values in resp_events:
+        p_start, p_end = _paragraph_bounds(lines, pos[0])
+        before = [
+            gi for gi, (sp, ep, scores, weights) in enumerate(score_events)
+            if sp < pos and p_start <= sp[0] < p_end
         ]
+        if len(before) != len(values):
+            before = [gi for gi, (sp, ep, scores, weights) in enumerate(score_events) if sp < pos]
+        if len(before) != len(values):
+            gi = before[0] if before else 0
+            scores, weights = score_events[gi][2], score_events[gi][3]
+            expect = _expect_weighted(scores, weights)
+            return scores, expect + 1.0, expect
+        for gi, val in zip(before, values):
+            assigned[gi].append((val, []))
+    last_window = []
+    last_scores = score_events[-1][2]
+    last_expect = _expect_weighted(last_scores, score_events[-1][3])
+    for gi, (sp, ep, scores, weights) in enumerate(score_events):
+        expect = _expect_weighted(scores, weights)
+        next_start = score_events[gi + 1][0] if gi + 1 < len(score_events) else None
+        if assigned[gi]:
+            window = assigned[gi]
+        else:
+            window = [
+                (c, p) for (cp, c, p) in claim_events
+                if cp >= ep and (next_start is None or cp < next_start)
+            ]
+        last_window = window
+        last_scores, last_expect = scores, expect
         if not window:
             return scores, None, expect
         for claimed, plains in window:
             for value in (claimed, *plains):
                 if abs(value - expect) > 0.005:
                     return scores, value, expect
-    last_scores = score_events[-1][1]
-    last_claim = window[-1][0]
-    expect = round(sum(s * w for s, w in zip(last_scores, WEIGHTS)), 2)
-    return last_scores, last_claim, expect
+    last_claim = last_window[-1][0]
+    return last_scores, last_claim, last_expect
 
 
 def weighted_error(scores, claimed, expect):
