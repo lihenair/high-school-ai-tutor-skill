@@ -44,7 +44,7 @@ jobs:
 
       - name: pytest
         run: |
-          pip install --quiet pytest
+          pip install --quiet pytest openpyxl 'sympy==1.13.3'
           python3 -m pytest tests/
 
       - name: 学生画像与开场路由
