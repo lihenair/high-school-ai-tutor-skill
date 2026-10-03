@@ -44,6 +44,8 @@ class VerifyResult:
 VERIFY_TIMEOUT_SEC = 1.5
 VERIFY_RETRY_TIMEOUT_SEC = 12.0
 _MAX_INT_DIGITS = 16
+_MAX_INT_LITERAL_DIGITS = 40
+_MAX_TEN_EXP = 308
 _FORMULA = re.compile(r"^[0-9A-Za-z+\-*/^=<>!().,\s_]+$")
 _NUMBER_LIT = re.compile(
     r"(?<![A-Za-z0-9_])(\d+\.\d+(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)"
@@ -68,7 +70,18 @@ _FUNCTIONS = {
 _CALLABLE_NAMES = frozenset({"Eq", "Rational", *_FUNCTIONS})
 _KEEP_IDENTIFIERS = _CALLABLE_NAMES | {"pi", "e", "oo", "zoo", "nan", "inf"}
 _LETTER_JUXTAPOSE = re.compile(r"^[a-z]{2,3}$")
+_FUNC_BARE = ("sqrt", "sin", "cos", "tan", "exp", "log", "ln", "lg")
+_BARE_CALL = re.compile(
+    r"(?<![A-Za-z0-9_])("
+    + "|".join(_FUNC_BARE)
+    + r")(?!\s*\()(?:\s*)(?:(\d+(?:\.\d+)?)([A-Za-z])|(\d+(?:\.\d+)?)|([A-Za-z]))(?![A-Za-z])"
+)
+_SCI_E_LIT = re.compile(r"(?<![A-Za-z0-9_])(\d+(?:\.\d+)?|\.\d+)[eE]([+-]?\d+)")
+_SCI_TEN_LIT = re.compile(
+    r"(?<![A-Za-z0-9_])(?:(\d+(?:\.\d+)?|\.\d+)\*)?10\*\*([+-]?\d+)"
+)
 _SUP_DIGITS = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹", "0123456789")
+_SUP_RUN = re.compile(r"⁻?[⁰¹²³⁴⁵⁶⁷⁸⁹]+")
 _VULGAR_FRACTIONS = {
     "½": "(1/2)", "⅓": "(1/3)", "⅔": "(2/3)", "¼": "(1/4)", "¾": "(3/4)",
     "⅕": "(1/5)", "⅖": "(2/5)", "⅗": "(3/5)", "⅘": "(4/5)", "⅙": "(1/6)",
@@ -231,7 +244,7 @@ def _check_math(sympy, expr, where):
     if not condition:
         if _has_undefined(sympy, claim):
             return VerifyResult("无法解析", "式子含未定义值")
-        return _closed(sympy, claim, ulp)
+        return _finalize(sympy, expr, where, claim, _closed(sympy, claim, ulp))
     parts = _split_where(condition)
     parsed = [_parse(sympy, part, bound) for part in parts]
     if any(item is None for item in parsed):
@@ -239,25 +252,26 @@ def _check_math(sympy, expr, where):
     if all(_is_assignment(sympy, item) for item in parsed):
         conflict = _assignment_conflict(sympy, parsed)
         if conflict is not None:
-            return conflict
+            return _finalize(sympy, expr, where, claim, conflict)
         chained = _resolve_assignment_chain(sympy, parsed)
-        return _substitute(sympy, claim, chained, ulp)
+        return _finalize(sympy, expr, where, claim, _substitute(sympy, claim, chained, ulp))
     if len(parsed) == 1 and _is_expr(sympy, claim) and _is_expr(sympy, parsed[0]):
-        return _expressions_equal(sympy, claim, parsed[0])
+        return _finalize(sympy, expr, where, claim, _expressions_equal(sympy, claim, parsed[0]))
     if len(parsed) == 1 and _is_constraint(sympy, claim) and _is_constraint(sympy, parsed[0]):
-        return _relations_equal(sympy, claim, parsed[0])
+        return _finalize(sympy, expr, where, claim, _relations_equal(sympy, claim, parsed[0]))
     return VerifyResult("无法解析", "这组式子无法比对")
 
 
-def _parse(sympy, text, bound=()):
+def _sup_to_pow(match):
+    token = match.group(0)
+    sign = "-" if token.startswith("⁻") else ""
+    digits = token.replace("⁻", "").translate(_SUP_DIGITS)
+    return "**" + sign + digits
+
+
+def _normalize_math_text(text):
     raw = str(text or "").strip()
-    if not raw:
-        return None
-    raw = re.sub(
-        r"[⁰¹²³⁴⁵⁶⁷⁸⁹]+",
-        lambda match: "**" + match.group(0).translate(_SUP_DIGITS),
-        raw,
-    )
+    raw = _SUP_RUN.sub(_sup_to_pow, raw)
     for glyph, repl in _VULGAR_FRACTIONS.items():
         raw = raw.replace(glyph, repl)
     raw = re.sub(r"√\s*(\d+(?:\.\d+)?)", r"sqrt(\1)", raw)
@@ -271,6 +285,8 @@ def _parse(sympy, text, bound=()):
         .replace("²", "**2")
         .replace("³", "**3")
         .replace("¹", "**1")
+        .replace("π", "pi")
+        .replace("≈", "==")
     )
     raw = unicodedata.normalize("NFKC", raw)
     raw = (
@@ -280,6 +296,28 @@ def _parse(sympy, text, bound=()):
         .replace("−", "-")
         .replace("＝", "=")
     )
+    return raw
+
+
+def _rewrite_bare_calls(text):
+    def repl(match):
+        name = match.group(1)
+        digits, letter, only_digits, only_letter = match.group(2, 3, 4, 5)
+        if digits and letter:
+            arg = f"{digits}*{letter}"
+        elif only_digits:
+            arg = only_digits
+        else:
+            arg = only_letter
+        return f"{name}({arg})"
+
+    return _BARE_CALL.sub(repl, text)
+
+
+def _parse(sympy, text, bound=()):
+    raw = _normalize_math_text(text)
+    if not raw:
+        return None
     if "__" in raw or not _FORMULA.fullmatch(raw):
         return None
     if _ATTR_DOT.search(_NUMBER_LIT.sub("", raw)):
@@ -288,6 +326,7 @@ def _parse(sympy, text, bound=()):
     if _bare_equals(raw):
         left, right = raw.split("=", 1)
         raw = f"Eq({left.strip()}, {right.strip()})"
+    raw = _rewrite_bare_calls(raw)
     raw = _NUMBER_LIT.sub(lambda match: f'Rational("{match.group(1)}")', raw)
     raw = _insert_implicit_mul(raw)
     try:
@@ -330,8 +369,17 @@ def _insert_implicit_mul(text):
     return "".join(pieces)
 
 
+def _func_prefix(name):
+    for func in _FUNC_BARE:
+        if name.startswith(func):
+            return func
+    return None
+
+
 def _expand_identifier(name):
     if name in _KEEP_IDENTIFIERS:
+        return [name]
+    if _func_prefix(name):
         return [name]
     if _LETTER_JUXTAPOSE.fullmatch(name):
         return list(name)
@@ -368,7 +416,7 @@ def _from_ast(sympy, node, bound=()):
         if isinstance(node.value, bool) or node.value is None:
             raise ValueError("bad constant")
         if isinstance(node.value, int):
-            if abs(node.value) >= 10 ** _MAX_INT_DIGITS:
+            if len(str(abs(node.value))) > _MAX_INT_LITERAL_DIGITS:
                 raise ValueError("integer too large")
             return sympy.Integer(node.value)
         if isinstance(node.value, float):
@@ -455,10 +503,21 @@ def _compare(sympy, op, left, right):
     return fn(left, right)
 
 
+def _is_ten(base):
+    try:
+        return bool(getattr(base, "is_Integer", False)) and abs(int(base)) == 10
+    except (TypeError, ValueError, OverflowError):
+        return False
+
+
 def _reject_huge_pow(base, exp):
     if not getattr(exp, "is_Integer", False):
         return
     exponent = int(exp)
+    if _is_ten(base):
+        if abs(exponent) > _MAX_TEN_EXP:
+            raise ValueError("exponent too large")
+        return
     if exponent > 256:
         raise ValueError("exponent too large")
     if getattr(base, "is_Integer", False):
@@ -557,12 +616,18 @@ def _closed(sympy, claim, ulp=None):
             approx = _numeric_pass(sympy, claim, ulp)
             if approx is not None:
                 return approx
+            pi_approx = _pi_schoolbook(sympy, claim, ulp)
+            if pi_approx is not None:
+                return pi_approx
             return VerifyResult("矛盾", f"化简为 {_relation_text(sympy, claim)}")
         if claim.lhs.free_symbols and claim.rhs.free_symbols:
             return _expressions_equal(sympy, claim.lhs, claim.rhs)
         approx = _numeric_pass(sympy, claim, ulp)
         if approx is not None:
             return approx
+        pi_approx = _pi_schoolbook(sympy, claim, ulp)
+        if pi_approx is not None:
+            return pi_approx
         return VerifyResult("无法解析", "这个式子不是恒真或恒假")
     if not _is_relational(sympy, claim):
         return VerifyResult("无法解析", "没有条件时只能判断恒真或恒假的式子")
@@ -581,7 +646,7 @@ def _assignment_conflict(sympy, assignments):
         if previous is not None:
             try:
                 if sympy.simplify(previous - item.rhs) != 0:
-                    return VerifyResult("矛盾", f"条件自相矛盾：{item.lhs} 不能同时为 {previous} 与 {item.rhs}")
+                    return VerifyResult("矛盾", f"条件自相矛盾：{item.lhs} 不能同时为 {_sympy_text(sympy, previous)} 与 {_sympy_text(sympy, item.rhs)}")
             except (TypeError, ValueError, ArithmeticError, AttributeError):
                 return VerifyResult("无法解析", "条件无法解析")
         seen[item.lhs] = item.rhs
@@ -681,12 +746,18 @@ def _substitute(sympy, claim, assignments, ulp=None):
             approx = _numeric_pass(sympy, replaced, ulp)
             if approx is not None:
                 return approx
-        values = "，".join(f"{item.lhs} = {item.rhs}" for item in assignments)
+            pi_approx = _pi_schoolbook(sympy, replaced, ulp)
+            if pi_approx is not None:
+                return pi_approx
+        values = "，".join(f"{item.lhs} = {_sympy_text(sympy, item.rhs)}" for item in assignments)
         return VerifyResult("矛盾", f"代入 {values} 后为 {_relation_text(sympy, claim, assignments)}")
     if isinstance(replaced, sympy.Equality):
         approx = _numeric_pass(sympy, replaced, ulp)
         if approx is not None:
             return approx
+        pi_approx = _pi_schoolbook(sympy, replaced, ulp)
+        if pi_approx is not None:
+            return pi_approx
     if _determined_unknown(sympy, claim, replaced, assignments):
         return VerifyResult("通过")
     if replaced.free_symbols:
@@ -705,7 +776,7 @@ def _expressions_equal(sympy, left, right):
     if same is True:
         return VerifyResult("通过")
     if same is False:
-        return VerifyResult("矛盾", f"化简差为 {diff}")
+        return VerifyResult("矛盾", f"化简差为 {_sympy_text(sympy, diff)}")
     return VerifyResult("无法解析", "两个式子无法判断是否相同")
 
 
@@ -747,12 +818,118 @@ def _relation_text(sympy, expr, assignments=()):
         value = expr
         for item in assignments:
             value = value.subs(item.lhs, item.rhs)
-        return str(sympy.simplify(value))
+        return _sympy_text(sympy, sympy.simplify(value))
     lhs, rhs = expr.lhs, expr.rhs
     for item in assignments:
         lhs = lhs.subs(item.lhs, item.rhs)
         rhs = rhs.subs(item.lhs, item.rhs)
-    return f"{sympy.simplify(lhs)} {expr.rel_op} {sympy.simplify(rhs)}"
+    return f"{_sympy_text(sympy, sympy.simplify(lhs))} {expr.rel_op} {_sympy_text(sympy, sympy.simplify(rhs))}"
+
+
+def _sympy_text(sympy, expr):
+    return str(expr.subs(sympy.E, sympy.Symbol("e")))
+
+
+def _pi_schoolbook(sympy, claim, ulp=None):
+    if not isinstance(claim, sympy.Equality):
+        return None
+    try:
+        if not claim.has(sympy.pi):
+            return None
+    except (TypeError, ValueError, AttributeError):
+        return None
+    approx = sympy.Rational(314, 100)
+    replaced = sympy.Eq(
+        claim.lhs.subs(sympy.pi, approx),
+        claim.rhs.subs(sympy.pi, approx),
+        evaluate=False,
+    )
+    if _has_undefined(sympy, replaced):
+        return None
+    try:
+        simplified = sympy.simplify(replaced)
+    except (TypeError, ValueError, ArithmeticError, AttributeError):
+        return None
+    status = _truth(sympy, simplified)
+    if status == "通过":
+        return VerifyResult("通过", "按 π≈3.14 近似")
+    numeric = _numeric_pass(sympy, replaced, ulp)
+    if numeric is not None:
+        return VerifyResult("通过", "按 π≈3.14 近似")
+    return None
+
+
+def _tiny_sci_literal(expr, where):
+    blob = _normalize_math_text(f"{expr}\n{where or ''}").replace("^", "**")
+    values = []
+    for match in _SCI_E_LIT.finditer(blob):
+        try:
+            values.append(abs(Decimal(match.group(1)) * (Decimal(10) ** int(match.group(2)))))
+        except (ArithmeticError, ValueError):
+            continue
+    for match in _SCI_TEN_LIT.finditer(blob):
+        mant = match.group(1)
+        try:
+            coeff = Decimal(mant) if mant else Decimal(1)
+            values.append(abs(coeff * (Decimal(10) ** int(match.group(2)))))
+        except (ArithmeticError, ValueError):
+            continue
+    return any(value <= Decimal("1e-10") for value in values)
+
+
+def _e_nonlinear(sympy, expr):
+    if expr is None:
+        return False
+    try:
+        func = expr.func
+        if func == sympy.Pow and len(expr.args) >= 1 and expr.args[0] == sympy.E:
+            return True
+        if func in (sympy.log, sympy.exp) and expr.has(sympy.E):
+            return True
+        return any(_e_nonlinear(sympy, arg) for arg in getattr(expr, "args", ()))
+    except (TypeError, ValueError, AttributeError):
+        return False
+
+
+def _ambiguous_elementary_charge(sympy, expr, where, claim):
+    if "e" in _bound_names(where):
+        return False
+    try:
+        if not claim.has(sympy.E):
+            return False
+    except (TypeError, ValueError, AttributeError):
+        return False
+    if _e_nonlinear(sympy, claim):
+        return False
+    return _tiny_sci_literal(expr, where)
+
+
+def _has_unresolved_func_ident(text):
+    raw = _rewrite_bare_calls(_normalize_math_text(text).replace("^", "**"))
+    try:
+        tokens = tokenize.generate_tokens(io.StringIO(raw).readline)
+    except tokenize.TokenError:
+        return False
+    for tok in tokens:
+        if tok.type != tokenize.NAME:
+            continue
+        prefix = _func_prefix(tok.string)
+        if prefix and tok.string not in _KEEP_IDENTIFIERS:
+            return True
+    return False
+
+
+def _finalize(sympy, expr, where, claim, result):
+    if result.status != "矛盾":
+        return result
+    if _ambiguous_elementary_charge(sympy, expr, where, claim):
+        return VerifyResult(
+            "无法解析",
+            "e 可能指元电荷；如是，请在 --where 写 e = 1.6e-19",
+        )
+    if _has_unresolved_func_ident(f"{expr}\n{where or ''}"):
+        return VerifyResult("无法解析", "函数写法无法确定")
+    return result
 
 
 # 五态退出码；2 留给 argparse 的用法错误。

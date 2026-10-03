@@ -3,6 +3,7 @@
 
 import contextlib
 import io
+import json
 import subprocess
 import sys
 import threading
@@ -363,6 +364,30 @@ class CliTests(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(proc.stdout.splitlines()[0], "通过")
+
+
+class AdversarialVerifyNotationJsonlTests(unittest.TestCase):
+    """tests/adversarial/verify_cases.jsonl：写法缺口对抗集，状态须落在 expect 列表内。"""
+
+    @unittest.skipUnless(sympy_ready(), "未安装 SymPy")
+    def test_verify_cases_jsonl(self):
+        path = Path(__file__).resolve().parent / "adversarial" / "verify_cases.jsonl"
+        rows = []
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            if not raw.strip():
+                continue
+            rows.append(json.loads(raw))
+        self.assertEqual(len(rows), 50)
+        for case in rows:
+            result = verify.check_math(case["expr"], case.get("where") or "")
+            self.assertIn(
+                result.status,
+                case["expect"],
+                f"{case['id']}: {case['expr']} where {case.get('where')!r} "
+                f"-> {result.status} detail={result.detail!r} expect={case['expect']}",
+            )
+            if case["id"] == "e12":
+                self.assertNotIn("E", result.detail.replace("detail:", ""))
 
 
 class AdversarialVerifyCorpusTests(unittest.TestCase):
