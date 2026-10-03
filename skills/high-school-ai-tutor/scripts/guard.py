@@ -1027,6 +1027,28 @@ SLOT_MARKERS = (
     "易混辨析", "判别自测", "拓展入口",
 )
 QUESTION_LINE_RE = re.compile(r"^\s*(?:（\d+）|\(\d+\)|\d+[.、．])")
+STEP_LINE_RE = re.compile(r"^\s*(Step\s*[1-7]|第[一二三四五六七1-7]步)\s*$")
+_SLOT_ALT = "|".join(re.escape(name) for name in SLOT_MARKERS)
+SLOT_HEAD_RE = re.compile(
+    rf"^\s*(?:[-*]\s+|\d+[.、．]\s*)?(?:\*\*)?({_SLOT_ALT})(?:\*\*)?\s*(?:[：:](.*))?$"
+)
+SLOT_HEAD_BOLD_COLON_RE = re.compile(
+    rf"^\s*(?:[-*]\s+|\d+[.、．]\s*)?\*\*({_SLOT_ALT})\s*[：:](.*)\*\*\s*$"
+)
+TOPO_HEAD_RE = re.compile(r"^\s*(拓扑学习顺序|拓扑顺序)")
+JUDGE_HEAD_RE = re.compile(r"^\s*(判定：|判定结果|判定:)")
+REPAIR_HEAD_RE = re.compile(r"^\s*补步(?:\s*[：:—–-]|$)")
+NEXT_CH_HEAD_RE = re.compile(r"^\s*下一章")
+DASH_ITEM_RE = re.compile(r"^\s*-\s+\S")
+STAR_ITEM_RE = re.compile(r"^\s*\*\s+\S")
+NUM_ITEM_RE = re.compile(r"^\s*\d+[.、．]\s+\S")
+INLINE_QNUM_RE = re.compile(r"（\d+）|\(\d+\)")
+LEAD_QNUM_RE = re.compile(r"^\s*\d+[.、．]")
+NEXT_Q_RE = re.compile(r"^\s*(下一题|再来一题|下一道)")
+ARROW_SPLIT_RE = re.compile(r"\s*(?:→|->|⟶)\s*")
+NUMBERED_Q_LINE_RE = re.compile(r"^\s*(?:（\d+）|\(\d+\)|\d+[.、．]).*[？?]\s*$")
+QMARK_RE = re.compile(r"[？?]")
+TOPO_PLACEHOLDERS = ("略", "待补", "之后再说")
 EXTEND_MARK_RE = re.compile(r"L3|拓展|延伸")
 NOTEBOOK_HEADING = "【错题本条目】"
 UNCOVERED_MARK = "此章正典待补录"
@@ -1047,19 +1069,198 @@ def canon_display(name):
     return ""
 
 
-def looks_like_solving(text):
-    """解题轮免标。七槽或判别自测出现时不再当成解题轮。"""
-    if "判别自测" in text or "一句话定义" in text:
-        return False
-    first = next((line.strip() for line in text.splitlines() if line.strip()), "")
-    return first.startswith("难度：") or first.startswith("难度:")
+def _slot_header(line):
+    """行首槽名（可带列表/编号/加粗）及冒号后的同行内容。"""
+    bold = SLOT_HEAD_BOLD_COLON_RE.match(line)
+    if bold:
+        return bold.group(1), (bold.group(2) or "").strip()
+    match = SLOT_HEAD_RE.match(line)
+    if not match:
+        return None
+    return match.group(1), (match.group(2) or "").strip()
 
 
-def question_lines(lines):
-    numbered = [index for index, line in enumerate(lines, 1) if QUESTION_LINE_RE.match(line)]
+def _slot_names_on_line(line):
+    return [name for name in SLOT_MARKERS if name in line]
+
+
+def _following_dash_list(lines, index):
+    nxt = index + 1
+    if nxt < len(lines) and not lines[nxt].strip():
+        nxt += 1
+    return nxt < len(lines) and DASH_ITEM_RE.match(lines[nxt])
+
+
+def has_study_structure(text):
+    """E17a：这一轮是自学结构，不能凭「难度：」免标。"""
+    if "【模式：自学" in text or "快诊" in text:
+        return True
+    lines = text.splitlines() or [""]
+    for index, line in enumerate(lines):
+        if STEP_LINE_RE.match(line) or _slot_header(line):
+            return True
+        if TOPO_HEAD_RE.match(line) or JUDGE_HEAD_RE.match(line) or REPAIR_HEAD_RE.match(line):
+            return True
+        if NEXT_CH_HEAD_RE.match(line) and _following_dash_list(lines, index):
+            return True
+    return False
+
+
+def _label_elsewhere(lines):
+    return any(STUDY_LABEL_RE.match(line.strip()) for line in lines[1:])
+
+
+def _question_sentence_count(text):
+    pieces = QMARK_RE.split(text)
+    return sum(1 for piece in pieces[:-1] if piece.strip())
+
+
+def _selftest_has_question(body):
+    if any(QUESTION_LINE_RE.match(line) for line in body.splitlines()):
+        return True
+    return _question_sentence_count(body) >= 1
+
+
+def _collect_slot_entries(lines):
+    crowded = []
+    entries = []
+    for index, line in enumerate(lines):
+        if len(_slot_names_on_line(line)) >= 2:
+            crowded.append(index)
+        header = _slot_header(line)
+        if header:
+            entries.append((index, header[0], header[1]))
+    return entries, crowded
+
+
+def _slot_body(lines, entries, idx):
+    line_i, _name, rest = entries[idx]
+    end = entries[idx + 1][0] if idx + 1 < len(entries) else len(lines)
+    chunks = [rest] if rest else []
+    for raw in lines[line_i + 1:end]:
+        if STEP_LINE_RE.match(raw):
+            continue
+        if raw.strip():
+            chunks.append(raw.strip())
+    return "\n".join(chunks).strip()
+
+
+def _seven_slot_problem(lines):
+    entries, crowded = _collect_slot_entries(lines)
+    if crowded:
+        return "同一行出现了两个及以上槽名"
+    names = [item[1] for item in entries]
+    if names != list(SLOT_MARKERS):
+        return "节点轮既不是七槽，也不是补步问答"
+    for idx, (_line_i, name, _rest) in enumerate(entries):
+        body = _slot_body(lines, entries, idx)
+        if not body:
+            return f"「{name}」槽为空"
+        if name == "判别自测" and not _selftest_has_question(body):
+            return "判别自测里没有题"
+    return None
+
+
+def _repair_problem(lines, text):
+    if any(_slot_header(line) for line in lines):
+        return "补步轮不要写七槽"
+    if any(STEP_LINE_RE.match(line) for line in lines):
+        return "补步轮不要写 Step 行"
+    if _question_sentence_count(text) != 1:
+        return "补步轮只能问一个问题"
+    return None
+
+
+def _topo_placeholder(text):
+    stripped = text.strip().strip("。．.！!").strip()
+    if not stripped:
+        return True
+    if stripped in TOPO_PLACEHOLDERS:
+        return True
+    return any(stripped.startswith(token) for token in TOPO_PLACEHOLDERS)
+
+
+def _topo_nodes_from_text(text):
+    stripped = text.strip().strip("。．.")
+    if not stripped or _topo_placeholder(stripped):
+        return []
+    if ARROW_SPLIT_RE.search(stripped):
+        parts = [part.strip() for part in ARROW_SPLIT_RE.split(stripped) if part.strip()]
+    elif "、" in stripped:
+        parts = [part.strip() for part in stripped.split("、") if part.strip()]
+    else:
+        parts = [stripped]
+    nodes = []
+    for part in parts:
+        part = part.strip().strip("。．.")
+        if part and not _topo_placeholder(part):
+            nodes.append(part)
+    return nodes
+
+
+def _item_text(line):
+    if NUM_ITEM_RE.match(line):
+        return NUM_ITEM_RE.sub("", line, count=1).strip()
+    return re.sub(r"^\s*[-*]\s+", "", line).strip()
+
+
+def _topo_node_count(lines):
+    for index, line in enumerate(lines):
+        match = TOPO_HEAD_RE.match(line)
+        if not match:
+            continue
+        rest = line[match.end():].strip().lstrip("：:").strip()
+        nodes = _topo_nodes_from_text(rest)
+        cursor = index + 1
+        while cursor < len(lines):
+            nxt = lines[cursor]
+            if not nxt.strip():
+                cursor += 1
+                continue
+            if NUM_ITEM_RE.match(nxt) or DASH_ITEM_RE.match(nxt) or STAR_ITEM_RE.match(nxt):
+                nodes.extend(_topo_nodes_from_text(_item_text(nxt)))
+                cursor += 1
+                continue
+            break
+        return len(nodes)
+    return 0
+
+
+def _diagnosis_question_count(lines):
+    judge = {index for index, line in enumerate(lines) if JUDGE_HEAD_RE.match(line)}
+    numbered = 0
+    next_extra = 0
+    for index, line in enumerate(lines):
+        if index in judge:
+            continue
+        numbered += len(INLINE_QNUM_RE.findall(line))
+        stripped = line.lstrip()
+        if LEAD_QNUM_RE.match(line) and not INLINE_QNUM_RE.match(stripped):
+            numbered += 1
+        if NEXT_Q_RE.match(line) and not INLINE_QNUM_RE.search(line) and not LEAD_QNUM_RE.match(line):
+            next_extra += 1
     if numbered:
-        return numbered
-    return [index for index, line in enumerate(lines, 1) if ("？" in line or "?" in line)]
+        return numbered + next_extra
+    body = "\n".join(line for index, line in enumerate(lines) if index not in judge)
+    questions = _question_sentence_count(body)
+    unmarked_next = 0
+    for index, line in enumerate(lines):
+        if index in judge:
+            continue
+        if NEXT_Q_RE.match(line) and not QMARK_RE.search(line):
+            unmarked_next += 1
+    return questions + unmarked_next
+
+
+def _has_summary_heading(lines):
+    for line in lines:
+        match = HEADING_RE.match(line)
+        if not match:
+            continue
+        num = fullwidth_int(match.group(1))
+        if 1 <= num <= 9 and match.group(2).startswith(SUMMARY_HEADINGS[num - 1]):
+            return True
+    return False
 
 
 def check_study(text):
@@ -1080,8 +1281,17 @@ def check_study(text):
     elif first.startswith("【模式：自学 · 状态："):
         issues.append(("ERROR", "E17b", 1, "状态词不在封闭集（章览、诊断、节点、章末）",
                        "改成封闭集里的状态词后重发"))
-    elif not looks_like_solving(text):
-        issues.append(("ERROR", "E17a", 1, "自学轮缺状态标签", "补状态标签重发"))
+    elif first.startswith("难度：") or first.startswith("难度:"):
+        if has_study_structure(text):
+            message = "自学轮缺状态标签"
+            if _label_elsewhere(lines):
+                message += "；标签必须写在第一行"
+            issues.append(("ERROR", "E17a", 1, message, "补状态标签重发"))
+    else:
+        message = "自学轮缺状态标签"
+        if _label_elsewhere(lines):
+            message += "；标签必须写在第一行"
+        issues.append(("ERROR", "E17a", 1, message, "补状态标签重发"))
 
     if state == "节点":
         hit = canon_display(node_name)
@@ -1109,47 +1319,47 @@ def check_study(text):
             issues.append(("ERROR", "R2", notebook_at, "错题本条目含拓展标记词（L3、拓展或延伸）",
                            "拓展只留在节点第七槽，不要写入错题本"))
 
-    slot_at = next((index for index, line in enumerate(lines, 1) if "判别自测" in line), None)
-    if slot_at:
-        end = len(lines) + 1
-        for index in range(slot_at, len(lines)):
-            if "拓展入口" in lines[index] or re.match(r"^Step\s*7\b", lines[index].strip()):
-                end = index + 1
-                break
-        block = lines[slot_at - 1:end - 1]
-        cursor = 0
-        while cursor < len(block):
-            if not QUESTION_LINE_RE.match(block[cursor]):
-                cursor += 1
-                continue
-            nxt = cursor + 1
-            while nxt < len(block) and not QUESTION_LINE_RE.match(block[nxt]):
-                nxt += 1
-            cursor = nxt
+    if state and _has_summary_heading(lines):
+        issues.append(("ERROR", "E18", 1, "自学轮不要套九段标题",
+                       "自学轮按章览/诊断/七槽或补步/章末写，不要套完整模式九段标题"))
 
-    if state == "章览" and "拓扑" not in text:
-        issues.append(("ERROR", "E18", 1, "章览缺少拓扑学习顺序", "在整章图后写出拓扑学习顺序"))
+    if state == "章览":
+        if _topo_node_count(lines) < 2:
+            issues.append(("ERROR", "E18", 1, "章览缺少拓扑学习顺序",
+                           "写出拓扑学习顺序，并用箭头、顿号或列表给出至少两个节点"))
+        for index, line in enumerate(lines, 1):
+            if NUMBERED_Q_LINE_RE.match(line):
+                issues.append(("ERROR", "E18", index, "章览不出编号题",
+                               "章览只写拓扑和入口；编号题留给诊断轮"))
+                break
     if state == "诊断":
-        bodies = lines[1:]
-        count = len(question_lines(bodies))
-        judged = "判定" in text
-        if judged and count == 0:
-            pass
-        elif not judged and count == 1:
-            pass
+        count = _diagnosis_question_count(lines)
+        judged = any(JUDGE_HEAD_RE.match(line) for line in lines)
+        has_slot = any(_slot_header(line) for line in lines)
+        if judged:
+            ok = count == 0
         else:
+            ok = count == 1 and not has_slot
+        if not ok:
             issues.append(("ERROR", "E18", 1,
                            "诊断轮须是恰一题的出题形态，或不再出题的判定形态",
                            "出题轮只留一道题；判定轮写判定、记录和下一跳，不要出新题"))
     if state == "节点":
-        has_slots = all(marker in text for marker in SLOT_MARKERS)
-        if not has_slots and "补步" not in text:
-            issues.append(("ERROR", "E18", 1, "节点轮既不是七槽，也不是补步问答",
+        if any(REPAIR_HEAD_RE.match(line) for line in lines):
+            problem = _repair_problem(lines, text)
+        else:
+            problem = _seven_slot_problem(lines)
+        if problem:
+            issues.append(("ERROR", "E18", 1, problem,
                            "按七槽输出，或在连错两次后只写补步问答"))
     if state == "章末":
-        has_list = "下一章" in text and any(re.match(r"\s*-\s+\S", line) for line in lines)
+        has_list = any(
+            NEXT_CH_HEAD_RE.match(line) and _following_dash_list(lines, index)
+            for index, line in enumerate(lines)
+        )
         if not has_list:
-            issues.append(("ERROR", "E18", 1, "章末预告不是文本列表", "用「下一章」加「- 」列表，不要画图"))
+            issues.append(("ERROR", "E18", 1, "章末预告不是文本列表",
+                           "用「下一章」加紧随其后的「- 」列表，不要画图"))
 
     for problem in check_mermaid_edges(text):
         issues.append(("ERROR", "E11", mermaid_at or 1, problem, "边标签只用直接前置、同章衔接、常考组合，并配上对应线型"))
