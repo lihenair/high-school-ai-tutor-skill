@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """E8 加权少见写法对抗集：把完整模式模板的评分行换成 jsonl 用例，只断言 E8。"""
 
 import json
@@ -10,7 +9,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "skills" / "high-school-ai-tutor" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-import guard  # noqa: E402
+import guard
 
 CASES = ROOT / "tests" / "adversarial" / "e8_cases.jsonl"
 TEMPLATE = (ROOT / "tests" / "adversarial" / "e8_full_template.txt").read_text(encoding="utf-8")

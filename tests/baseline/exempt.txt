@@ -26,3 +26,6 @@ g0612  # E8: main missed '加权分 2.95'; correct total 2.95
 g0619  # E8: main missed the continuation line; correct total 2.95
 g0626  # E8: main took 2.5–3.5 from the grade band; correct total 2.95
 g0628  # E8: main missed '加权总分 2.95'; correct total 2.95
+g0603  # E8: main compared both same-line groups to the first; totals 2.95 and 4.45 are correct
+g0614  # E8: main missed connector '加权得 2.95'; correct total 2.95
+g0624  # E8: main missed paren form '加权(2.95)'; correct total 2.95

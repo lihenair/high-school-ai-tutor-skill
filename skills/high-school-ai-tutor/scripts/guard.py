@@ -361,11 +361,7 @@ def _line_has_rubric_hint(line):
 
 
 def _skip_positional_span(line, scores):
-    if _line_has_rubric_hint(line) and _is_scale_legend_scores(scores):
-        return True
-    if _ANCHOR_EQ_RE.search(line) and _is_scale_legend_scores(scores):
-        return True
-    return False
+    return _line_has_rubric_hint(line) and _is_scale_legend_scores(scores)
 
 
 def _named_hits_on_line(line):
