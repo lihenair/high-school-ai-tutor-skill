@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """E17a / E18 对抗集：逐条对照 tests/adversarial/e18_cases.jsonl。"""
 
 import json
@@ -39,6 +38,7 @@ class E18AdversarialTests(unittest.TestCase):
                     result = subprocess.run(
                         [sys.executable, str(GUARD), "--mode", "study", str(reply)],
                         capture_output=True, text=True, encoding="utf-8",
+                        check=False,
                     )
                     crash = "Traceback" in result.stderr
                     self.assertFalse(crash, case["id"] + "\n" + result.stderr)

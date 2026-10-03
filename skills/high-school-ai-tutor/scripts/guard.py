@@ -1281,7 +1281,7 @@ def check_study(text):
     elif first.startswith("【模式：自学 · 状态："):
         issues.append(("ERROR", "E17b", 1, "状态词不在封闭集（章览、诊断、节点、章末）",
                        "改成封闭集里的状态词后重发"))
-    elif first.startswith("难度：") or first.startswith("难度:"):
+    elif first.startswith(("难度：", "难度:")):
         if has_study_structure(text):
             message = "自学轮缺状态标签"
             if _label_elsewhere(lines):
