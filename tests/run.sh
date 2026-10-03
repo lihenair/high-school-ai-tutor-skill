@@ -69,6 +69,14 @@ else
   echo "FAIL tests/test_e18_adversarial.py"
 fi
 
+echo "--- adversarial e12 ---"
+if python3 tests/test_adversarial_e12.py; then
+  pass=$((pass + 1))
+else
+  fail=$((fail + 1))
+  echo "FAIL tests/test_adversarial_e12.py"
+fi
+
 echo "--- guard regression baseline ---"
 if python3 tests/baseline/run_baseline.py; then
   pass=$((pass + 1))

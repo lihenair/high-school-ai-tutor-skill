@@ -39,6 +39,14 @@ jobs:
       - name: E8 加权对抗集
         run: python3 tests/test_e8_adversarial.py
 
+      - name: E11/E12 对抗集
+        run: python3 tests/test_adversarial_e12.py
+
+      - name: pytest
+        run: |
+          pip install --quiet pytest
+          python3 -m pytest tests/
+
       - name: 学生画像与开场路由
         run: python3 tests/test_profile.py
 

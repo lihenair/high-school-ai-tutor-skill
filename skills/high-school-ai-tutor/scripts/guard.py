@@ -20,6 +20,7 @@
 import argparse
 import re
 import sys
+import unicodedata
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
@@ -66,6 +67,8 @@ MERMAID_RE = re.compile(r"```[ \t]*mermaid[^\n]*\n(.*?)```", re.S)
 ARROW_TOKEN = r"(?:-\.->|-.-|o--o|x--x|-->|---|==>|===|--o|--x|o--|x--)"
 LABELED_EDGE_RE = re.compile(rf"({ARROW_TOKEN})\s*\|([^|\n]+)\|")
 UNLABELED_EDGE_RE = re.compile(ARROW_TOKEN)
+# Mermaid bidirectional / undirected connectors (with or without a |label|).
+BIDIRECTIONAL_EDGE_RE = re.compile(r"<--+>|<\.-+>|<-\.+->|<==+>|o--+o|x--+x")
 _NODE_ID_RE = re.compile(r"[\w]+(?:-[\w]+)*")
 # Longest Mermaid flowchart shapes first so inner brackets are not the label.
 _NODE_SHAPES = (
@@ -116,6 +119,23 @@ PEP_CHEM_BX1_CH1_REQUIRED = (
     "化合价", "氧化剂", "还原剂", "四种基本反应类型",
 )
 PEP_CHEM_BX1_CH1_FORBIDDEN = ("电石", "PH₃", "PH3", "Cu₃P", "Cu3P")
+# Canonical display name -> needles in _normalize_forbidden_text output.
+PEP_CHEM_FORBIDDEN_NEEDLES = (
+    ("电石", ("电石", "碳化钙", "cac2")),
+    ("PH₃", ("ph3", "磷化氢")),
+    ("Cu₃P", ("cu3p", "磷化亚铜", "磷化铜")),
+)
+_PH_ACIDITY_RE = re.compile(r"pH")
+_PH_VALUE_RE = re.compile(r"PH\s*(?:值|=)")
+_SUBSUP_TRANS = str.maketrans({
+    **{chr(0x2080 + i): str(i) for i in range(10)},
+    **{char: str(i) for i, char in enumerate("⁰¹²³⁴⁵⁶⁷⁸⁹")},
+    "⁺": "+",
+    "⁻": "-",
+    "₊": "+",
+    "₋": "-",
+})
+_SUBGRAPH_RE = re.compile(r"^subgraph\b", re.IGNORECASE)
 
 
 def fullwidth_int(ch):
@@ -813,6 +833,8 @@ def check_mermaid_edges(text):
     """每条边的标签只能是三种，线型要和标签一致。返回问题说明。"""
     problems = []
     for block in mermaid_blocks(text):
+        if BIDIRECTIONAL_EDGE_RE.search(block):
+            problems.append("整章图的边必须是单向的（前置关系有方向）")
         for arrow, label in LABELED_EDGE_RE.findall(block):
             label = label.strip()
             if label not in EDGE_LABELS:
@@ -823,6 +845,7 @@ def check_mermaid_edges(text):
             if label == "常考组合" and arrow != "-.->":
                 problems.append("「常考组合」要用虚线 -.->")
         leftover = LABELED_EDGE_RE.sub("", block)
+        leftover = BIDIRECTIONAL_EDGE_RE.sub("", leftover)
         if UNLABELED_EDGE_RE.search(leftover):
             problems.append("mermaid 里有未标注类型的边")
     return problems
@@ -860,9 +883,8 @@ def check_mermaid_style(text):
     return problems
 
 
-def mermaid_node_labels(block):
-    """Only real node definitions. Comments, directives, and edge labels are ignored."""
-    labels = []
+def _mermaid_code_lines(block):
+    """Yield mermaid source lines with %% comments stripped."""
     for raw in block.splitlines():
         line = raw.strip()
         if not line or line.startswith("%%"):
@@ -872,24 +894,73 @@ def mermaid_node_labels(block):
             line = line[:comment_at].rstrip()
             if not line:
                 continue
+        yield line
+
+
+def _iter_shaped_nodes(line):
+    """Yield (node_id, label, consumed_end) for shape definitions on a line."""
+    pos = 0
+    while pos < len(line):
+        found = _NODE_ID_RE.search(line, pos)
+        if not found:
+            break
+        inner, consumed = _shape_label_at(line, found.end())
+        if inner is None:
+            pos = found.start() + 1
+            continue
+        inner = inner.strip()
+        if inner:
+            yield found.group(0), inner, consumed
+        pos = consumed
+
+
+def mermaid_node_defs(block):
+    """Last shape-label per node id (Mermaid keeps the last definition)."""
+    last = {}
+    for line in _mermaid_code_lines(block):
         if NODE_DIRECTIVE_RE.match(line):
             continue
         line = LABELED_EDGE_RE.sub(" ", line)
         line = EDGE_TEXT_RE.sub(" ", line)
-        pos = 0
-        while pos < len(line):
-            found = _NODE_ID_RE.search(line, pos)
-            if not found:
-                break
-            inner, consumed = _shape_label_at(line, found.end())
-            if inner is None:
-                pos = found.start() + 1
-                continue
-            inner = inner.strip()
-            if inner:
-                labels.append(inner)
-            pos = consumed
-    return labels
+        for node_id, inner, _consumed in _iter_shaped_nodes(line):
+            last[node_id] = inner
+    return last
+
+
+def mermaid_node_labels(block):
+    """Only real node definitions. Comments, directives, and edge labels are ignored."""
+    return list(mermaid_node_defs(block).values())
+
+
+def mermaid_subgraph_titles(block):
+    """Visible subgraph titles (not %% comments)."""
+    titles = []
+    for line in _mermaid_code_lines(block):
+        if not _SUBGRAPH_RE.match(line):
+            continue
+        parts = line.split(None, 1)
+        if len(parts) < 2:
+            continue
+        rest = parts[1]
+        found = _NODE_ID_RE.match(rest)
+        if found:
+            inner, _consumed = _shape_label_at(rest, found.end())
+            if inner is not None:
+                titles.append(inner.strip())
+    return titles
+
+
+def mermaid_forbidden_scan_texts(block):
+    """Node labels (every definition) and subgraph titles; comments excluded."""
+    texts = list(mermaid_subgraph_titles(block))
+    for line in _mermaid_code_lines(block):
+        if NODE_DIRECTIVE_RE.match(line):
+            continue
+        line = LABELED_EDGE_RE.sub(" ", line)
+        line = EDGE_TEXT_RE.sub(" ", line)
+        for _node_id, inner, _consumed in _iter_shaped_nodes(line):
+            texts.append(inner)
+    return texts
 
 
 def _shape_label_at(line, start):
@@ -985,6 +1056,52 @@ def _label_satisfies(label, allowed):
     return bool(_label_cores(label) & allowed)
 
 
+def _label_identity(label):
+    """Same visible wording after dropping trailing parens and unifying separators."""
+    text = _normalize_label_text(label)
+    parts = [part for part in NODE_TOKEN_SPLIT_RE.split(text) if part]
+    return " ".join(parts)
+
+
+def _unique_coverage_labels(labels):
+    unique = []
+    seen = set()
+    for label in labels:
+        key = _label_identity(label)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        unique.append(label)
+    return unique
+
+
+def _normalize_forbidden_text(text):
+    """NFKC, drop pH acidity spellings, strip markup, then compact lowercase."""
+    text = unicodedata.normalize("NFKC", str(text or ""))
+    text = _PH_ACIDITY_RE.sub("\ue000", text)
+    text = _PH_VALUE_RE.sub("\ue001", text)
+    text = HTML_TAG_RE.sub("", text)
+    for mark in ("$", "_", "^", "{", "}"):
+        text = text.replace(mark, "")
+    text = text.translate(_SUBSUP_TRANS)
+    text = re.sub(r"\s+", "", text)
+    return text.lower()
+
+
+def _forbidden_present(texts):
+    found = []
+    seen = set()
+    for raw in texts:
+        norm = _normalize_forbidden_text(raw)
+        for display, needles in PEP_CHEM_FORBIDDEN_NEEDLES:
+            if display in seen:
+                continue
+            if any(needle in norm for needle in needles):
+                found.append(display)
+                seen.add(display)
+    return found
+
+
 def check_pep_chem_chapter(text):
     """整章图标记出现时，核这一章的节点是否齐全，并拒绝电石题里的物质。"""
     block = chapter_mermaid(text)
@@ -1011,10 +1128,23 @@ def check_pep_chem_chapter(text):
     ]
     if stuffed:
         problems.append("整章图把过多必需节点塞进了同一个节点")
-    covering = [label for label in labels if any(covers(label, name) for name in PEP_CHEM_BX1_CH1_REQUIRED)]
-    if covering and len(covering) < MIN_REQUIRED_NODE_LABELS:
+    unique_labels = _unique_coverage_labels(labels)
+    name_owners = {name: [] for name in PEP_CHEM_BX1_CH1_REQUIRED}
+    covering = []
+    for index, label in enumerate(unique_labels):
+        hit = False
+        for name in PEP_CHEM_BX1_CH1_REQUIRED:
+            if covers(label, name):
+                name_owners[name].append(index)
+                hit = True
+        if hit:
+            covering.append(label)
+    effective = {
+        owners[0] for owners in name_owners.values() if len(owners) == 1
+    }
+    if covering and len(effective) < MIN_REQUIRED_NODE_LABELS:
         problems.append("整章图把必需节点收进了过少的节点")
-    present = [name for name in PEP_CHEM_BX1_CH1_FORBIDDEN if any(name in label for label in labels)]
+    present = _forbidden_present(mermaid_forbidden_scan_texts(block))
     if present:
         problems.append("这一章整章图写入了题目物质：" + "、".join(present))
     return problems
