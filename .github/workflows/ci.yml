@@ -47,6 +47,11 @@ jobs:
       - name: 错题本 SM-2
         run: python3 tests/test_notebook.py
 
+      - name: 错题本损坏库对抗
+        run: |
+          pip install --quiet pytest openpyxl
+          python3 -m pytest tests/test_notebook_corrupt.py -q
+
       - name: 数学机验
         run: |
           pip install --quiet 'sympy==1.13.3'
