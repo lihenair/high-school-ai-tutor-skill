@@ -1,0 +1,50 @@
+{"id": "s01", "expr": "6.02e23 == 602000000000000000000000", "where": "", "expect": ["通过"], "why": "科学计数法等于长整数字面量"}
+{"id": "s02", "expr": "6.02*10**23 == 6.02e23", "where": "", "expect": ["通过"], "why": "10 的整数次幂（>16 位）"}
+{"id": "s03", "expr": "6.02×10^23 == 6.02e23", "where": "", "expect": ["通过"], "why": "×10^n 写法"}
+{"id": "s04", "expr": "6.02×10²³ == 6.02e23", "where": "", "expect": ["通过"], "why": "上标指数"}
+{"id": "s05", "expr": "2*6.02e23 == 1.204e24", "where": "", "expect": ["通过"], "why": "回归：已能通过"}
+{"id": "s06", "expr": "2*6.02e23 == 1.204e23", "where": "", "expect": ["矛盾"], "why": "数量级错要判矛盾"}
+{"id": "s07", "expr": "n == 1.204e24", "where": "N = 2; n = N*6.02×10^23", "expect": ["通过"], "why": "where 里的 ×10^n"}
+{"id": "s08", "expr": "3.0e8*2 == 6×10^8", "where": "", "expect": ["通过"], "why": "整数×10^n"}
+{"id": "s09", "expr": "2**4000 == 2**4000", "where": "", "expect": ["无法解析"], "why": "真正过大的幂仍记无法解析"}
+{"id": "s10", "expr": "1.6×10^-19*2 == 3.2e-19", "where": "", "expect": ["通过"], "why": "负指数 ×10^-n"}
+{"id": "l01", "expr": "lnx == ln(x)", "where": "", "expect": ["通过"], "why": "lnx 是 ln(x)，不能拆成 l*n*x"}
+{"id": "l02", "expr": "lnx + lnx == 2*ln(x)", "where": "", "expect": ["通过"], "why": ""}
+{"id": "l03", "expr": "ln2 == log(2)", "where": "", "expect": ["通过"], "why": "ln2 是 ln(2)"}
+{"id": "l04", "expr": "lg100 == 2", "where": "", "expect": ["通过"], "why": "lg100 是 lg(100)"}
+{"id": "l05", "expr": "lgx == log(x)/log(10)", "where": "", "expect": ["通过"], "why": ""}
+{"id": "l06", "expr": "sinx == sin(x)", "where": "", "expect": ["通过"], "why": "sinx 是 sin(x)"}
+{"id": "l07", "expr": "sin2x == 2*sinx*cosx", "where": "", "expect": ["通过"], "why": "sin2x 是 sin(2x)"}
+{"id": "l08", "expr": "ln x == log(x)", "where": "", "expect": ["通过"], "why": "ln 与自变量之间有空格"}
+{"id": "l09", "expr": "lnx == x", "where": "", "expect": ["矛盾", "无法解析"], "why": "真不等的式子不能判通过"}
+{"id": "l10", "expr": "lnxy == ln(x*y)", "where": "", "expect": ["通过", "无法解析"], "why": "有歧义时不得判矛盾"}
+{"id": "l11", "expr": "abc == a*b*c", "where": "", "expect": ["通过"], "why": "回归：多字母乘积仍拆"}
+{"id": "l12", "expr": "ln(e) == 1", "where": "", "expect": ["通过"], "why": "回归"}
+{"id": "l13", "expr": "2ab == 2*a*b", "where": "", "expect": ["通过"], "why": "回归"}
+{"id": "l14", "expr": "cos2x == 1 - 2*sinx**2", "where": "", "expect": ["通过"], "why": "倍角公式"}
+{"id": "p01", "expr": "π == pi", "where": "", "expect": ["通过"], "why": "π 字符"}
+{"id": "p02", "expr": "2*π*1 == 6.28", "where": "", "expect": ["通过"], "why": "π 字符 + 数值近似"}
+{"id": "p03", "expr": "pi*r**2 == 12.56", "where": "r = 2", "expect": ["通过"], "why": "按 π≈3.14 计算的结果"}
+{"id": "p04", "expr": "S == 12.56", "where": "r = 2; S = pi*r**2", "expect": ["通过"], "why": "赋值链里按 π≈3.14"}
+{"id": "p05", "expr": "pi*10**2 == 314", "where": "", "expect": ["通过"], "why": "整数结果按 π≈3.14"}
+{"id": "p06", "expr": "pi*r**2 == 12.5", "where": "r = 2", "expect": ["矛盾"], "why": "两种算法都不对"}
+{"id": "p07", "expr": "pi*10**2 == 315", "where": "", "expect": ["矛盾"], "why": ""}
+{"id": "p08", "expr": "pi < 3.14", "where": "", "expect": ["矛盾"], "why": "回归：不等式仍精确判断"}
+{"id": "p09", "expr": "π*4 ≈ 12.56", "where": "", "expect": ["通过"], "why": "≈ 当作带容差的等式"}
+{"id": "p10", "expr": "pi*r**2 == 12.56", "where": "r = 2; pi = 3.14", "expect": ["通过"], "why": "where 里显式写 pi = 3.14"}
+{"id": "p11", "expr": "pi == 3", "where": "", "expect": ["矛盾"], "why": "回归：没有小数也不按 3.14 放宽"}
+{"id": "p12", "expr": "2*pi*r == 31.4", "where": "r = 5", "expect": ["通过"], "why": "回归"}
+{"id": "e01", "expr": "E == U/d", "where": "U = 10; d = 2", "expect": ["通过"], "why": "大写 E 是变量（场强）"}
+{"id": "e02", "expr": "E == 5", "where": "U = 10; d = 2; E = U/d", "expect": ["通过"], "why": ""}
+{"id": "e03", "expr": "E == e", "where": "", "expect": ["无法解析"], "why": "大写 E 和自然常数 e 不能混同"}
+{"id": "e04", "expr": "E*e == e*E", "where": "", "expect": ["通过"], "why": ""}
+{"id": "e05", "expr": "exp(1) == e", "where": "", "expect": ["通过"], "why": ""}
+{"id": "e06", "expr": "e**2 == 7.389", "where": "", "expect": ["通过"], "why": "回归：e 作底数是自然常数"}
+{"id": "e07", "expr": "e + 1 == 3.8", "where": "", "expect": ["矛盾"], "why": "数学里线性用 e、无物理量级字面量时仍是自然常数"}
+{"id": "e08", "expr": "Q == 2*e", "where": "Q = 3.2e-19", "expect": ["通过", "无法解析"], "why": "物理元电荷：未赋值的线性 e + 1e-19 量级字面量，不得判矛盾"}
+{"id": "e09", "expr": "e == 1.6e-19", "where": "", "expect": ["通过", "无法解析"], "why": "同上"}
+{"id": "e10", "expr": "Q == 2*e", "where": "e = 1.6e-19", "expect": ["通过"], "why": "回归：where 赋值后按变量"}
+{"id": "e11", "expr": "F == q*E", "where": "q = 1.6e-19; E = 2e4", "expect": ["通过"], "why": ""}
+{"id": "e12", "expr": "2*e == 5.5", "where": "", "expect": ["矛盾"], "why": "矛盾时 detail 不得把自然常数写成大写 E"}
+{"id": "e13", "expr": "e^x == exp(x)", "where": "", "expect": ["通过"], "why": "回归"}
+{"id": "e14", "expr": "ln(e**2) == 2", "where": "", "expect": ["通过"], "why": ""}
