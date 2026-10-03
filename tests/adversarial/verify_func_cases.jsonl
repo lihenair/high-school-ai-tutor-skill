@@ -1,0 +1,65 @@
+{"id": "a01", "expr": "absx == abs(x)", "where": "", "expect": ["通过"], "why": "absx 是 abs(x)"}
+{"id": "a02", "expr": "absx**2 == x**2", "where": "", "expect": ["通过", "无法解析"], "why": "不得拆字母后判矛盾（复数符号下可无法解析）"}
+{"id": "a03", "expr": "absx == 3", "where": "x = -3", "expect": ["通过"], "why": "紧贴 abs 代入"}
+{"id": "a04", "expr": "absx == -3", "where": "x = 3", "expect": ["矛盾"], "why": "真不等仍要判矛盾"}
+{"id": "a05", "expr": "abs x == 3", "where": "x = -3", "expect": ["通过"], "why": "abs 与自变量之间有空格"}
+{"id": "a06", "expr": "2absx == abs(2*x)", "where": "", "expect": ["通过"], "why": "数字系数 + 紧贴 abs"}
+{"id": "a07", "expr": "abs2 == 2", "where": "", "expect": ["通过"], "why": "紧贴数字"}
+{"id": "a08", "expr": "absxy == abs(x*y)", "where": "", "expect": ["通过", "无法解析"], "why": "多字母尾巴有歧义，不得判矛盾"}
+{"id": "a09", "expr": "absab == a*b", "where": "a = -2; b = 3", "expect": ["无法解析", "矛盾"], "why": "不得把 absab 当未知数而判通过"}
+{"id": "b01", "expr": "maxab == b", "where": "a = 3; b = 2", "expect": ["无法解析"], "why": "两参函数紧贴：无法解析；不得当未知数判通过"}
+{"id": "b02", "expr": "minab == a", "where": "a = 3; b = 2", "expect": ["无法解析"], "why": "同上"}
+{"id": "b03", "expr": "maxab + minab == a + b", "where": "", "expect": ["无法解析"], "why": "不得把 maxab 当独立符号判矛盾"}
+{"id": "b04", "expr": "max a == 3", "where": "a = 3", "expect": ["无法解析"], "why": "max 只跟一个自变量"}
+{"id": "b05", "expr": "max(2, 3) == 3", "where": "", "expect": ["通过"], "why": "回归"}
+{"id": "b06", "expr": "min(-1, 4) == -1", "where": "", "expect": ["通过"], "why": "回归"}
+{"id": "b07", "expr": "Max(2, 3) == 3", "where": "", "expect": ["通过"], "why": "SymPy 大写名"}
+{"id": "b08", "expr": "Min(a, b) == b", "where": "a = 3; b = 2", "expect": ["通过"], "why": "SymPy 大写名带代入"}
+{"id": "c01", "expr": "sqrtab == ab", "where": "a = 4; b = 9", "expect": ["无法解析", "矛盾"], "why": "不得把 sqrtab 当未知数判通过"}
+{"id": "c02", "expr": "sqrtxy == sqrt(x*y)", "where": "", "expect": ["通过", "无法解析"], "why": "多字母尾巴有歧义"}
+{"id": "c03", "expr": "expab == 1", "where": "a = 0; b = 5", "expect": ["通过", "无法解析"], "why": "两种读法一真一假，不得判矛盾"}
+{"id": "c04", "expr": "expx*expy == exp(x+y)", "where": "", "expect": ["通过"], "why": "回归"}
+{"id": "c05", "expr": "2sqrtx == sqrt(4*x)", "where": "", "expect": ["通过"], "why": "数字系数 + 紧贴 sqrt"}
+{"id": "d01", "expr": "sec(0) == 1", "where": "", "expect": ["通过"], "why": "sec 不能拆成 s*e*c"}
+{"id": "d02", "expr": "sec(x) == 1/cos(x)", "where": "", "expect": ["通过"], "why": ""}
+{"id": "d03", "expr": "cot(pi/4) == 1", "where": "", "expect": ["通过"], "why": ""}
+{"id": "d04", "expr": "csc(pi/2) == 1", "where": "", "expect": ["通过"], "why": ""}
+{"id": "d05", "expr": "cosh(0) == 1", "where": "", "expect": ["通过"], "why": "cosh 不能读成 cos(h)"}
+{"id": "d06", "expr": "sinh(1) == sin(1)", "where": "", "expect": ["矛盾"], "why": "双曲正弦不等于正弦"}
+{"id": "d07", "expr": "tanh(0) == 0", "where": "", "expect": ["通过"], "why": ""}
+{"id": "d08", "expr": "cosh(x) == cos(h)*x", "where": "", "expect": ["矛盾", "无法解析"], "why": "不得按 cos(h)*x 判通过"}
+{"id": "d09", "expr": "arccos(0) == pi/2", "where": "", "expect": ["通过"], "why": "arccos 不能拆成字母乘积"}
+{"id": "d10", "expr": "arcsin(1) == pi/2", "where": "", "expect": ["通过"], "why": ""}
+{"id": "d11", "expr": "arctan(1) == pi/4", "where": "", "expect": ["通过"], "why": ""}
+{"id": "d12", "expr": "floor(2.5) == 2", "where": "", "expect": ["通过"], "why": ""}
+{"id": "d13", "expr": "ceil(2.1) == 3", "where": "", "expect": ["通过"], "why": "ceil 与 ceiling 同义"}
+{"id": "d14", "expr": "factorial(4) == 24", "where": "", "expect": ["通过"], "why": ""}
+{"id": "d15", "expr": "gcd(4, 6) == 2", "where": "", "expect": ["通过", "无法解析"], "why": "名单外函数：可无法解析，不得拆字母"}
+{"id": "d16", "expr": "gamma(5) == 24", "where": "", "expect": ["通过", "无法解析"], "why": "名单外函数"}
+{"id": "d17", "expr": "erf(0) == 1", "where": "", "expect": ["矛盾", "无法解析"], "why": "名单外函数：不得判通过"}
+{"id": "e01", "expr": "secx == sec(x)", "where": "", "expect": ["通过"], "why": "紧贴 sec"}
+{"id": "e02", "expr": "coshx == cosh(x)", "where": "", "expect": ["通过"], "why": "最长匹配：cosh 而不是 cos"}
+{"id": "e03", "expr": "arcsinx == arcsin(x)", "where": "", "expect": ["通过"], "why": "紧贴 arcsin"}
+{"id": "e04", "expr": "cosh2x == cosh(2*x)", "where": "", "expect": ["通过"], "why": ""}
+{"id": "f01", "expr": "asinx + bcosx == a*sin(x) + b*cos(x)", "where": "", "expect": ["通过", "无法解析"], "why": "asinx 不得读成 arcsin，也不得判矛盾"}
+{"id": "f02", "expr": "xsinx == x*sin(x)", "where": "", "expect": ["通过", "无法解析"], "why": "字母系数紧贴函数"}
+{"id": "f03", "expr": "asin(1) == pi/2", "where": "", "expect": ["通过", "无法解析"], "why": "asin 有歧义：可通过或无法解析，不得矛盾"}
+{"id": "f04", "expr": "a sinx == a*sin(x)", "where": "", "expect": ["通过"], "why": "回归：有空格"}
+{"id": "f05", "expr": "2sinx == 2*sin(x)", "where": "", "expect": ["通过"], "why": "数字系数 + 紧贴 sin"}
+{"id": "h01", "expr": "log₂8 == 3", "where": "", "expect": ["通过"], "why": "下标底数"}
+{"id": "h02", "expr": "log_2(8) == 3", "where": "", "expect": ["通过"], "why": "下划线底数"}
+{"id": "h03", "expr": "log₁₀100 == 2", "where": "", "expect": ["通过"], "why": "多位下标底数"}
+{"id": "h04", "expr": "log28 == 3", "where": "", "expect": ["无法解析"], "why": "log 紧贴数字：底数还是真数有歧义"}
+{"id": "h05", "expr": "log2x == log(2*x)", "where": "", "expect": ["通过", "无法解析"], "why": "有歧义，不得判矛盾"}
+{"id": "h06", "expr": "log(8, 2) == 3", "where": "", "expect": ["通过"], "why": "回归：SymPy 次序"}
+{"id": "h07", "expr": "log₂x == log(x)/log(2)", "where": "", "expect": ["通过"], "why": ""}
+{"id": "r01", "expr": "lnx == ln(x)", "where": "", "expect": ["通过"], "why": "回归 #42"}
+{"id": "r02", "expr": "sin2x == 2*sinx*cosx", "where": "", "expect": ["通过"], "why": "回归 #42"}
+{"id": "r03", "expr": "ab == 6", "where": "a = 2; b = 3", "expect": ["通过"], "why": "普通字母乘积不变"}
+{"id": "r04", "expr": "xyz == x*y*z", "where": "", "expect": ["通过"], "why": "普通字母乘积不变"}
+{"id": "r05", "expr": "x(x+1) == x**2 + x", "where": "", "expect": ["通过"], "why": "隐式乘法不变"}
+{"id": "r06", "expr": "lnx == x", "where": "", "expect": ["矛盾", "无法解析"], "why": "真不等不能判通过"}
+{"id": "r07", "expr": "abs(-2)abs(3) == 6", "where": "", "expect": ["通过"], "why": "回归"}
+{"id": "j01", "expr": "abs == 0", "where": "", "expect": ["无法解析"], "why": "孤立函数名"}
+{"id": "j02", "expr": "sec == 1", "where": "", "expect": ["无法解析"], "why": "孤立函数名"}
+{"id": "k01", "expr": "|x| == abs(x)", "where": "", "expect": ["通过", "无法解析"], "why": "竖线绝对值：可选支持，不得矛盾"}
